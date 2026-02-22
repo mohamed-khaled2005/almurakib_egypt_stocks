@@ -1,6 +1,10 @@
 platform :ios, '15.0'
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+# Reduce noisy Git detached-head advice in CI logs (pod install clones some pods from Git).
+ENV['GIT_CONFIG_COUNT'] = '1'
+ENV['GIT_CONFIG_KEY_0'] = 'advice.detachedHead'
+ENV['GIT_CONFIG_VALUE_0'] = 'false'
 
 project 'Runner', {
   'Debug' => :debug,
