@@ -1,4 +1,5 @@
 platform :ios, '15.0'
+use_modular_headers!
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 # Reduce noisy Git detached-head advice in CI logs (pod install clones some pods from Git).
