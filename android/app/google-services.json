@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "875588732525",
+    "project_id": "egypt-stocks-app",
+    "storage_bucket": "egypt-stocks-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875588732525:android:038351a414ab94b0726164",
+        "android_client_info": {
+          "package_name": "com.almurakib.egyptappstocks"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKRcmzt-yy98yKfTFiOoKjjfrHgxs49vg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

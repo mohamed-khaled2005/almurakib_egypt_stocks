@@ -1,0 +1,75 @@
+name: egyptian_stock_monitor
+description: تطبيق مراقب الأسهم المصرية - تطبيق احترافي لمتابعة مؤشر البورصة المصرية (EGX) وأسعار الأسهم والمفضلة
+
+publish_to: 'none'
+
+version: 5.0.7+7
+
+environment:
+  sdk: '>=2.18.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_localizations:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^4.3.0
+  firebase_analytics: ^12.1.0
+
+  # Notifications
+  onesignal_flutter: ^5.1.2
+
+  # State Management
+  provider: ^6.1.1
+
+  # Networking
+  http: ^1.1.2
+
+  # Local Storage
+  shared_preferences: ^2.2.2
+
+  # UI & Utils
+  flutter_svg: ^2.0.0
+  fl_chart: ^0.68.0
+  url_launcher: ^6.2.3
+  intl: ^0.19.0
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^3.0.1
+  flutter_launcher_icons: ^0.13.1
+  change_app_package_name: ^1.1.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/icon.png
+    - assets/images/logo.png
+
+  fonts:
+    - family: Tajawal
+      fonts:
+        - asset: assets/fonts/Tajawal-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Tajawal-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Tajawal-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Tajawal-ExtraBold.ttf
+          weight: 900
+
+# ✅ Launcher Icon (بدون Adaptive Icons)
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/icon.png"
+  image_path_ios: "assets/images/icon_ios.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
