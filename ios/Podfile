@@ -28,6 +28,10 @@ flutter_ios_podfile_setup
 target 'Runner' do
   # Work around CI/git issues with the annotated 2.4.0 tag in google/promises.
   pod 'PromisesObjC', :git => 'https://github.com/google/promises.git', :commit => '540318ecedd63d883069ae7f1ed811a2df00b6ac'
+  # Work around CI/git issues with annotated nanopb tags used by Firebase deps.
+  pod 'nanopb', :git => 'https://github.com/nanopb/nanopb.git', :commit => 'b7e1104502eca3a213b46303391ca4d3bc8ddec1'
+  # Pin OneSignal iOS SDK to the exact commit used by onesignal_flutter 5.3.5 for deterministic installs.
+  pod 'OneSignalXCFramework', :git => 'https://github.com/OneSignal/OneSignal-iOS-SDK.git', :commit => '47972a48f0bf648706e3ec7f8f837d4b3756f69c'
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
   target 'RunnerTests' do
