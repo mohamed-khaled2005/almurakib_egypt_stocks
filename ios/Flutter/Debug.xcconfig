@@ -1,1 +1,2 @@
 #include "Generated.xcconfig"
+INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = The app may access your location to determine your country for analytics purposes and improve user experience.

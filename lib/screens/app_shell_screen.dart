@@ -1,5 +1,6 @@
 // lib/screens/app_shell_screen.dart
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -38,6 +39,9 @@ class AppShellScreen extends StatefulWidget {
 class _AppShellScreenState extends State<AppShellScreen> {
   int _index = 0;
   bool _refreshing = false;
+  late final bool _hideOurAppsTab;
+  late final int _aboutScreenIndex;
+  late final int _contactScreenIndex;
   late final List<Widget> _pages;
 
   final GlobalKey _refreshHintKey = GlobalKey();
@@ -46,11 +50,15 @@ class _AppShellScreenState extends State<AppShellScreen> {
   void initState() {
     super.initState();
 
+    _hideOurAppsTab = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    _aboutScreenIndex = _hideOurAppsTab ? 3 : 4;
+    _contactScreenIndex = _hideOurAppsTab ? 4 : 5;
+
     _pages = <Widget>[
       HomeScreen(onNavigateToTab: (index) => setState(() => _index = index)),
       const MarketTodayScreen(),
       const AllStocksScreen(),
-      const OurAppsScreen(),
+      if (!_hideOurAppsTab) const OurAppsScreen(),
       const AboutScreen(),
       const ContactScreen(),
     ];
@@ -149,6 +157,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
   }
 
   void _setIndex(int i) {
+    if (i < 0 || i >= _pages.length) return;
     if (_index == i) return;
     setState(() => _index = i);
   }
@@ -194,7 +203,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
                       icon: Icons.info_outline_rounded,
                       onTap: () {
                         Navigator.pop(ctx);
-                        _setIndex(4);
+                        _setIndex(_aboutScreenIndex);
                       },
                     ),
                     Divider(
@@ -209,7 +218,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
                       icon: Icons.support_agent_rounded,
                       onTap: () {
                         Navigator.pop(ctx);
-                        _setIndex(5);
+                        _setIndex(_contactScreenIndex);
                       },
                     ),
                     const SizedBox(height: 10),
@@ -298,6 +307,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
       ),
       bottomNavigationBar: _BottomNav(
         screenIndex: _index,
+        hideOurAppsTab: _hideOurAppsTab,
         onTap: _setIndex,
         onAboutMenu: _openAboutMenu,
       ),
@@ -699,8 +709,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
 
   String _normalizeForSearch(String input) {
     var s = input.toLowerCase();
-    s = s.replaceAll(
-        RegExp(r'[\u200E\u200F\u202A-\u202E\u2066-\u2069]'), '');
+    s = s.replaceAll(RegExp(r'[\u200E\u200F\u202A-\u202E\u2066-\u2069]'), '');
     s = s.replaceAll(RegExp(r'[\"""„‟«»‹›]'), '');
     s = s.replaceAll(RegExp(r"[\''`´]"), '');
     s = s.replaceAll(
@@ -734,8 +743,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
   }
 
   Future<List<StockModel>> _loadOnce() {
-    _future ??=
-        StockService.getStocksList(perPage: perPage, page: 1).then((v) {
+    _future ??= StockService.getStocksList(perPage: perPage, page: 1).then((v) {
       _all = v;
       return v;
     });
@@ -858,8 +866,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.search_rounded,
-                      size: 64, color: AppColors.border),
+                  Icon(Icons.search_rounded, size: 64, color: AppColors.border),
                   const SizedBox(height: 12),
                   Text(
                     'اكتب اسم السهم أو الرمز للبحث السريع',
@@ -907,8 +914,8 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
                 borderRadius: BorderRadius.circular(14),
                 onTap: () => close(context, s),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Row(
                     children: [
                       Container(
@@ -953,8 +960,8 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textSecondary
-                                    .withOpacity(0.85),
+                                color:
+                                    AppColors.textSecondary.withOpacity(0.85),
                               ),
                             ),
                           ],
@@ -962,8 +969,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
                       ),
                       const SizedBox(width: 10),
                       Icon(Icons.chevron_right_rounded,
-                          color:
-                              AppColors.textSecondary.withOpacity(0.7)),
+                          color: AppColors.textSecondary.withOpacity(0.7)),
                     ],
                   ),
                 ),
@@ -982,47 +988,51 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
 
 class _BottomNav extends StatelessWidget {
   final int screenIndex;
+  final bool hideOurAppsTab;
   final ValueChanged<int> onTap;
   final VoidCallback onAboutMenu;
 
   const _BottomNav({
     required this.screenIndex,
+    required this.hideOurAppsTab,
     required this.onTap,
     required this.onAboutMenu,
   });
 
+  int get _aboutTabIndex => hideOurAppsTab ? 3 : 4;
+
   int _screenToBar(int screen) {
     if (screen <= 2) return screen;
-    if (screen == 3) return 3;
-    return 4;
+    return _aboutTabIndex;
   }
 
   @override
   Widget build(BuildContext context) {
     final int barIndex = _screenToBar(screenIndex);
 
-    const items = [
-      _NavItemData(
+    final items = <_NavItemData>[
+      const _NavItemData(
         icon: Icons.home_outlined,
         selectedIcon: Icons.home_rounded,
         label: 'الرئيسية',
       ),
-      _NavItemData(
+      const _NavItemData(
         icon: Icons.trending_up_outlined,
         selectedIcon: Icons.trending_up_rounded,
         label: 'السوق',
       ),
-      _NavItemData(
+      const _NavItemData(
         icon: Icons.list_alt_outlined,
         selectedIcon: Icons.list_alt_rounded,
         label: 'الأسهم',
       ),
-      _NavItemData(
-        icon: Icons.apps_outlined,
-        selectedIcon: Icons.apps_rounded,
-        label: 'تطبيقاتنا',
-      ),
-      _NavItemData(
+      if (!hideOurAppsTab)
+        const _NavItemData(
+          icon: Icons.apps_outlined,
+          selectedIcon: Icons.apps_rounded,
+          label: 'تطبيقاتنا',
+        ),
+      const _NavItemData(
         icon: Icons.info_outline_rounded,
         selectedIcon: Icons.info_rounded,
         label: 'عنا',
@@ -1056,7 +1066,7 @@ class _BottomNav extends StatelessWidget {
                     onTap: () {
                       if (i <= 2) {
                         onTap(i);
-                      } else if (i == 3) {
+                      } else if (!hideOurAppsTab && i == 3) {
                         onTap(3);
                       } else {
                         onAboutMenu();
