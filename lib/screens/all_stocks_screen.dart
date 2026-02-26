@@ -330,6 +330,7 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.translucent,
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         // ✅ شيلنا الخلفية اللي بتطلع حمراء
@@ -450,11 +451,9 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
                         _FilterPill(
                           label: 'المفضلة',
                           icon: Icons.star_rounded,
-                          isSelected:
-                              _filterType == StockFilterType.favorites,
+                          isSelected: _filterType == StockFilterType.favorites,
                           color: Colors.amber,
-                          onTap: () =>
-                              _updateFilter(StockFilterType.favorites),
+                          onTap: () => _updateFilter(StockFilterType.favorites),
                         ),
                       ],
                     ),
@@ -528,6 +527,7 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
       color: AppColors.primaryBlue,
       child: ListView.separated(
         controller: _scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
@@ -711,6 +711,9 @@ class _SearchField extends StatelessWidget {
           final hasText = value.text.trim().isNotEmpty;
           return TextField(
             controller: controller,
+            textInputAction: TextInputAction.done,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+            onSubmitted: (_) => FocusScope.of(context).unfocus(),
             textAlignVertical: TextAlignVertical.center,
             style: const TextStyle(
               fontFamily: 'Tajawal',
@@ -785,8 +788,7 @@ class _FilterPill extends StatelessWidget {
             if (icon != null) ...[
               Icon(icon,
                   size: 16,
-                  color:
-                      isSelected ? Colors.white : AppColors.textSecondary),
+                  color: isSelected ? Colors.white : AppColors.textSecondary),
               const SizedBox(width: 4),
             ],
             Text(
@@ -1028,9 +1030,7 @@ class _StockCard extends StatelessWidget {
                 IconButton(
                   onPressed: onFavoriteToggle,
                   icon: Icon(
-                    isFavorite
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
+                    isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
                     color: isFavorite ? Colors.amber : AppColors.border,
                     size: 26,
                   ),

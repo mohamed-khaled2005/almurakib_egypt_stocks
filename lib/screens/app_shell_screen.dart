@@ -1003,6 +1003,7 @@ class _BottomNav extends StatelessWidget {
 
   int _screenToBar(int screen) {
     if (screen <= 2) return screen;
+    if (!hideOurAppsTab && screen == 3) return 3;
     return _aboutTabIndex;
   }
 

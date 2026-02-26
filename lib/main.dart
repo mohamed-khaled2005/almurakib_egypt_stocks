@@ -179,9 +179,14 @@ class MyApp extends StatelessWidget {
       ),
 
       builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child!,
+        final appChild = child ?? const SizedBox.shrink();
+        return Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: appChild,
+          ),
         );
       },
 

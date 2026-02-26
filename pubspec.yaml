@@ -3,7 +3,7 @@ description: تطبيق مراقب الأسهم المصرية - تطبيق اح
 
 publish_to: 'none'
 
-version: 5.0.8+8
+version: 5.0.10+10
 
 environment:
   sdk: '>=2.18.0 <4.0.0'

@@ -36,7 +36,7 @@ android {
 
     defaultConfig {
         applicationId = "com.almurakib.egyptappstocks"
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
