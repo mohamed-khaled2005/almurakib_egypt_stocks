@@ -1,6 +1,7 @@
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
 import '../api/api_keys.dart';
+import '../models/market_index_model.dart';
 import '../models/stock_model.dart';
 import '../models/tasi_index_model.dart';
 import '../models/stock_indicator_model.dart';
@@ -23,6 +24,31 @@ class StockService {
     _prioritizeIndexTicker(data, ApiKeys.egyptMainIndexTicker);
 
     return TasiIndexModel.fromJson(data);
+  }
+
+  static Future<List<MarketIndexModel>> getMarketIndices() async {
+    final data = await ApiClient.get(
+      ApiEndpoints.indicesLatest(exchange: ApiKeys.egyptExchange),
+    );
+
+    LastUpdateService.updateFromApi(data);
+    _prioritizeIndexTicker(data, ApiKeys.egyptMainIndexTicker);
+
+    final response = data['response'];
+    if (response is! List) {
+      throw Exception('صيغة المؤشرات غير متوقعة');
+    }
+
+    final seenTickers = <String>{};
+    final indices = response
+        .whereType<Map>()
+        .map((entry) =>
+            MarketIndexModel.fromJson(Map<String, dynamic>.from(entry)))
+        .where((item) => item.ticker.trim().isNotEmpty)
+        .where((item) => seenTickers.add(item.ticker.trim().toUpperCase()))
+        .toList();
+
+    return indices;
   }
 
   static void _prioritizeIndexTicker(Map<String, dynamic> data, String ticker) {
@@ -162,8 +188,10 @@ class StockService {
       final nId = _norm(id);
       final nSym = _norm(sym);
 
-      final logo =
-          logoById[id] ?? logoById[nId] ?? logoBySymbol[sym] ?? logoByNormSymbol[nSym];
+      final logo = logoById[id] ??
+          logoById[nId] ??
+          logoBySymbol[sym] ??
+          logoByNormSymbol[nSym];
 
       if (logo == null || logo.trim().isEmpty) return s;
       return s.copyWith(selfLogo: logo);
@@ -207,7 +235,8 @@ class StockService {
     return StockPerformanceModel.fromJson(data);
   }
 
-  static Future<List<StockModel>> attachArabicNames(List<StockModel> stocks) async {
+  static Future<List<StockModel>> attachArabicNames(
+      List<StockModel> stocks) async {
     final translations = await TranslationService.getTranslations();
     if (translations == null) return stocks;
 

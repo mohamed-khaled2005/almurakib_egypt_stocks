@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>875588732525-c8ebu183lsm8ie0vc2bb9jrftrnp57re.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.875588732525-c8ebu183lsm8ie0vc2bb9jrftrnp57re</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>875588732525-lur1asgfa6qlksr441mrr13aa2k9pon4.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBVu_2eA_hELeVloZMqQ5lA4bPasmEEitU</string>
+	<key>GCM_SENDER_ID</key>
+	<string>875588732525</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.almurakib.egyptappstocks</string>
+	<key>PROJECT_ID</key>
+	<string>egypt-stocks-app</string>
+	<key>STORAGE_BUCKET</key>
+	<string>egypt-stocks-app.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:875588732525:ios:e38518c1a4732331726164</string>
+</dict>
+</plist>

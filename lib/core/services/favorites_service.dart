@@ -28,10 +28,7 @@ class FavoritesService {
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList(_key) ?? <String>[];
 
-    final set = list
-        .map(_norm)
-        .where((e) => e.isNotEmpty)
-        .toSet();
+    final set = list.map(_norm).where((e) => e.isNotEmpty).toSet();
 
     favoritesNotifier.value = set;
     return set.toList()..sort();
@@ -105,5 +102,13 @@ class FavoritesService {
     favoritesNotifier.value = <String>{};
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);
+  }
+
+  static Future<void> overwriteFavorites(List<String> symbols) async {
+    final next = symbols.map(_norm).where((item) => item.isNotEmpty).toSet();
+
+    favoritesNotifier.value = next;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_key, next.toList()..sort());
   }
 }

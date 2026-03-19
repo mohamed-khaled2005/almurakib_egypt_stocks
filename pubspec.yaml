@@ -3,10 +3,10 @@ description: تطبيق مراقب الأسهم المصرية - تطبيق اح
 
 publish_to: 'none'
 
-version: 5.0.10+10
+version: 5.0.11+11
 
 environment:
-  sdk: '>=2.18.0 <4.0.0'
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -18,9 +18,10 @@ dependencies:
   # Firebase
   firebase_core: ^4.3.0
   firebase_analytics: ^12.1.0
+  firebase_messaging: ^16.0.2
 
   # Notifications
-  onesignal_flutter: ^5.1.2
+  flutter_local_notifications: ^17.2.4
 
   # State Management
   provider: ^6.1.1
@@ -37,6 +38,8 @@ dependencies:
   url_launcher: ^6.2.3
   intl: ^0.20.2
   cupertino_icons: ^1.0.6
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^7.0.1
 
 dev_dependencies:
   flutter_test:
@@ -50,7 +53,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/icon.png
+    - assets/images/Icon.png
     - assets/images/logo.png
 
   fonts:
@@ -69,7 +72,7 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/icon.png"
+  image_path: "assets/images/Icon.png"
   image_path_ios: "assets/images/icon_ios.png"
   min_sdk_android: 21
   remove_alpha_ios: true

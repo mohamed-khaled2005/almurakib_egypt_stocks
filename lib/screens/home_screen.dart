@@ -18,8 +18,15 @@ import 'stock_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateToTab;
+  final int allStocksTabIndex;
+  final int? indicesTabIndex;
 
-  const HomeScreen({super.key, this.onNavigateToTab});
+  const HomeScreen({
+    super.key,
+    this.onNavigateToTab,
+    this.allStocksTabIndex = 2,
+    this.indicesTabIndex,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -195,7 +202,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _navigateToAllStocks() {
     if (widget.onNavigateToTab != null) {
-      widget.onNavigateToTab!(2);
+      widget.onNavigateToTab!(widget.allStocksTabIndex);
+    }
+  }
+
+  void _navigateToIndices() {
+    final target = widget.indicesTabIndex;
+    if (widget.onNavigateToTab != null && target != null) {
+      widget.onNavigateToTab!(target);
     }
   }
 
@@ -233,9 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           _buildHeader(currentDate),
                           const SizedBox(height: 24),
-
                           if (!_translationsAvailable) _buildTranslationAlert(),
-
                           if (_tasiIndex != null)
                             SlideAnimation(
                               child: Container(
@@ -255,12 +267,42 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                             ),
-
                           const SizedBox(height: 32),
-
-                          _buildUnifiedTitle(title: 'أداء السوق اليوم'),
+                          _buildUnifiedTitle(
+                            title: 'أداء السوق اليوم',
+                            action: widget.indicesTabIndex == null
+                                ? null
+                                : InkWell(
+                                    onTap: _navigateToIndices,
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            'المؤشرات',
+                                            style: TextStyle(
+                                              fontFamily: 'Tajawal',
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.primaryBlue,
+                                            ),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 16,
+                                            color: AppColors.primaryBlue,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                          ),
                           const SizedBox(height: 16),
-
                           if (_topGainer != null || _topLoser != null)
                             Column(
                               children: [
@@ -286,9 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                               ],
                             ),
-
                           const SizedBox(height: 32),
-
                           _buildUnifiedTitle(
                             title: 'مفضلتك',
                             action: InkWell(
@@ -310,16 +350,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     SizedBox(width: 4),
                                     Icon(Icons.arrow_forward_rounded,
-                                        size: 16,
-                                        color: AppColors.primaryBlue),
+                                        size: 16, color: AppColors.primaryBlue),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 16),
-
                           if (_favoriteStocks.isNotEmpty)
                             ...List.generate(_favoriteStocks.length, (index) {
                               final stock = _favoriteStocks[index];
@@ -346,7 +383,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               delay: const Duration(milliseconds: 250),
                               child: _buildEmptyFavoritesState(),
                             ),
-
                           const SizedBox(height: 40),
                         ],
                       ),

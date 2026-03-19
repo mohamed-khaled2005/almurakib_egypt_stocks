@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../core/utils/constants.dart';
 import '../animations/scale_animation.dart';
+import '../core/services/favorites_service.dart';
+import '../core/utils/constants.dart';
+import '../providers/app_manager_provider.dart';
 import 'app_shell_screen.dart';
 import 'onboarding_screen.dart';
 
@@ -38,33 +41,43 @@ class _SplashScreenState extends State<SplashScreen>
     _slide = Tween<Offset>(
       begin: const Offset(0, 0.25),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
 
     _controller.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) => _startFlow());
   }
 
   Future<void> _startFlow() async {
-    // اقرأ حالة الأونبوردنج
+    await FavoritesService.init();
+    await _waitForAppManager();
+
     final prefs = await SharedPreferences.getInstance();
     final completed = prefs.getBool('onboarding_completed') ?? false;
 
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future<void>.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => completed
-            ? const AppShellScreen()
-            : const OnboardingScreen(),
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            completed ? const AppShellScreen() : const OnboardingScreen(),
       ),
     );
   }
 
+  Future<void> _waitForAppManager() async {
+    final manager = context.read<AppManagerProvider>();
+    while (!manager.initialized) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final bg = Theme.of(context).scaffoldBackgroundColor;
 
     return Scaffold(
@@ -75,8 +88,9 @@ class _SplashScreenState extends State<SplashScreen>
         decoration: BoxDecoration(
           gradient: RadialGradient(
             radius: 1.6,
-            colors: [
-              _a(cs.primary, 0.10),
+            colors: <Color>[
+              _a(AppColors.accentGold, 0.14),
+              _a(AppColors.primaryBlue, 0.10),
               bg,
             ],
           ),
@@ -86,29 +100,27 @@ class _SplashScreenState extends State<SplashScreen>
             opacity: _fade,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+              children: <Widget>[
                 ScaleAnimation(
-                  child: SizedBox(
-                    width: 122,
-                    height: 122,
+                  child: Container(
+                    width: 126,
+                    height: 126,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 18,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
                     child: Image.asset(
-                      'assets/images/icon.png',
+                      'assets/images/Icon.png',
                       fit: BoxFit.contain,
                       filterQuality: FilterQuality.high,
-                      errorBuilder: (_, __, ___) {
-                        return Container(
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: _a(cs.primary, 0.08),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.assessment_rounded,
-                            size: 58,
-                            color: cs.primary,
-                          ),
-                        );
-                      },
                     ),
                   ),
                 ),
@@ -123,13 +135,13 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: 32,
-                  height: 32,
+                const SizedBox(height: 18),
+                const SizedBox(
+                  width: 34,
+                  height: 34,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
+                    strokeWidth: 2.4,
+                    color: AppColors.primaryBlue,
                   ),
                 ),
               ],
