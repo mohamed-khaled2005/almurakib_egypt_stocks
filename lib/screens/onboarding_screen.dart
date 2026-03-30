@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/utils/constants.dart';
+import '../providers/app_manager_provider.dart';
+import '../services/push_notification_service.dart';
 import 'app_shell_screen.dart';
 
 const Color _onboardingTop = Color(0xFFFFFCFC);
@@ -50,10 +55,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _continue() async {
     if (_saving) return;
     setState(() => _saving = true);
+    final manager = context.read<AppManagerProvider>();
 
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
+      unawaited(_warmUpNotifications(manager));
 
       if (!mounted) return;
 
@@ -73,6 +80,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('حدث خطأ، حاول مرة أخرى')),
       );
+    }
+  }
+
+  Future<void> _warmUpNotifications(AppManagerProvider manager) async {
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await PushNotificationService.instance.initialize().timeout(
+            const Duration(seconds: 6),
+          );
+
+      final token = await PushNotificationService.instance.getToken().timeout(
+            const Duration(seconds: 4),
+            onTimeout: () => null,
+          );
+
+      if (token != null && token.isNotEmpty && manager.isAuthenticated) {
+        await manager.registerPushToken(token);
+      }
+    } catch (_) {
+      // Notification warm-up should never block onboarding completion.
     }
   }
 

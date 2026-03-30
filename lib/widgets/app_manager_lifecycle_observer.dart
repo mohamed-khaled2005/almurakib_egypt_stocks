@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/services/favorites_service.dart';
 import '../providers/app_manager_provider.dart';
@@ -67,6 +68,7 @@ class _AppManagerLifecycleObserverState
     if (!mounted) return;
 
     await FavoritesService.init();
+    if (!mounted) return;
 
     final manager = context.read<AppManagerProvider>();
     _manager = manager;
@@ -74,14 +76,39 @@ class _AppManagerLifecycleObserverState
     manager.addListener(_handleManagerChanged);
     FavoritesService.favoritesNotifier.addListener(_handleLocalFavorites);
 
-    await _bindPushToken(manager);
+    unawaited(_bootstrapPushToken(manager));
     await _syncManagerFavoritesToLocal(force: true);
+  }
+
+  Future<void> _bootstrapPushToken(AppManagerProvider manager) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingCompleted =
+          prefs.getBool('onboarding_completed') ?? false;
+      if (!onboardingCompleted) {
+        return;
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      if (!mounted) return;
+
+      await _bindPushToken(manager);
+    } catch (_) {
+      // Notification bootstrap should not block the app.
+    }
   }
 
   Future<void> _bindPushToken(AppManagerProvider manager) async {
     try {
-      await PushNotificationService.instance.initialize();
-      final token = await PushNotificationService.instance.getToken();
+      await PushNotificationService.instance.initialize().timeout(
+            const Duration(seconds: 6),
+          );
+      if (!mounted) return;
+
+      final token = await PushNotificationService.instance.getToken().timeout(
+            const Duration(seconds: 4),
+            onTimeout: () => null,
+          );
       if (token != null && token.isNotEmpty) {
         await manager.registerPushToken(token);
       }

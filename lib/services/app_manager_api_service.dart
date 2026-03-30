@@ -320,6 +320,9 @@ class AppManagerApiService {
   Future<ManagedAppUser> updateProfile({
     required String token,
     String? fullName,
+    String? countryCode,
+    String? countryName,
+    String? phoneNumber,
     String? currentPassword,
     String? newPassword,
   }) async {
@@ -329,6 +332,9 @@ class AppManagerApiService {
       token: token,
       body: <String, dynamic>{
         'full_name': fullName,
+        'country_code': countryCode,
+        'country_name': countryName,
+        'phone_number': phoneNumber,
         'current_password': currentPassword,
         'new_password': newPassword,
       },

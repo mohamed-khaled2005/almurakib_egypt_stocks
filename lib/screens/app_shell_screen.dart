@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,12 +17,15 @@ import '../widgets/manual_ad_banner.dart';
 import 'about_screen.dart';
 import 'account_screen.dart';
 import 'all_stocks_screen.dart';
+import 'auth_screen.dart';
 import 'contact_screen.dart';
 import 'educational_content_screen.dart';
+import 'favorites_screen.dart';
 import 'home_screen.dart';
 import 'market_today_screen.dart';
 import 'market_indices_screen.dart';
 import 'our_apps_screen.dart';
+import 'profile_completion_screen.dart';
 import 'stock_detail_screen.dart';
 
 const String _almurakibWebsiteUrl = 'https://almurakib.com';
@@ -48,25 +50,29 @@ class _AppShellScreenState extends State<AppShellScreen> {
 
   int _index = 0;
   bool _refreshing = false;
+  bool _profileCompletionPromptActive = false;
   late final bool _hideOurAppsTab;
-  late List<Widget> _pages;
+  late final List<Widget?> _pageCache;
+  final Set<int> _loadedPageIndices = <int>{0};
 
   int get _homeTabIndex => 0;
   int get _marketTodayTabIndex => 1;
   int get _indicesTabIndex => 2;
   int get _allStocksTabIndex => 3;
-  int get _ourAppsTabIndex => 4;
-  int get _educationTabIndex => _hideOurAppsTab ? 4 : 5;
-  int get _aboutScreenIndex => _hideOurAppsTab ? 5 : 6;
-  int get _contactScreenIndex => _hideOurAppsTab ? 6 : 7;
-  int get _accountScreenIndex => _hideOurAppsTab ? 7 : 8;
+  int get _favoritesTabIndex => 4;
+  int get _ourAppsTabIndex => 5;
+  int get _educationTabIndex => _hideOurAppsTab ? 5 : 6;
+  int get _aboutScreenIndex => _hideOurAppsTab ? 6 : 7;
+  int get _contactScreenIndex => _hideOurAppsTab ? 7 : 8;
+  int get _accountScreenIndex => _hideOurAppsTab ? 8 : 9;
+  int get _pageCount => _accountScreenIndex + 1;
 
   @override
   void initState() {
     super.initState();
 
-    _hideOurAppsTab = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    _rebuildPages();
+    _hideOurAppsTab = false;
+    _pageCache = List<Widget?>.filled(_pageCount, null, growable: false);
 
     FavoritesService.init();
     TranslationService.getTranslations(forceRefresh: true);
@@ -93,24 +99,56 @@ class _AppShellScreenState extends State<AppShellScreen> {
   bool _isDesktopNav(BuildContext context) =>
       MediaQuery.of(context).size.width >= 1080;
 
-  bool get _showHeaderTools => _index <= _allStocksTabIndex;
+  bool get _showHeaderTools => _index <= _favoritesTabIndex;
 
-  void _rebuildPages() {
-    _pages = <Widget>[
-      HomeScreen(
+  Widget _pageForIndex(int index) {
+    final cachedPage = _pageCache[index];
+    if (cachedPage != null) {
+      return cachedPage;
+    }
+
+    final page = _buildPageForIndex(index);
+    _pageCache[index] = page;
+    return page;
+  }
+
+  Widget _buildPageForIndex(int index) {
+    if (index == _homeTabIndex) {
+      return HomeScreen(
         onNavigateToTab: _setIndex,
         allStocksTabIndex: _allStocksTabIndex,
         indicesTabIndex: _indicesTabIndex,
-      ),
-      const MarketTodayScreen(),
-      const MarketIndicesScreen(),
-      const AllStocksScreen(),
-      if (!_hideOurAppsTab) const OurAppsScreen(),
-      const EducationalContentScreen(),
-      const AboutScreen(),
-      const ContactScreen(),
-      const AccountScreen(),
-    ];
+      );
+    }
+    if (index == _marketTodayTabIndex) {
+      return const MarketTodayScreen();
+    }
+    if (index == _indicesTabIndex) {
+      return const MarketIndicesScreen();
+    }
+    if (index == _allStocksTabIndex) {
+      return const AllStocksScreen();
+    }
+    if (index == _favoritesTabIndex) {
+      return const FavoritesScreen();
+    }
+    if (!_hideOurAppsTab && index == _ourAppsTabIndex) {
+      return const OurAppsScreen();
+    }
+    if (index == _educationTabIndex) {
+      return const EducationalContentScreen();
+    }
+    if (index == _aboutScreenIndex) {
+      return const AboutScreen();
+    }
+    if (index == _contactScreenIndex) {
+      return const ContactScreen();
+    }
+    if (index == _accountScreenIndex) {
+      return const AccountScreen();
+    }
+
+    return const SizedBox.shrink();
   }
 
   void _onResumeSignal() {
@@ -186,11 +224,74 @@ class _AppShellScreenState extends State<AppShellScreen> {
   }
 
   void _setIndex(int index) {
-    if (index < 0 || index >= _pages.length) return;
+    if (index < 0 || index >= _pageCount) return;
     if (_index == index) return;
 
-    setState(() => _index = index);
+    if (_isProtectedIndex(index)) {
+      _openProtectedIndex(index);
+      return;
+    }
+
+    _applyIndex(index);
+  }
+
+  bool _isProtectedIndex(int index) {
+    return index == _marketTodayTabIndex ||
+        index == _favoritesTabIndex ||
+        index == _educationTabIndex;
+  }
+
+  Future<bool> _ensureAuthenticatedForProtectedContent() async {
+    final manager = context.read<AppManagerProvider>();
+    if (manager.isAuthenticated) return true;
+
+    final allowed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute<bool>(builder: (_) => const AuthScreen()),
+    );
+
+    if (!mounted) return false;
+    return allowed == true &&
+        context.read<AppManagerProvider>().isAuthenticated;
+  }
+
+  Future<void> _openProtectedIndex(int index) async {
+    final allowed = await _ensureAuthenticatedForProtectedContent();
+    if (!mounted || !allowed || _index == index) return;
+    _applyIndex(index);
+  }
+
+  void _applyIndex(int index) {
+    setState(() {
+      _index = index;
+      _loadedPageIndices.add(index);
+    });
     context.read<AppManagerProvider>().trackPageView(_pageNameForIndex(index));
+  }
+
+  void _scheduleMandatoryProfileCompletion(AppManagerProvider manager) {
+    if (_profileCompletionPromptActive || !manager.requiresProfileCompletion) {
+      return;
+    }
+
+    _profileCompletionPromptActive = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) {
+        _profileCompletionPromptActive = false;
+        return;
+      }
+
+      final completed = await ProfileCompletionScreen.ensureCompleted(context);
+      if (!mounted) return;
+
+      _profileCompletionPromptActive = false;
+      final refreshedManager = context.read<AppManagerProvider>();
+      if (!completed && refreshedManager.requiresProfileCompletion) {
+        _scheduleMandatoryProfileCompletion(refreshedManager);
+      }
+    });
   }
 
   String _pageNameForIndex(int index) {
@@ -198,6 +299,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
     if (index == _marketTodayTabIndex) return 'market_today';
     if (index == _indicesTabIndex) return 'market_indices';
     if (index == _allStocksTabIndex) return 'all_stocks';
+    if (index == _favoritesTabIndex) return 'favorites';
     if (!_hideOurAppsTab && index == _ourAppsTabIndex) return 'our_apps';
     if (index == _educationTabIndex) return 'educational_content';
     if (index == _aboutScreenIndex) return 'about';
@@ -208,45 +310,51 @@ class _AppShellScreenState extends State<AppShellScreen> {
 
   List<_SideNavItem> _navigationItems() {
     return <_SideNavItem>[
-      const _SideNavItem(
-        index: 0,
-        title: 'الرئيسية',
+      _SideNavItem(
+        index: _homeTabIndex,
+        title: '\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',
         icon: Icons.home_outlined,
       ),
-      const _SideNavItem(
-        index: 1,
-        title: 'السوق اليوم',
+      _SideNavItem(
+        index: _marketTodayTabIndex,
+        title: '\u0627\u0644\u0633\u0648\u0642 \u0627\u0644\u064a\u0648\u0645',
         icon: Icons.trending_up_outlined,
       ),
-      const _SideNavItem(
-        index: 2,
-        title: 'المؤشرات',
+      _SideNavItem(
+        index: _indicesTabIndex,
+        title: '\u0627\u0644\u0645\u0624\u0634\u0631\u0627\u062a',
         icon: Icons.insights_outlined,
       ),
-      const _SideNavItem(
-        index: 3,
-        title: 'كل الأسهم',
+      _SideNavItem(
+        index: _allStocksTabIndex,
+        title: '\u0643\u0644 \u0627\u0644\u0623\u0633\u0647\u0645',
         icon: Icons.list_alt_outlined,
       ),
+      _SideNavItem(
+        index: _favoritesTabIndex,
+        title: '\u0627\u0644\u0645\u0641\u0636\u0644\u0629',
+        icon: Icons.star_border_rounded,
+      ),
       if (!_hideOurAppsTab)
-        const _SideNavItem(
-          index: 4,
-          title: 'تطبيقاتنا',
+        _SideNavItem(
+          index: _ourAppsTabIndex,
+          title: '\u062a\u0637\u0628\u064a\u0642\u0627\u062a\u0646\u0627',
           icon: Icons.apps_outlined,
         ),
       _SideNavItem(
         index: _educationTabIndex,
-        title: 'المحتوى التعليمي',
+        title:
+            '\u0627\u0644\u0645\u062d\u062a\u0648\u0649 \u0627\u0644\u062a\u0639\u0644\u064a\u0645\u064a',
         icon: Icons.menu_book_outlined,
       ),
       _SideNavItem(
         index: _aboutScreenIndex,
-        title: 'عن التطبيق',
+        title: '\u0639\u0646 \u0627\u0644\u062a\u0637\u0628\u064a\u0642',
         icon: Icons.info_outline_rounded,
       ),
       _SideNavItem(
         index: _contactScreenIndex,
-        title: 'اتصل بنا',
+        title: '\u0627\u062a\u0635\u0644 \u0628\u0646\u0627',
         icon: Icons.contact_page_outlined,
       ),
     ];
@@ -359,7 +467,12 @@ class _AppShellScreenState extends State<AppShellScreen> {
   Widget _buildBody(bool isDesktopNav) {
     final pages = IndexedStack(
       index: _index,
-      children: _pages,
+      children: List<Widget>.generate(_pageCount, (index) {
+        if (!_loadedPageIndices.contains(index)) {
+          return const SizedBox.shrink();
+        }
+        return _pageForIndex(index);
+      }),
     );
 
     if (!isDesktopNav) {
@@ -433,6 +546,10 @@ class _AppShellScreenState extends State<AppShellScreen> {
   Widget build(BuildContext context) {
     final manager = context.watch<AppManagerProvider>();
     final isDesktopNav = _isDesktopNav(context);
+
+    if (manager.initialized && manager.requiresProfileCompletion) {
+      _scheduleMandatoryProfileCompletion(manager);
+    }
 
     return Scaffold(
       key: _scaffoldKey,
@@ -632,20 +749,20 @@ class _HeaderContent extends StatelessWidget {
                               alignment: Alignment.centerRight,
                               filterQuality: FilterQuality.high,
                               errorBuilder: (_, __, ___) {
-                                return Row(
+                                return const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: <Widget>[
-                                    const Icon(
+                                    Icon(
                                       Icons.assessment_rounded,
                                       color: AppColors.primaryBlue,
                                       size: 24,
                                     ),
-                                    const SizedBox(width: 8),
+                                    SizedBox(width: 8),
                                     Text(
                                       'مراقب الأسهم',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontFamily: 'Tajawal',
                                         fontWeight: FontWeight.w900,
                                         fontSize: 16,
@@ -930,8 +1047,8 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
       RegExp(r'[\u200E\u200F\u202A-\u202E\u2066-\u2069]'),
       '',
     );
-    normalized = normalized.replaceAll(RegExp(r'["“”«»‹›]'), '');
-    normalized = normalized.replaceAll(RegExp("[\\'`´]"), '');
+    normalized = normalized.replaceAll(RegExp(r'["“”«»]'), '');
+    normalized = normalized.replaceAll(RegExp(r"[\'`´]"), '');
     normalized = normalized.replaceAll(
       RegExp(r'[^a-z0-9\u0621-\u064A\u0660-\u0669\u06F0-\u06F9]+'),
       ' ',
@@ -1060,7 +1177,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
                     color: AppColors.error,
                   ),
                   const SizedBox(height: 12),
-                  Text(
+                  const Text(
                     'تعذر تحميل قائمة الأسهم للبحث',
                     style: AppTextStyles.bodyLarge,
                     textAlign: TextAlign.center,
@@ -1202,7 +1319,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${stock.symbol} • ${stock.id}',
+                              '${stock.symbol} - ${stock.id}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodySmall.copyWith(

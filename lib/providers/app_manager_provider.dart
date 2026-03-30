@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -47,6 +48,8 @@ class AppManagerProvider with ChangeNotifier {
   bool get isBusy => _isBusy;
   bool get isAuthenticated =>
       _token != null && _token!.isNotEmpty && _user != null;
+  bool get requiresProfileCompletion =>
+      isAuthenticated && !(_user?.hasRequiredProfileData ?? false);
   String? get errorMessage => _errorMessage;
   String? get token => _token;
   ManagedAppUser? get user => _user;
@@ -83,7 +86,7 @@ class AppManagerProvider with ChangeNotifier {
         try {
           _user = await _api.me(_token!);
           await _pullPreferencesFromServer();
-          await syncPushToken();
+          unawaited(syncPushToken());
         } catch (_) {
           await _clearAuth(prefs);
         }
@@ -277,6 +280,9 @@ class AppManagerProvider with ChangeNotifier {
 
   Future<bool> updateProfile({
     String? fullName,
+    String? countryCode,
+    String? countryName,
+    String? phoneNumber,
     String? currentPassword,
     String? newPassword,
   }) async {
@@ -289,6 +295,9 @@ class AppManagerProvider with ChangeNotifier {
       _user = await _api.updateProfile(
         token: _token!,
         fullName: fullName,
+        countryCode: countryCode,
+        countryName: countryName,
+        phoneNumber: phoneNumber,
         currentPassword: currentPassword,
         newPassword: newPassword,
       );
@@ -502,7 +511,7 @@ class AppManagerProvider with ChangeNotifier {
     await _pushPreferencesToServer();
     await startSessionIfNeeded(forceRestart: true);
     await trackEvent(eventName: eventName);
-    await syncPushToken();
+    unawaited(syncPushToken());
     notifyListeners();
   }
 

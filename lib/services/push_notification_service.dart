@@ -3,8 +3,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-import '../utils/app_manager_config.dart';
-
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -32,55 +30,74 @@ class PushNotificationService {
   bool _listenersBound = false;
   bool _localNotificationsReady = false;
   String? _cachedToken;
+  Future<void>? _initializationFuture;
 
   static void registerBackgroundHandler() {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
-  Future<void> initialize() async {
+  Future<void> initialize() {
     if (_initialized || kIsWeb) {
       _initialized = true;
-      return;
+      return Future<void>.value();
     }
 
-    if (defaultTargetPlatform != TargetPlatform.android &&
-        defaultTargetPlatform != TargetPlatform.iOS) {
-      _initialized = true;
-      return;
+    final inFlight = _initializationFuture;
+    if (inFlight != null) {
+      return inFlight;
     }
 
-    await _initializeLocalNotifications();
+    final future = _initializeInternal();
+    _initializationFuture = future;
+    return future;
+  }
 
-    final permission = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      announcement: false,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-    );
+  Future<void> _initializeInternal() async {
+    try {
+      if (defaultTargetPlatform != TargetPlatform.android &&
+          defaultTargetPlatform != TargetPlatform.iOS) {
+        _initialized = true;
+        return;
+      }
 
-    if (kDebugMode) {
-      debugPrint(
-        'FCM permission status: ${permission.authorizationStatus.name}',
+      await _initializeLocalNotifications();
+
+      final permission = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        announcement: false,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
       );
+
+      if (kDebugMode) {
+        debugPrint(
+          'FCM permission status: ${permission.authorizationStatus.name}',
+        );
+      }
+
+      await _requestAndroidNotificationPermission();
+      await _messaging.setAutoInitEnabled(true);
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      await _waitForApnsTokenIfNeeded();
+      _cachedToken ??= await _fetchTokenWithTimeout();
+      _printToken();
+      await _bindListeners();
+      _initialized = true;
+    } finally {
+      if (_initialized) {
+        _initializationFuture = Future<void>.value();
+      } else {
+        _initializationFuture = null;
+      }
     }
-
-    await _requestAndroidNotificationPermission();
-    await _messaging.setAutoInitEnabled(true);
-    await _messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    await _subscribeToDefaultTopics();
-    await _waitForApnsTokenIfNeeded();
-    _cachedToken = await _messaging.getToken();
-    _printToken();
-    await _bindListeners();
-    _initialized = true;
   }
 
   Future<String?> getToken() async {
@@ -88,7 +105,7 @@ class PushNotificationService {
       await initialize();
     }
 
-    _cachedToken ??= await _messaging.getToken();
+    _cachedToken ??= await _fetchTokenWithTimeout();
     _printToken();
     return _cachedToken;
   }
@@ -129,17 +146,6 @@ class PushNotificationService {
     await androidPlugin?.requestNotificationsPermission();
   }
 
-  Future<void> _subscribeToDefaultTopics() async {
-    final base = AppManagerConfig.appSlug;
-    await _messaging.subscribeToTopic('app_${base}_all');
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      await _messaging.subscribeToTopic('app_${base}_android');
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      await _messaging.subscribeToTopic('app_${base}_ios');
-    }
-  }
-
   Future<void> _waitForApnsTokenIfNeeded() async {
     if (defaultTargetPlatform != TargetPlatform.iOS) return;
 
@@ -170,12 +176,22 @@ class PushNotificationService {
       }
     });
 
-    final initialMessage = await _messaging.getInitialMessage();
+    final initialMessage = await _messaging.getInitialMessage().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => null,
+        );
     if (initialMessage != null && kDebugMode) {
       debugPrint(
         'FCM initialMessage id=${initialMessage.messageId ?? "-"} data=${initialMessage.data}',
       );
     }
+  }
+
+  Future<String?> _fetchTokenWithTimeout() {
+    return _messaging.getToken().timeout(
+          const Duration(seconds: 4),
+          onTimeout: () => null,
+        );
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {

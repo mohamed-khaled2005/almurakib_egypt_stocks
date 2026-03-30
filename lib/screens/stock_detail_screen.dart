@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart' hide TextDirection;
-
+import 'package:provider/provider.dart';
 
 import '../core/api/api_client.dart';
 import '../core/api/api_endpoints.dart';
@@ -14,9 +14,11 @@ import '../core/services/favorites_service.dart';
 import '../core/services/last_update_service.dart';
 import '../core/utils/formatters.dart';
 import '../core/utils/constants.dart';
+import '../providers/app_manager_provider.dart';
 
 import '../animations/fade_animation.dart';
 import '../animations/slide_animation.dart';
+import 'auth_screen.dart';
 import '../widgets/technical_indicators_widget.dart';
 import '../widgets/stock_performance_tab.dart';
 
@@ -84,6 +86,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
 
   int? _touchedIndex;
 
+  bool _accessGranted = false;
   bool _lockParentGestures = false;
 
   void _setLockParentGestures(bool v) {
@@ -117,7 +120,36 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     _tabController = TabController(length: 3, vsync: this);
 
     _stock = widget.stock;
+    _checkAccessAndLoad();
+  }
 
+  void _checkAccessAndLoad() {
+    if (context.read<AppManagerProvider>().isAuthenticated) {
+      _accessGranted = true;
+      _loadProtectedContent();
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      final allowed = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute<bool>(builder: (_) => const AuthScreen()),
+      );
+
+      if (!mounted) return;
+      if (allowed == true &&
+          context.read<AppManagerProvider>().isAuthenticated) {
+        setState(() => _accessGranted = true);
+        _loadProtectedContent();
+      } else {
+        Navigator.maybePop(context);
+      }
+    });
+  }
+
+  void _loadProtectedContent() {
     _checkFavorite();
     _loadStockFresh();
     _loadIndicators();
@@ -439,8 +471,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
   Future<void> _loadIndicators() async {
     setState(() => _loadingIndicators = true);
     try {
-      final indicators =
-          await StockService.getIndicators(widget.stock.symbol);
+      final indicators = await StockService.getIndicators(widget.stock.symbol);
       if (!mounted) return;
       setState(() {
         _indicators = indicators;
@@ -613,6 +644,13 @@ class _StockDetailScreenState extends State<StockDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (!_accessGranted) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8F9FC),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final stock = _safeStock;
     final changeColor = stock.isGain ? AppColors.gain : AppColors.loss;
 
@@ -684,11 +722,8 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                   ],
                 ),
                 child: Icon(
-                  _isFavorite
-                      ? Icons.star_rounded
-                      : Icons.star_border_rounded,
-                  color:
-                      _isFavorite ? Colors.amber : AppColors.textSecondary,
+                  _isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                  color: _isFavorite ? Colors.amber : AppColors.textSecondary,
                   size: 24,
                 ),
               ),
@@ -706,8 +741,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
           SlideAnimation(child: _buildHeroPriceSection(changeColor)),
           const SizedBox(height: 24),
           SlideAnimation(
-              delay: const Duration(milliseconds: 100),
-              child: _buildTabs()),
+              delay: const Duration(milliseconds: 100), child: _buildTabs()),
           const SizedBox(height: 8),
           Expanded(
             child: TabBarView(
@@ -925,8 +959,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                     child: _loadingChart
                         ? const Center(
                             child: CircularProgressIndicator(
-                                color: AppColors.primaryBlue,
-                                strokeWidth: 2.5),
+                                color: AppColors.primaryBlue, strokeWidth: 2.5),
                           )
                         : _buildChart(trendColor),
                   ),
@@ -1047,11 +1080,8 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                   style: TextStyle(
                     fontFamily: 'Tajawal',
                     fontSize: 13,
-                    fontWeight:
-                        selected ? FontWeight.w900 : FontWeight.w800,
-                    color: selected
-                        ? Colors.white
-                        : AppColors.textSecondary,
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w800,
+                    color: selected ? Colors.white : AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -1119,10 +1149,10 @@ class _StockDetailScreenState extends State<StockDetailScreen>
           ),
         ),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -1150,14 +1180,12 @@ class _StockDetailScreenState extends State<StockDetailScreen>
               showTitles: true,
               reservedSize: 34,
               getTitlesWidget: (value, meta) {
-                final dt =
-                    DateTime.fromMillisecondsSinceEpoch(value.toInt());
+                final dt = DateTime.fromMillisecondsSinceEpoch(value.toInt());
                 if (!_shouldShowBottomTitle(dt, _selectedPeriod)) {
                   return const SizedBox.shrink();
                 }
 
-                final label = (_selectedPeriod ==
-                            ChartPeriod.sixMonths ||
+                final label = (_selectedPeriod == ChartPeriod.sixMonths ||
                         _selectedPeriod == ChartPeriod.year)
                     ? _bottomMonthYearFmt.format(dt)
                     : _bottomDayMonthFmt.format(dt);
@@ -1198,10 +1226,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(
-                colors: [
-                  color.withOpacity(0.16),
-                  color.withOpacity(0.0)
-                ],
+                colors: [color.withOpacity(0.16), color.withOpacity(0.0)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -1215,9 +1240,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
           getTouchedSpotIndicator: (barData, spotIndexes) {
             return spotIndexes.map((i) {
               return TouchedSpotIndicatorData(
-                FlLine(
-                    color: Colors.black.withOpacity(0.16),
-                    strokeWidth: 1),
+                FlLine(color: Colors.black.withOpacity(0.16), strokeWidth: 1),
                 FlDotData(
                   show: true,
                   getDotPainter: (spot, percent, bar, index) =>
@@ -1254,12 +1277,10 @@ class _StockDetailScreenState extends State<StockDetailScreen>
             tooltipPadding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             tooltipMargin: 10,
-            getTooltipColor: (touchedSpot) =>
-                Colors.black.withOpacity(0.86),
+            getTooltipColor: (touchedSpot) => Colors.black.withOpacity(0.86),
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((s) {
-                final dt = DateTime.fromMillisecondsSinceEpoch(
-                    s.x.toInt());
+                final dt = DateTime.fromMillisecondsSinceEpoch(s.x.toInt());
                 final priceLine = _fmtMoney(s.y);
                 final dateLine = _tooltipFmt.format(dt);
                 return LineTooltipItem(
@@ -1346,8 +1367,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
       },
       {
         'label': 'الحجم',
-        'value':
-            (vol != null && vol > 0) ? _moneyFmtNoDec.format(vol) : '—',
+        'value': (vol != null && vol > 0) ? _moneyFmtNoDec.format(vol) : '—',
         'icon': Icons.bar_chart_rounded,
       },
       {
@@ -1390,8 +1410,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                     child: Icon(
                       item['icon'] as IconData,
                       size: 14,
-                      color: (item['color'] as Color?) ??
-                          AppColors.primaryBlue,
+                      color: (item['color'] as Color?) ?? AppColors.primaryBlue,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1412,8 +1431,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                 style: TextStyle(
                   fontFamily: 'Tajawal',
                   fontSize: 16,
-                  color: (item['color'] as Color?) ??
-                      AppColors.textPrimary,
+                  color: (item['color'] as Color?) ?? AppColors.textPrimary,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -1433,13 +1451,11 @@ class _StockDetailScreenState extends State<StockDetailScreen>
           const Padding(
             padding: EdgeInsets.all(40),
             child: Center(
-                child: CircularProgressIndicator(
-                    color: AppColors.primaryBlue)),
+                child: CircularProgressIndicator(color: AppColors.primaryBlue)),
           )
         else if (_indicators != null)
           FadeAnimation(
-              child:
-                  TechnicalIndicatorsWidget(indicators: _indicators!))
+              child: TechnicalIndicatorsWidget(indicators: _indicators!))
         else
           const Center(
               child: Text("لا توجد مؤشرات متاحة حالياً",
@@ -1516,8 +1532,7 @@ class _LastUpdateBar extends StatelessWidget {
 
         return Container(
           width: double.infinity,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border(
@@ -1609,8 +1624,7 @@ class _LastUpdateBar extends StatelessWidget {
                               fontFamily: 'Tajawal',
                               fontSize: 12,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.textPrimary
-                                  .withOpacity(0.92),
+                              color: AppColors.textPrimary.withOpacity(0.92),
                               height: 1.0,
                             ),
                           ),
