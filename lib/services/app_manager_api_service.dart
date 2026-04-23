@@ -7,26 +7,27 @@ import '../models/app_preferences_model.dart';
 import '../models/educational_article_model.dart';
 import '../models/managed_app_user.dart';
 import '../models/manual_ad_model.dart';
+import '../models/remote_ui_config_model.dart';
 import '../utils/app_manager_config.dart';
 
 class AppManagerApiException implements Exception {
+  const AppManagerApiException(this.message, {this.statusCode});
+
   final String message;
   final int? statusCode;
-
-  const AppManagerApiException(this.message, {this.statusCode});
 
   @override
   String toString() => message;
 }
 
 class AuthResult {
-  final String token;
-  final ManagedAppUser user;
-
   const AuthResult({
     required this.token,
     required this.user,
   });
+
+  final String token;
+  final ManagedAppUser user;
 }
 
 class AppManagerApiService {
@@ -37,8 +38,10 @@ class AppManagerApiService {
 
   Uri get _apiBaseUri {
     final base = AppManagerConfig.apiBaseUrl.endsWith('/')
-        ? AppManagerConfig.apiBaseUrl
-            .substring(0, AppManagerConfig.apiBaseUrl.length - 1)
+        ? AppManagerConfig.apiBaseUrl.substring(
+            0,
+            AppManagerConfig.apiBaseUrl.length - 1,
+          )
         : AppManagerConfig.apiBaseUrl;
     return Uri.parse(base);
   }
@@ -59,10 +62,14 @@ class AppManagerApiService {
 
   String _normalizeAssetUrl(String rawUrl) {
     final url = rawUrl.trim();
-    if (url.isEmpty) return '';
+    if (url.isEmpty) {
+      return '';
+    }
 
     final parsed = Uri.tryParse(url);
-    if (parsed == null) return url;
+    if (parsed == null) {
+      return url;
+    }
 
     if (!parsed.hasScheme || parsed.host.isEmpty) {
       return _apiOriginUri.resolveUri(parsed).toString();
@@ -83,8 +90,10 @@ class AppManagerApiService {
 
   Uri _uri(String path, [Map<String, String>? query]) {
     final base = AppManagerConfig.apiBaseUrl.endsWith('/')
-        ? AppManagerConfig.apiBaseUrl
-            .substring(0, AppManagerConfig.apiBaseUrl.length - 1)
+        ? AppManagerConfig.apiBaseUrl.substring(
+            0,
+            AppManagerConfig.apiBaseUrl.length - 1,
+          )
         : AppManagerConfig.apiBaseUrl;
     final fullPath = path.startsWith('/') ? path : '/$path';
     return Uri.parse('$base$fullPath').replace(queryParameters: query);
@@ -124,22 +133,38 @@ class AppManagerApiService {
             break;
           case 'POST':
             response = await _client
-                .post(uri, headers: _headers(token: token), body: encodedBody)
+                .post(
+                  uri,
+                  headers: _headers(token: token),
+                  body: encodedBody,
+                )
                 .timeout(AppManagerConfig.requestTimeout);
             break;
           case 'PUT':
             response = await _client
-                .put(uri, headers: _headers(token: token), body: encodedBody)
+                .put(
+                  uri,
+                  headers: _headers(token: token),
+                  body: encodedBody,
+                )
                 .timeout(AppManagerConfig.requestTimeout);
             break;
           case 'PATCH':
             response = await _client
-                .patch(uri, headers: _headers(token: token), body: encodedBody)
+                .patch(
+                  uri,
+                  headers: _headers(token: token),
+                  body: encodedBody,
+                )
                 .timeout(AppManagerConfig.requestTimeout);
             break;
           case 'DELETE':
             response = await _client
-                .delete(uri, headers: _headers(token: token), body: encodedBody)
+                .delete(
+                  uri,
+                  headers: _headers(token: token),
+                  body: encodedBody,
+                )
                 .timeout(AppManagerConfig.requestTimeout);
             break;
           default:
@@ -173,17 +198,36 @@ class AppManagerApiService {
   }
 
   Map<String, dynamic> _decode(http.Response response) {
-    final raw = utf8.decode(response.bodyBytes);
-    if (raw.trim().isEmpty) return <String, dynamic>{};
+    final raw = _decodeBodyText(response);
+    if (raw.trim().isEmpty) {
+      return <String, dynamic>{};
+    }
 
     final decoded = jsonDecode(raw);
-    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
     return <String, dynamic>{'data': decoded};
+  }
+
+  String _decodeBodyText(http.Response response) {
+    final bytes = response.bodyBytes;
+    if (bytes.isEmpty) {
+      return '';
+    }
+
+    try {
+      return utf8.decode(bytes);
+    } catch (_) {
+      return response.body;
+    }
   }
 
   String? _extractMessage(Map<String, dynamic> data) {
     final message = data['message'] ?? data['msg'];
-    if (message != null) return message.toString();
+    if (message != null) {
+      return message.toString();
+    }
 
     final errors = data['errors'];
     if (errors is Map) {
@@ -202,6 +246,10 @@ class AppManagerApiService {
     required String email,
     required String password,
     String? fullName,
+    String? countryCode,
+    String? countryName,
+    String? phoneNumber,
+    String? tradingStatus,
     required String platform,
     String? deviceId,
   }) async {
@@ -212,6 +260,11 @@ class AppManagerApiService {
         'email': email,
         'password': password,
         'full_name': fullName,
+        'country_code': countryCode,
+        'country_name': countryName,
+        'phone_number': phoneNumber,
+        if (AppManagerConfig.supportsTradingStatus)
+          'trading_status': tradingStatus,
         'target_app_slug': AppManagerConfig.appSlug,
         'platform': platform,
         'device_id': deviceId,
@@ -231,6 +284,7 @@ class AppManagerApiService {
     required String password,
     required String platform,
     String? deviceId,
+    String? sourceAppSlug,
   }) async {
     final data = await _request(
       method: 'POST',
@@ -239,6 +293,7 @@ class AppManagerApiService {
         'email': email,
         'password': password,
         'target_app_slug': AppManagerConfig.appSlug,
+        'source_app_slug': sourceAppSlug,
         'platform': platform,
         'device_id': deviceId,
       },
@@ -260,27 +315,36 @@ class AppManagerApiService {
     String? deviceId,
     String? fullName,
     String? email,
+    String? sourceAppSlug,
   }) async {
     final normalizedIdToken = idToken?.trim();
     final normalizedAccessToken = accessToken?.trim();
+    final normalizedProvider = provider.trim().toLowerCase();
 
-    if ((normalizedIdToken == null || normalizedIdToken.isEmpty) &&
-        (normalizedAccessToken == null || normalizedAccessToken.isEmpty)) {
-      throw const AppManagerApiException('Google sign-in token is missing.');
+    final hasIdToken =
+        normalizedIdToken != null && normalizedIdToken.isNotEmpty;
+    final hasAccessToken =
+        normalizedAccessToken != null && normalizedAccessToken.isNotEmpty;
+
+    if (!hasIdToken && !hasAccessToken) {
+      throw const AppManagerApiException('Social sign-in token is missing.');
+    }
+
+    if (normalizedProvider != 'google' && !hasIdToken) {
+      throw const AppManagerApiException('ID token is required for this login.');
     }
 
     final data = await _request(
       method: 'POST',
       path: '/auth/social',
       body: <String, dynamic>{
-        'provider': provider,
-        if (normalizedIdToken != null && normalizedIdToken.isNotEmpty)
-          'id_token': normalizedIdToken,
-        if (normalizedAccessToken != null && normalizedAccessToken.isNotEmpty)
-          'access_token': normalizedAccessToken,
+        'provider': normalizedProvider,
+        if (hasIdToken) 'id_token': normalizedIdToken,
+        if (hasAccessToken) 'access_token': normalizedAccessToken,
         'email': email,
         'full_name': fullName,
         'target_app_slug': AppManagerConfig.appSlug,
+        'source_app_slug': sourceAppSlug,
         'platform': platform,
         'device_id': deviceId,
       },
@@ -323,6 +387,7 @@ class AppManagerApiService {
     String? countryCode,
     String? countryName,
     String? phoneNumber,
+    String? tradingStatus,
     String? currentPassword,
     String? newPassword,
   }) async {
@@ -335,6 +400,8 @@ class AppManagerApiService {
         'country_code': countryCode,
         'country_name': countryName,
         'phone_number': phoneNumber,
+        if (AppManagerConfig.supportsTradingStatus)
+          'trading_status': tradingStatus,
         'current_password': currentPassword,
         'new_password': newPassword,
       },
@@ -371,9 +438,7 @@ class AppManagerApiService {
     );
 
     return AppPreferencesModel.fromJson(
-      Map<String, dynamic>.from(
-        data['preferences'] ?? <String, dynamic>{},
-      ),
+      Map<String, dynamic>.from(data['preferences'] ?? <String, dynamic>{}),
     );
   }
 
@@ -392,24 +457,99 @@ class AppManagerApiService {
     );
 
     return AppPreferencesModel.fromJson(
-      Map<String, dynamic>.from(
-        data['preferences'] ?? <String, dynamic>{},
-      ),
+      Map<String, dynamic>.from(data['preferences'] ?? <String, dynamic>{}),
+    );
+  }
+
+  Future<void> startSession({
+    String? token,
+    required String sessionUid,
+    required String platform,
+    String? deviceId,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _request(
+      method: 'POST',
+      path: '/analytics/session/start',
+      token: token,
+      body: <String, dynamic>{
+        'app_slug': AppManagerConfig.appSlug,
+        'session_uid': sessionUid,
+        'platform': platform,
+        'device_id': deviceId,
+        'metadata': metadata,
+      },
+    );
+  }
+
+  Future<void> endSession({
+    String? token,
+    required String sessionUid,
+    int? pagesViewed,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _request(
+      method: 'POST',
+      path: '/analytics/session/end',
+      token: token,
+      body: <String, dynamic>{
+        'session_uid': sessionUid,
+        'pages_viewed': pagesViewed,
+        'metadata': metadata,
+      },
+    );
+  }
+
+  Future<void> trackEvent({
+    String? token,
+    required String eventName,
+    String? sessionUid,
+    required String platform,
+    String? deviceId,
+    int? durationMs,
+    double? value,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _request(
+      method: 'POST',
+      path: '/analytics/event',
+      token: token,
+      body: <String, dynamic>{
+        'app_slug': AppManagerConfig.appSlug,
+        'event_name': eventName,
+        'session_uid': sessionUid,
+        'platform': platform,
+        'device_id': deviceId,
+        'duration_ms': durationMs,
+        'value': value,
+        'metadata': metadata,
+      },
     );
   }
 
   Future<ManualAdModel?> getActiveAd({
     required String platform,
     String placement = 'rectangle_main',
+    String? countryCode,
+    required bool isAuthenticated,
+    required int launchCount,
   }) async {
+    final query = <String, String>{
+      'app_slug': AppManagerConfig.appSlug,
+      'platform': platform,
+      'placement': placement,
+      'is_authenticated': isAuthenticated ? '1' : '0',
+      'launch_count': '$launchCount',
+    };
+    final normalizedCountryCode = countryCode?.trim().toUpperCase() ?? '';
+    if (normalizedCountryCode.isNotEmpty) {
+      query['country_code'] = normalizedCountryCode;
+    }
+
     final data = await _request(
       method: 'GET',
       path: '/manual-ads/active',
-      query: <String, String>{
-        'app_slug': AppManagerConfig.appSlug,
-        'platform': platform,
-        'placement': placement,
-      },
+      query: query,
     );
 
     final ad = data['ad'];
@@ -421,6 +561,48 @@ class AppManagerApiService {
     }
 
     return null;
+  }
+
+  Future<RemoteUiConfigModel> getRemoteUiConfig({
+    required String platform,
+    String? countryCode,
+    required bool isAuthenticated,
+    required int launchCount,
+  }) async {
+    final query = <String, String>{
+      'app_slug': AppManagerConfig.appSlug,
+      'platform': platform,
+      'is_authenticated': isAuthenticated ? '1' : '0',
+      'launch_count': '$launchCount',
+    };
+    final normalizedCountryCode = countryCode?.trim().toUpperCase() ?? '';
+    if (normalizedCountryCode.isNotEmpty) {
+      query['country_code'] = normalizedCountryCode;
+    }
+
+    final data = await _request(
+      method: 'GET',
+      path: '/ui/config',
+      query: query,
+    );
+
+    final popupAd = data['popup_ad'];
+    if (popupAd is Map<String, dynamic>) {
+      popupAd['image_url'] =
+          _normalizeAssetUrl((popupAd['image_url'] ?? '').toString());
+    }
+
+    return RemoteUiConfigModel.fromJson(data);
+  }
+
+  Future<String?> detectCountryCode() async {
+    final data = await _request(
+      method: 'GET',
+      path: '/geo/country',
+    );
+
+    final countryCode = data['country_code']?.toString();
+    return countryCode?.trim().isEmpty == true ? null : countryCode?.trim();
   }
 
   Future<List<EducationalArticleSummary>> getArticles({
@@ -438,7 +620,9 @@ class AppManagerApiService {
     );
 
     final raw = data['data'];
-    if (raw is! List) return <EducationalArticleSummary>[];
+    if (raw is! List) {
+      return <EducationalArticleSummary>[];
+    }
 
     return raw.whereType<Map>().map((entry) {
       final normalized =
@@ -486,66 +670,6 @@ class AppManagerApiService {
         'provider': provider,
         'token': pushToken,
         'device_id': deviceId,
-      },
-    );
-  }
-
-  Future<void> startSession({
-    String? token,
-    required String sessionUid,
-    required String platform,
-    String? deviceId,
-    Map<String, dynamic>? metadata,
-  }) async {
-    await _request(
-      method: 'POST',
-      path: '/analytics/session/start',
-      token: token,
-      body: <String, dynamic>{
-        'app_slug': AppManagerConfig.appSlug,
-        'session_uid': sessionUid,
-        'platform': platform,
-        'device_id': deviceId,
-        'metadata': metadata,
-      },
-    );
-  }
-
-  Future<void> endSession({
-    String? token,
-    required String sessionUid,
-    int? pagesViewed,
-  }) async {
-    await _request(
-      method: 'POST',
-      path: '/analytics/session/end',
-      token: token,
-      body: <String, dynamic>{
-        'session_uid': sessionUid,
-        'pages_viewed': pagesViewed,
-      },
-    );
-  }
-
-  Future<void> trackEvent({
-    String? token,
-    required String eventName,
-    String? sessionUid,
-    required String platform,
-    String? deviceId,
-    Map<String, dynamic>? metadata,
-  }) async {
-    await _request(
-      method: 'POST',
-      path: '/analytics/event',
-      token: token,
-      body: <String, dynamic>{
-        'app_slug': AppManagerConfig.appSlug,
-        'event_name': eventName,
-        'session_uid': sessionUid,
-        'platform': platform,
-        'device_id': deviceId,
-        'metadata': metadata,
       },
     );
   }

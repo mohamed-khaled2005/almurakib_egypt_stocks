@@ -3,7 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../core/utils/constants.dart';
 import '../data/country_options.dart';
+import '../data/trading_status_options.dart';
 import '../providers/app_manager_provider.dart';
+import '../utils/app_manager_config.dart';
+import '../utils/phone_number_helper.dart';
+import '../widgets/country_picker_form_field.dart';
 
 class ProfileCompletionScreen extends StatefulWidget {
   const ProfileCompletionScreen({
@@ -45,14 +49,19 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _phoneController = TextEditingController();
 
+  bool _didManuallySelectCountry = false;
   String? _selectedCountryCode;
+  String? _selectedTradingStatus;
 
   @override
   void initState() {
     super.initState();
-    final user = context.read<AppManagerProvider>().user;
-    _selectedCountryCode =
-        _resolveCountryCode(user?.countryCode, user?.countryName);
+    final manager = context.read<AppManagerProvider>();
+    final user = manager.user;
+    _selectedCountryCode = countryOptionByCode(user?.countryCode)?.code ??
+        countryOptionByCode(manager.suggestedCountryCode)?.code;
+    _selectedTradingStatus =
+        tradingStatusOptionByValue(user?.tradingStatus)?.value;
     _phoneController.text = (user?.phoneNumber ?? '').trim();
   }
 
@@ -62,45 +71,44 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     super.dispose();
   }
 
-  String? _resolveCountryCode(String? code, String? name) {
-    final normalizedCode = (code ?? '').trim().toUpperCase();
-    if (normalizedCode.isNotEmpty &&
-        kCountryOptions.any((country) => country.code == normalizedCode)) {
-      return normalizedCode;
+  CountryOption? _selectedCountry() =>
+      countryOptionByCode(_selectedCountryCode);
+
+  void _syncSuggestedCountry(AppManagerProvider manager) {
+    if (_didManuallySelectCountry) {
+      return;
     }
 
-    final normalizedName = (name ?? '').trim();
-    if (normalizedName.isEmpty) return null;
-    for (final country in kCountryOptions) {
-      if (country.name == normalizedName) {
-        return country.code;
-      }
-    }
-    return null;
-  }
+    final suggestedCountryCode =
+        countryOptionByCode(manager.user?.countryCode)?.code ??
+            countryOptionByCode(manager.suggestedCountryCode)?.code;
 
-  CountryOption? _selectedCountry() {
-    final code = (_selectedCountryCode ?? '').trim().toUpperCase();
-    if (code.isEmpty) return null;
-    for (final country in kCountryOptions) {
-      if (country.code == code) {
-        return country;
-      }
+    if (suggestedCountryCode != null) {
+      _selectedCountryCode = suggestedCountryCode;
     }
-    return null;
   }
 
   String? _validatePhone(String? value) {
+    final manager = context.read<AppManagerProvider>();
     final input = (value ?? '').trim();
+
     if (input.isEmpty) {
-      return 'أدخل رقم الهاتف.';
+      return manager.shouldRequirePhoneNumberForCurrentUser
+          ? 'أدخل رقم الهاتف.'
+          : null;
     }
 
-    final normalized = input.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(normalized)) {
-      return 'أدخل رقم هاتف صحيح.';
+    final country = _selectedCountry();
+    if (country == null) {
+      return 'اختر الدولة أولًا.';
     }
-    return null;
+
+    final normalized = PhoneNumberHelper.tryNormalize(
+      rawInput: input,
+      regionCode: country.code,
+    );
+
+    return normalized == null ? 'أدخل رقم هاتف صحيحًا.' : null;
   }
 
   Future<void> _submit() async {
@@ -108,6 +116,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       return;
     }
 
+    final manager = context.read<AppManagerProvider>();
     final country = _selectedCountry();
     if (country == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -116,14 +125,25 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       return;
     }
 
-    final manager = context.read<AppManagerProvider>();
+    final normalizedPhone = _phoneController.text.trim().isEmpty
+        ? null
+        : PhoneNumberHelper.tryNormalize(
+            rawInput: _phoneController.text.trim(),
+            regionCode: country.code,
+          );
+
     final ok = await manager.updateProfile(
       countryCode: country.code,
       countryName: country.name,
-      phoneNumber: _phoneController.text.trim(),
+      phoneNumber: normalizedPhone?.e164,
+      tradingStatus: AppManagerConfig.supportsTradingStatus
+          ? _selectedTradingStatus
+          : null,
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -141,7 +161,9 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
 
   Future<void> _logout() async {
     await context.read<AppManagerProvider>().logout();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     Navigator.of(context).pop(false);
   }
 
@@ -184,6 +206,8 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   @override
   Widget build(BuildContext context) {
     final manager = context.watch<AppManagerProvider>();
+    _syncSuggestedCountry(manager);
+    final requiresPhone = manager.shouldRequirePhoneNumberForCurrentUser;
 
     return PopScope(
       canPop: !widget.mandatory,
@@ -245,7 +269,9 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'أدخل الدولة ورقم الهاتف لتفعيل الحساب بشكل كامل.',
+                                      requiresPhone
+                                          ? 'أكمل الدولة ورقم الهاتف وبيانات التداول للمتابعة.'
+                                          : 'أكمل الدولة وبيانات التداول. يمكنك إضافة الهاتف الآن أو لاحقًا.',
                                       style: AppTextStyles.bodySmall.copyWith(
                                         color: AppColors.textSecondary,
                                         height: 1.5,
@@ -258,53 +284,83 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
+                          CountryPickerFormField(
+                            key: ValueKey(
+                              'profile-country-${_selectedCountryCode ?? "none"}',
+                            ),
                             initialValue: _selectedCountryCode,
-                            isExpanded: true,
+                            enabled: !manager.isBusy,
+                            showLabel: false,
+                            label: 'الدولة',
+                            hintText: 'ابحث واختر الدولة',
+                            sheetBackgroundColor: Colors.white,
+                            accentColor: AppColors.primaryBlue,
                             decoration: _fieldDecoration(
                               label: 'الدولة',
                               icon: Icons.public_rounded,
                             ),
-                            items: kCountryOptions
-                                .map(
-                                  (country) => DropdownMenuItem<String>(
-                                    value: country.code,
-                                    child: Text(
-                                      '${country.flagEmoji} ${country.name} (${country.dialCode})',
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: manager.isBusy
-                                ? null
-                                : (value) {
-                                    setState(
-                                        () => _selectedCountryCode = value);
-                                  },
                             validator: (value) {
                               if ((value ?? '').trim().isEmpty) {
                                 return 'اختر الدولة.';
                               }
                               return null;
                             },
+                            onChanged: (value) {
+                              setState(() {
+                                _didManuallySelectCountry = true;
+                                _selectedCountryCode = value;
+                              });
+                            },
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
-                            textInputAction: TextInputAction.done,
-                            onFieldSubmitted: (_) => _submit(),
+                            textInputAction: TextInputAction.next,
                             decoration: _fieldDecoration(
-                              label: 'رقم الهاتف',
+                              label: requiresPhone
+                                  ? 'رقم الهاتف'
+                                  : 'رقم الهاتف (اختياري)',
                               icon: Icons.phone_android_rounded,
                             ),
                             validator: _validatePhone,
                           ),
+                          if (AppManagerConfig.supportsTradingStatus) ...<Widget>[
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              initialValue: _selectedTradingStatus,
+                              decoration: _fieldDecoration(
+                                label: kTradingStatusQuestionLabel,
+                                icon: Icons.query_stats_rounded,
+                              ),
+                              dropdownColor: Colors.white,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              items: kTradingStatusOptions
+                                  .map(
+                                    (option) => DropdownMenuItem<String>(
+                                      value: option.value,
+                                      child: Text(option.label),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: manager.isBusy
+                                  ? null
+                                  : (value) {
+                                      setState(() {
+                                        _selectedTradingStatus = value;
+                                      });
+                                    },
+                              validator: (value) {
+                                if ((value ?? '').trim().isEmpty) {
+                                  return 'اختر إجابة السؤال.';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
                           const SizedBox(height: 18),
                           SizedBox(
                             height: 48,

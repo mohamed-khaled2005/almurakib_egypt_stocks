@@ -2,14 +2,17 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../data/country_options.dart';
 import '../models/app_preferences_model.dart';
 import '../models/educational_article_model.dart';
 import '../models/managed_app_user.dart';
 import '../models/manual_ad_model.dart';
+import '../models/remote_ui_config_model.dart';
 import '../services/app_manager_api_service.dart';
 import '../services/push_notification_service.dart';
 import '../utils/app_manager_config.dart';
@@ -27,44 +30,119 @@ class AppManagerProvider with ChangeNotifier {
   static const String _tokenKey = 'app_manager_token';
   static const String _deviceIdKey = 'app_manager_device_id';
   static const String _favoriteItemsKey = 'favorite_stocks';
+  static const String _profilePromptLaunchCountKey =
+      'app_manager_profile_prompt_launch_count';
+  static const String _phoneRequirementBaselineLaunchKeyPrefix =
+      'app_manager_phone_requirement_baseline_launch_count';
+  static const String _popupDismissKeyPrefix = 'app_manager_popup_dismissed';
+  static const int _phoneRequirementLaunchThreshold = 5;
+  static const Duration _autoRefreshInterval = Duration(seconds: 10);
+  static const Duration _minimumRefreshGap = Duration(seconds: 4);
 
   bool _initialized = false;
   bool _isBusy = false;
   String? _errorMessage;
+  Future<void>? _initializationFuture;
 
   String? _token;
   String? _deviceId;
   ManagedAppUser? _user;
   AppPreferencesModel _preferences = AppPreferencesModel.empty();
   ManualAdModel? _activeAd;
+  RemoteUiConfigModel _remoteUiConfig = RemoteUiConfigModel.empty();
   List<EducationalArticleSummary> _articles = <EducationalArticleSummary>[];
   final Map<String, EducationalArticleDetail> _articleCache =
       <String, EducationalArticleDetail>{};
+  String? _networkSuggestedCountryCode;
 
   String? _activeSessionUid;
   int _pagesViewedInSession = 0;
+  int _appLaunchCount = 0;
+  int _currentUserLaunchCount = 0;
+  Timer? _autoRefreshTimer;
+  bool _isRefreshingManagedContent = false;
+  DateTime? _lastManagedContentRefreshAt;
 
   bool get initialized => _initialized;
   bool get isBusy => _isBusy;
+  String? get errorMessage => _errorMessage;
   bool get isAuthenticated =>
       _token != null && _token!.isNotEmpty && _user != null;
-  bool get requiresProfileCompletion =>
-      isAuthenticated && !(_user?.hasRequiredProfileData ?? false);
-  String? get errorMessage => _errorMessage;
   String? get token => _token;
   ManagedAppUser? get user => _user;
   AppPreferencesModel get preferences => _preferences;
   ManualAdModel? get activeAd => _activeAd;
+  RemoteUiConfigModel get remoteUiConfig => _remoteUiConfig;
+  ManagedMenuCta? get menuCta => _remoteUiConfig.menuCta;
+  List<SocialLinkModel> get socialLinks => _remoteUiConfig.socialLinks;
+  ManualAdModel? get popupAd => _remoteUiConfig.popupAd;
   List<EducationalArticleSummary> get articles => _articles;
+  String get suggestedCountryCode => _resolveAudienceCountryCode();
+  int get appLaunchCount => _appLaunchCount;
+  int get currentUserLaunchCount => _currentUserLaunchCount;
+  int get remainingLaunchesUntilPhoneRequired =>
+      max(0, _phoneRequirementLaunchThreshold - _currentUserLaunchCount);
+
+  bool get shouldRequirePhoneNumber =>
+      _currentUserLaunchCount >= _phoneRequirementLaunchThreshold;
+
+  bool get shouldRequirePhoneNumberForCurrentUser {
+    final user = _user;
+    if (user == null || user.hasPhoneNumber) {
+      return false;
+    }
+
+    final createdAt = user.createdAtDateTime;
+    if (createdAt != null) {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      if (createdAt.isBefore(todayStart)) {
+        return true;
+      }
+    }
+
+    return shouldRequirePhoneNumber;
+  }
+
+  bool get requiresProfileCompletion {
+    if (!isAuthenticated) {
+      return false;
+    }
+
+    final user = _user;
+    if (user == null) {
+      return false;
+    }
+
+    final missingTradingStatus =
+        AppManagerConfig.supportsTradingStatus && !user.hasTradingStatus;
+    if (!user.hasCountry || missingTradingStatus) {
+      return true;
+    }
+
+    return shouldRequirePhoneNumberForCurrentUser;
+  }
 
   Future<void> initialize() async {
-    if (_initialized) return;
+    if (_initialized) {
+      return;
+    }
+    if (_initializationFuture != null) {
+      return _initializationFuture;
+    }
 
+    _initializationFuture = _initializeInternal();
+    return _initializationFuture;
+  }
+
+  Future<void> _initializeInternal() async {
     _setBusy(true);
     _errorMessage = null;
 
     try {
       final prefs = await SharedPreferences.getInstance();
+      _appLaunchCount = (prefs.getInt(_profilePromptLaunchCountKey) ?? 0) + 1;
+      await prefs.setInt(_profilePromptLaunchCountKey, _appLaunchCount);
 
       _token = prefs.getString(_tokenKey);
       _deviceId = prefs.getString(_deviceIdKey);
@@ -85,23 +163,30 @@ class AppManagerProvider with ChangeNotifier {
       if (_token != null && _token!.isNotEmpty) {
         try {
           _user = await _api.me(_token!);
+          await _syncPhoneRequirementProgressForCurrentUser(prefs);
           await _pullPreferencesFromServer();
-          unawaited(syncPushToken());
+          await syncPushToken();
         } catch (_) {
           await _clearAuth(prefs);
         }
+      } else {
+        _currentUserLaunchCount = 0;
       }
 
-      await Future.wait(<Future<void>>[
+      await _refreshSuggestedCountryCode();
+      await Future.wait<void>(<Future<void>>[
         refreshAd(),
+        refreshRemoteUiConfig(),
         refreshEducationalContent(),
       ]);
+      _lastManagedContentRefreshAt = DateTime.now();
 
       await startSessionIfNeeded();
     } catch (error) {
       _errorMessage = error.toString();
     } finally {
       _initialized = true;
+      _initializationFuture = null;
       _setBusy(false);
     }
   }
@@ -110,15 +195,45 @@ class AppManagerProvider with ChangeNotifier {
     required String email,
     required String password,
     String? fullName,
+    required String countryCode,
+    required String countryName,
+    String? phoneNumber,
+    String? tradingStatus,
   }) async {
     _setBusy(true);
     _errorMessage = null;
 
     try {
+      final normalizedName = (fullName ?? '').trim();
+      if (!_isMeaningfulFullName(normalizedName)) {
+        _errorMessage = 'الاسم الكامل مطلوب بشكل صحيح.';
+        notifyListeners();
+        return false;
+      }
+
+      if (email.trim().isEmpty) {
+        _errorMessage = 'البريد الإلكتروني مطلوب.';
+        notifyListeners();
+        return false;
+      }
+
+      if (password.isEmpty) {
+        _errorMessage = 'كلمة المرور مطلوبة.';
+        notifyListeners();
+        return false;
+      }
+
       final result = await _api.register(
         email: email.trim(),
         password: password,
-        fullName: fullName?.trim().isEmpty == true ? null : fullName?.trim(),
+        fullName: normalizedName,
+        countryCode: countryCode.trim(),
+        countryName: countryName.trim(),
+        phoneNumber:
+            phoneNumber?.trim().isEmpty == true ? null : phoneNumber?.trim(),
+        tradingStatus: tradingStatus?.trim().isEmpty == true
+            ? null
+            : tradingStatus?.trim(),
         platform: _platformName(),
         deviceId: _deviceId,
       );
@@ -179,7 +294,7 @@ class AppManagerProvider with ChangeNotifier {
       final hasIdToken = idToken != null && idToken.isNotEmpty;
       final hasAccessToken = accessToken != null && accessToken.isNotEmpty;
       if (!hasIdToken && !hasAccessToken) {
-        _errorMessage = 'تعذر الحصول على Google ID Token.';
+        _errorMessage = 'تعذر الحصول على Google token.';
         notifyListeners();
         return false;
       }
@@ -273,6 +388,8 @@ class AppManagerProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await _clearAuth(prefs);
       await endSession();
+      await refreshAd();
+      await refreshRemoteUiConfig();
       _setBusy(false);
       notifyListeners();
     }
@@ -283,24 +400,38 @@ class AppManagerProvider with ChangeNotifier {
     String? countryCode,
     String? countryName,
     String? phoneNumber,
+    String? tradingStatus,
     String? currentPassword,
     String? newPassword,
   }) async {
-    if (!isAuthenticated) return false;
+    if (!isAuthenticated) {
+      return false;
+    }
 
     _setBusy(true);
     _errorMessage = null;
 
     try {
+      if (fullName != null &&
+          fullName.trim().isNotEmpty &&
+          !_isMeaningfulFullName(fullName.trim())) {
+        _errorMessage = 'الاسم الكامل غير صالح.';
+        notifyListeners();
+        return false;
+      }
+
       _user = await _api.updateProfile(
         token: _token!,
         fullName: fullName,
         countryCode: countryCode,
         countryName: countryName,
         phoneNumber: phoneNumber,
+        tradingStatus: tradingStatus,
         currentPassword: currentPassword,
         newPassword: newPassword,
       );
+      await refreshAd();
+      await refreshRemoteUiConfig();
       notifyListeners();
       return true;
     } catch (error) {
@@ -313,7 +444,9 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<bool> deleteAccount({String? password}) async {
-    if (!isAuthenticated) return false;
+    if (!isAuthenticated) {
+      return false;
+    }
 
     _setBusy(true);
     _errorMessage = null;
@@ -331,6 +464,8 @@ class AppManagerProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await _clearAuth(prefs);
       await endSession();
+      await refreshAd();
+      await refreshRemoteUiConfig();
       notifyListeners();
       return true;
     } catch (error) {
@@ -366,10 +501,38 @@ class AppManagerProvider with ChangeNotifier {
 
   Future<void> refreshAd() async {
     try {
-      _activeAd = await _api.getActiveAd(platform: _platformName());
+      final ad = await _api.getActiveAd(
+        platform: _platformName(),
+        countryCode: _resolveAudienceCountryCode(),
+        isAuthenticated: isAuthenticated,
+        launchCount: _appLaunchCount,
+      );
+      _activeAd = ad?.placement.trim() == 'rectangle_main' ? ad : null;
       notifyListeners();
     } catch (_) {
       // Keep the existing ad if refresh fails.
+    }
+  }
+
+  Future<void> refreshRemoteUiConfig() async {
+    try {
+      final remote = await _api.getRemoteUiConfig(
+        platform: _platformName(),
+        countryCode: _resolveAudienceCountryCode(),
+        isAuthenticated: isAuthenticated,
+        launchCount: _appLaunchCount,
+      );
+      final popupAd = remote.popupAd?.placement.trim() == 'popup_center'
+          ? remote.popupAd
+          : null;
+      final filteredPopupAd = await _filterDismissedPopupAd(popupAd);
+      _remoteUiConfig = remote.copyWith(
+        popupAd: filteredPopupAd,
+        clearPopupAd: filteredPopupAd == null,
+      );
+      notifyListeners();
+    } catch (_) {
+      // Keep current UI config if fetch fails.
     }
   }
 
@@ -379,7 +542,7 @@ class AppManagerProvider with ChangeNotifier {
       _articleCache.clear();
       notifyListeners();
     } catch (_) {
-      // Keep the existing content if refresh fails.
+      // Keep old content.
     }
   }
 
@@ -401,12 +564,69 @@ class AppManagerProvider with ChangeNotifier {
     }
   }
 
+  Future<void> refreshManagedContent({bool force = false}) async {
+    if (!_initialized && _initializationFuture != null) {
+      try {
+        await _initializationFuture;
+      } catch (_) {}
+    }
+
+    if (!_initialized || _isRefreshingManagedContent) {
+      return;
+    }
+
+    final now = DateTime.now();
+    if (!force &&
+        _lastManagedContentRefreshAt != null &&
+        now.difference(_lastManagedContentRefreshAt!) < _minimumRefreshGap) {
+      return;
+    }
+
+    _isRefreshingManagedContent = true;
+    try {
+      await Future.wait<void>(<Future<void>>[
+        refreshAd(),
+        refreshRemoteUiConfig(),
+        refreshEducationalContent(),
+      ]);
+      _lastManagedContentRefreshAt = DateTime.now();
+    } finally {
+      _isRefreshingManagedContent = false;
+    }
+  }
+
+  void startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(_autoRefreshInterval, (_) {
+      refreshManagedContent();
+    });
+  }
+
+  void stopAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = null;
+  }
+
+  Future<void> dismissPopupAd(ManualAdModel ad) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_popupDismissKey(ad.id), true);
+
+    if (_remoteUiConfig.popupAd?.id == ad.id) {
+      _remoteUiConfig = _remoteUiConfig.copyWith(clearPopupAd: true);
+      notifyListeners();
+    }
+  }
+
   Future<void> syncPushToken() async {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
 
     try {
       final pushToken = await PushNotificationService.instance.getToken();
-      if (pushToken == null || pushToken.trim().isEmpty) return;
+      if (pushToken == null || pushToken.trim().isEmpty) {
+        return;
+      }
       await registerPushToken(pushToken);
     } catch (_) {
       // Non-blocking path.
@@ -414,13 +634,16 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<void> registerPushToken(String pushToken) async {
-    if (!isAuthenticated || pushToken.trim().isEmpty) return;
+    if (!isAuthenticated || pushToken.trim().isEmpty) {
+      return;
+    }
 
     try {
       await _api.registerPushToken(
         token: _token!,
         platform: _platformName(),
         pushToken: pushToken.trim(),
+        provider: 'fcm',
         deviceId: _deviceId,
       );
     } catch (_) {
@@ -429,7 +652,9 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<void> startSessionIfNeeded({bool forceRestart = false}) async {
-    if (_activeSessionUid != null && !forceRestart) return;
+    if (_activeSessionUid != null && !forceRestart) {
+      return;
+    }
 
     if (forceRestart && _activeSessionUid != null) {
       await endSession();
@@ -455,7 +680,9 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<void> endSession() async {
-    if (_activeSessionUid == null) return;
+    if (_activeSessionUid == null) {
+      return;
+    }
 
     final endedSession = _activeSessionUid!;
     _activeSessionUid = null;
@@ -481,6 +708,8 @@ class AppManagerProvider with ChangeNotifier {
 
   Future<void> trackEvent({
     required String eventName,
+    int? durationMs,
+    double? value,
     Map<String, dynamic>? metadata,
   }) async {
     try {
@@ -490,6 +719,8 @@ class AppManagerProvider with ChangeNotifier {
         sessionUid: _activeSessionUid,
         platform: _platformName(),
         deviceId: _deviceId,
+        durationMs: durationMs,
+        value: value,
         metadata: metadata,
       );
     } catch (_) {
@@ -506,17 +737,22 @@ class AppManagerProvider with ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, _token!);
+    await _syncPhoneRequirementProgressForCurrentUser(prefs);
 
     await _pullPreferencesFromServer();
     await _pushPreferencesToServer();
     await startSessionIfNeeded(forceRestart: true);
+    await refreshAd();
+    await refreshRemoteUiConfig();
     await trackEvent(eventName: eventName);
-    unawaited(syncPushToken());
+    await syncPushToken();
     notifyListeners();
   }
 
   Future<void> _pullPreferencesFromServer() async {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
 
     try {
       final remote = await _api.getPreferences(token: _token!);
@@ -531,10 +767,7 @@ class AppManagerProvider with ChangeNotifier {
       );
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
-        _favoriteItemsKey,
-        _preferences.favoriteItems,
-      );
+      await prefs.setStringList(_favoriteItemsKey, _preferences.favoriteItems);
       notifyListeners();
     } catch (_) {
       // Keep local preferences.
@@ -542,7 +775,9 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<void> _pushPreferencesToServer() async {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      return;
+    }
 
     try {
       _preferences = await _api.upsertPreferences(
@@ -555,6 +790,130 @@ class AppManagerProvider with ChangeNotifier {
     }
   }
 
+  Future<ManualAdModel?> _filterDismissedPopupAd(ManualAdModel? ad) async {
+    if (ad == null) {
+      return null;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final dismissed = prefs.getBool(_popupDismissKey(ad.id)) ?? false;
+    return dismissed ? null : ad;
+  }
+
+  Future<void> _refreshSuggestedCountryCode() async {
+    try {
+      final detectedCountryCode = _normalizedKnownCountryCode(
+        await _api.detectCountryCode(),
+      );
+      if (detectedCountryCode == null) {
+        return;
+      }
+
+      _networkSuggestedCountryCode = detectedCountryCode;
+      notifyListeners();
+    } catch (_) {
+      // Keep locale fallback if country detection is unavailable.
+    }
+  }
+
+  String _resolveAudienceCountryCode() {
+    final userCountryCode = _normalizedKnownCountryCode(_user?.countryCode);
+    if (userCountryCode != null) {
+      return userCountryCode;
+    }
+
+    final networkCountryCode =
+        _normalizedKnownCountryCode(_networkSuggestedCountryCode);
+    if (networkCountryCode != null) {
+      return networkCountryCode;
+    }
+
+    for (final locale in WidgetsBinding.instance.platformDispatcher.locales) {
+      final directCountryCode = _normalizedKnownCountryCode(locale.countryCode);
+      if (directCountryCode != null) {
+        return directCountryCode;
+      }
+
+      final taggedCountryCode = _countryCodeFromLocaleTag(
+        locale.toLanguageTag(),
+      );
+      if (taggedCountryCode != null) {
+        return taggedCountryCode;
+      }
+    }
+
+    return _countryCodeFromLocaleTag(
+          WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag(),
+        ) ??
+        '';
+  }
+
+  String _popupDismissKey(int adId) {
+    return '${_popupDismissKeyPrefix}_${AppManagerConfig.appSlug}_$adId';
+  }
+
+  Future<void> _syncPhoneRequirementProgressForCurrentUser(
+    SharedPreferences prefs,
+  ) async {
+    final user = _user;
+    if (user == null) {
+      _currentUserLaunchCount = 0;
+      return;
+    }
+
+    final key = _phoneRequirementBaselineLaunchKeyFor(user.id);
+    var baselineLaunchCount = prefs.getInt(key);
+
+    if (baselineLaunchCount == null ||
+        baselineLaunchCount < 1 ||
+        baselineLaunchCount > _appLaunchCount) {
+      baselineLaunchCount = _appLaunchCount;
+      await prefs.setInt(key, baselineLaunchCount);
+    }
+
+    _currentUserLaunchCount = max(1, _appLaunchCount - baselineLaunchCount + 1);
+  }
+
+  String _phoneRequirementBaselineLaunchKeyFor(int userId) {
+    return '${_phoneRequirementBaselineLaunchKeyPrefix}_'
+        '${AppManagerConfig.appSlug}_$userId';
+  }
+
+  String? _normalizedKnownCountryCode(String? rawCode) {
+    final normalized = (rawCode ?? '').trim().toUpperCase();
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    return countryOptionByCode(normalized)?.code;
+  }
+
+  String? _countryCodeFromLocaleTag(String? rawTag) {
+    final tag = (rawTag ?? '').trim().toUpperCase();
+    if (tag.isEmpty) {
+      return null;
+    }
+
+    final parts = tag
+        .split(RegExp(r'[-_]'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+
+    for (final part in parts.skip(1)) {
+      if (part.length != 2) {
+        continue;
+      }
+
+      final code = _normalizedKnownCountryCode(part);
+      if (code != null) {
+        return code;
+      }
+    }
+
+    return null;
+  }
+
   List<String> _normalizeFavoriteItems(List<String> items) {
     return items
         .map((item) => item.trim().toUpperCase())
@@ -565,18 +924,36 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   bool _listEquals(List<String> a, List<String> b) {
-    if (identical(a, b)) return true;
-    if (a.length != b.length) return false;
+    if (identical(a, b)) {
+      return true;
+    }
+    if (a.length != b.length) {
+      return false;
+    }
 
     for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
+      if (a[i] != b[i]) {
+        return false;
+      }
     }
 
     return true;
   }
 
+  bool _isMeaningfulFullName(String value) {
+    if (value.trim().length < 3) {
+      return false;
+    }
+
+    final meaningful =
+        value.replaceAll(RegExp(r'[\p{P}\p{S}\s]+', unicode: true), '');
+    return meaningful.length >= 2;
+  }
+
   String _platformName() {
-    if (kIsWeb) return 'web';
+    if (kIsWeb) {
+      return 'web';
+    }
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -603,11 +980,20 @@ class AppManagerProvider with ChangeNotifier {
   Future<void> _clearAuth(SharedPreferences prefs) async {
     _token = null;
     _user = null;
+    _currentUserLaunchCount = 0;
+    _activeAd = null;
+    _remoteUiConfig = RemoteUiConfigModel.empty();
     await prefs.remove(_tokenKey);
   }
 
   void _setBusy(bool value) {
     _isBusy = value;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    stopAutoRefresh();
+    super.dispose();
   }
 }

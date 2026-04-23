@@ -586,9 +586,10 @@ class _StockDetailScreenState extends State<StockDetailScreen>
 
     slice = _downsample(slice, _maxPointsForPeriod(_selectedPeriod));
 
-    final spots = slice
-        .map((c) => FlSpot(c.time.millisecondsSinceEpoch.toDouble(), c.close))
-        .toList();
+    final spots = <FlSpot>[
+      for (int i = 0; i < slice.length; i++)
+        FlSpot(i.toDouble(), slice[i].close),
+    ];
 
     setState(() {
       _visibleCandles = slice;
@@ -887,6 +888,9 @@ class _StockDetailScreenState extends State<StockDetailScreen>
   }
 
   Widget _buildChartTab(Color trendColor) {
+    final rawHeight = MediaQuery.of(context).size.height * 0.38;
+    final chartHeight = rawHeight.clamp(240.0, 340.0).toDouble();
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
       physics: _lockParentGestures
@@ -955,7 +959,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                   onPointerUp: (_) => _setLockParentGestures(false),
                   onPointerCancel: (_) => _setLockParentGestures(false),
                   child: SizedBox(
-                    height: 320,
+                    height: chartHeight,
                     child: _loadingChart
                         ? const Center(
                             child: CircularProgressIndicator(
@@ -989,22 +993,42 @@ class _StockDetailScreenState extends State<StockDetailScreen>
             ? _buildTouchedBadge(_visibleCandles[idx])
             : _buildMinMaxBadge(minP, maxP);
 
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            range,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w800,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 430;
+
+        final rangeText = Text(
+          range,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w800,
           ),
-        ),
-        const SizedBox(width: 10),
-        rightWidget,
-      ],
+        );
+
+        if (isCompact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              rangeText,
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: rightWidget,
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: rangeText),
+            const SizedBox(width: 10),
+            rightWidget,
+          ],
+        );
+      },
     );
   }
 
@@ -1127,8 +1151,8 @@ class _StockDetailScreenState extends State<StockDetailScreen>
       );
     }
 
-    final minX = _spots.first.x;
-    final maxX = _spots.last.x;
+    final minX = 0.0;
+    final maxX = (_spots.length - 1).toDouble();
 
     final minY = _spots.map((e) => e.y).reduce(min);
     final maxY = _spots.map((e) => e.y).reduce(max);
@@ -1156,14 +1180,14 @@ class _StockDetailScreenState extends State<StockDetailScreen>
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 52,
+              reservedSize: 58,
               interval: intervalY,
               getTitlesWidget: (value, meta) {
                 return SideTitleWidget(
                   axisSide: meta.axisSide,
                   space: 8,
                   child: Text(
-                    value.toStringAsFixed(2),
+                    _formatAxisPrice(value),
                     style: const TextStyle(
                       fontFamily: 'Tajawal',
                       fontSize: 10,
@@ -1180,10 +1204,12 @@ class _StockDetailScreenState extends State<StockDetailScreen>
               showTitles: true,
               reservedSize: 34,
               getTitlesWidget: (value, meta) {
-                final dt = DateTime.fromMillisecondsSinceEpoch(value.toInt());
-                if (!_shouldShowBottomTitle(dt, _selectedPeriod)) {
+                final idx = value.round();
+                if (!_shouldShowBottomTitle(idx, _selectedPeriod)) {
                   return const SizedBox.shrink();
                 }
+
+                final dt = _visibleCandles[idx].time;
 
                 final label = (_selectedPeriod == ChartPeriod.sixMonths ||
                         _selectedPeriod == ChartPeriod.year)
@@ -1277,12 +1303,18 @@ class _StockDetailScreenState extends State<StockDetailScreen>
             tooltipPadding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             tooltipMargin: 10,
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
             getTooltipColor: (touchedSpot) => Colors.black.withOpacity(0.86),
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((s) {
-                final dt = DateTime.fromMillisecondsSinceEpoch(s.x.toInt());
-                final priceLine = _fmtMoney(s.y);
-                final dateLine = _tooltipFmt.format(dt);
+                final idx = s.spotIndex;
+                final hasCandle = idx >= 0 && idx < _visibleCandles.length;
+                final candle = hasCandle ? _visibleCandles[idx] : null;
+
+                final dt = candle?.time;
+                final priceLine = _fmtMoney(candle?.close ?? s.y);
+                final dateLine = dt != null ? _tooltipFmt.format(dt) : '--';
                 return LineTooltipItem(
                   '$priceLine\n$dateLine',
                   const TextStyle(
@@ -1303,32 +1335,64 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     );
   }
 
-  bool _shouldShowBottomTitle(DateTime dt, ChartPeriod p) {
+  bool _shouldShowBottomTitle(int index, ChartPeriod p) {
     if (_visibleCandles.isEmpty) return false;
-    final start = _visibleCandles.first.time;
-    final days = dt.difference(start).inDays;
+    if (index < 0 || index >= _visibleCandles.length) return false;
 
+    if (index == 0 || index == _visibleCandles.length - 1) {
+      return true;
+    }
+
+    final labelsCount = _targetBottomLabelCount(p);
+    final step = max(1, (_visibleCandles.length / labelsCount).round());
+    return index % step == 0;
+  }
+
+  int _targetBottomLabelCount(ChartPeriod p) {
     switch (p) {
       case ChartPeriod.week:
-        return days % 2 == 0;
+        return 4;
       case ChartPeriod.month:
-        return days % 7 == 0;
+        return 5;
       case ChartPeriod.threeMonths:
-        return days % 14 == 0;
+        return 6;
       case ChartPeriod.sixMonths:
-        return dt.day == 1;
+        return 6;
       case ChartPeriod.year:
-        return dt.day == 1 && dt.month % 2 == 1;
+        return 7;
     }
   }
 
   double _leftInterval(double minY, double maxY) {
     final range = (maxY - minY).abs();
-    if (range <= 0.5) return 0.1;
-    if (range <= 2) return 0.5;
-    if (range <= 10) return 1;
-    if (range <= 30) return 2.5;
-    return 5;
+    if (range <= 0) return 1;
+
+    final raw = range / 4.5;
+    final magnitude = pow(10, (log(raw) / ln10).floor()).toDouble();
+    final normalized = raw / magnitude;
+
+    double nice;
+    if (normalized <= 1) {
+      nice = 1;
+    } else if (normalized <= 2) {
+      nice = 2;
+    } else if (normalized <= 2.5) {
+      nice = 2.5;
+    } else if (normalized <= 5) {
+      nice = 5;
+    } else {
+      nice = 10;
+    }
+
+    return max(0.01, nice * magnitude);
+  }
+
+  String _formatAxisPrice(double value) {
+    final absValue = value.abs();
+    if (absValue >= 1000) return value.toStringAsFixed(0);
+    if (absValue >= 100) return value.toStringAsFixed(1);
+    if (absValue >= 10) return value.toStringAsFixed(2);
+    return value.toStringAsFixed(3);
   }
 
   Widget _buildStockInfoGrid() {

@@ -3,7 +3,7 @@ description: تطبيق مراقب الأسهم المصرية - تطبيق اح
 
 publish_to: 'none'
 
-version: 5.0.12+12
+version: 5.0.15+15
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -40,6 +40,8 @@ dependencies:
   cupertino_icons: ^1.0.6
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^7.0.1
+  dlibphonenumber: ^1.1.60
+  font_awesome_flutter: ^10.8.0
 
 dev_dependencies:
   flutter_test:

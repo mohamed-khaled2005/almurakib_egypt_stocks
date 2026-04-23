@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -10,6 +11,8 @@ import '../core/services/last_update_service.dart';
 import '../core/services/stock_service.dart';
 import '../core/services/translation_service.dart';
 import '../core/utils/constants.dart';
+import '../models/manual_ad_model.dart';
+import '../models/remote_ui_config_model.dart';
 import '../providers/app_manager_provider.dart';
 import '../utils/app_lifecycle_refresh.dart';
 import '../utils/first_time_hint.dart';
@@ -37,6 +40,29 @@ const Color _shellHighlight = AppColors.accentGold;
 Color _o(Color color, double opacity) =>
     color.withAlpha((opacity.clamp(0.0, 1.0) * 255).round());
 
+String _stockSecondaryLabel(String symbol, String id) {
+  final trimmedSymbol = symbol.trim();
+  final trimmedId = id.trim();
+  if (trimmedSymbol.isEmpty) {
+    return trimmedId;
+  }
+  if (trimmedId.isEmpty) {
+    return trimmedSymbol;
+  }
+
+  final normalizedSymbol = trimmedSymbol.toLowerCase();
+  final normalizedId = trimmedId.toLowerCase();
+  final symbolTail = normalizedSymbol.contains(':')
+      ? normalizedSymbol.split(':').last
+      : normalizedSymbol;
+
+  if (normalizedSymbol == normalizedId || symbolTail == normalizedId) {
+    return trimmedSymbol;
+  }
+
+  return '$trimmedSymbol - $trimmedId';
+}
+
 class AppShellScreen extends StatefulWidget {
   const AppShellScreen({super.key});
 
@@ -51,9 +77,15 @@ class _AppShellScreenState extends State<AppShellScreen> {
   int _index = 0;
   bool _refreshing = false;
   bool _profileCompletionPromptActive = false;
+  bool _popupDialogActive = false;
+  bool _isStocksExpanded = true;
+  bool _isAboutExpanded = false;
   late final bool _hideOurAppsTab;
   late final List<Widget?> _pageCache;
   final Set<int> _loadedPageIndices = <int>{0};
+  int? _presentedPopupAdId;
+  int? _pendingAuthTabIndex;
+  int _lastNonAccountTabIndex = 0;
 
   int get _homeTabIndex => 0;
   int get _marketTodayTabIndex => 1;
@@ -145,7 +177,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
       return const ContactScreen();
     }
     if (index == _accountScreenIndex) {
-      return const AccountScreen();
+      return AccountScreen(onAuthSuccess: _handleAccountAuthSuccess);
     }
 
     return const SizedBox.shrink();
@@ -164,8 +196,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
     try {
       await Future.wait<void>(<Future<void>>[
         TranslationService.getTranslations(forceRefresh: true),
-        context.read<AppManagerProvider>().refreshAd(),
-        context.read<AppManagerProvider>().refreshEducationalContent(),
+        context.read<AppManagerProvider>().refreshManagedContent(force: true),
       ]);
       await Future<void>.delayed(const Duration(milliseconds: 300));
 
@@ -256,6 +287,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
   }
 
   Future<void> _openProtectedIndex(int index) async {
+    _pendingAuthTabIndex = index;
     final allowed = await _ensureAuthenticatedForProtectedContent();
     if (!mounted || !allowed || _index == index) return;
     _applyIndex(index);
@@ -265,6 +297,9 @@ class _AppShellScreenState extends State<AppShellScreen> {
     setState(() {
       _index = index;
       _loadedPageIndices.add(index);
+      if (index != _accountScreenIndex) {
+        _lastNonAccountTabIndex = index;
+      }
     });
     context.read<AppManagerProvider>().trackPageView(_pageNameForIndex(index));
   }
@@ -308,59 +343,277 @@ class _AppShellScreenState extends State<AppShellScreen> {
     return 'page_$index';
   }
 
-  List<_SideNavItem> _navigationItems() {
-    return <_SideNavItem>[
-      _SideNavItem(
+  Future<void> _launchExternalLink(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرابط غير صالح.')),
+      );
+      return;
+    }
+
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر فتح الرابط الآن.')),
+      );
+    }
+  }
+
+  void _maybeShowPopupAd(AppManagerProvider manager) {
+    final popupAd = manager.popupAd;
+    if (!mounted ||
+        popupAd == null ||
+        _popupDialogActive ||
+        _profileCompletionPromptActive ||
+        _index != _homeTabIndex ||
+        _presentedPopupAdId == popupAd.id) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final currentPopup = context.read<AppManagerProvider>().popupAd;
+      if (currentPopup == null ||
+          currentPopup.id != popupAd.id ||
+          _popupDialogActive ||
+          _presentedPopupAdId == currentPopup.id) {
+        return;
+      }
+
+      _popupDialogActive = true;
+      _presentedPopupAdId = currentPopup.id;
+
+      await _showPopupAdDialog(currentPopup);
+      _popupDialogActive = false;
+    });
+  }
+
+  Future<void> _showPopupAdDialog(ManualAdModel ad) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        Future<void> closePopup() async {
+          await context.read<AppManagerProvider>().dismissPopupAd(ad);
+          if (dialogContext.mounted) {
+            Navigator.of(dialogContext).pop();
+          }
+        }
+
+        Future<void> openPopupLink() async {
+          await _launchExternalLink(ad.targetUrl);
+          if (!mounted) return;
+          await context.read<AppManagerProvider>().dismissPopupAd(ad);
+          if (dialogContext.mounted) {
+            Navigator.of(dialogContext).pop();
+          }
+        }
+
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) async {
+            if (didPop) return;
+            await closePopup();
+          },
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.22),
+                      blurRadius: 24,
+                      offset: const Offset(0, 18),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    if (ad.imageUrl.trim().isNotEmpty)
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(24),
+                        ),
+                        child: AspectRatio(
+                          aspectRatio: 1.5,
+                          child: Image.network(
+                            ad.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: AppColors.cardLight,
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.campaign_rounded,
+                                color: AppColors.primaryBlue,
+                                size: 42,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          Text(
+                            ad.title.trim().isEmpty ? 'إعلان' : ad.title,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.headingSmall.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: closePopup,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.textSecondary,
+                                    side: const BorderSide(
+                                      color: AppColors.border,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  child: const Text('إغلاق'),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: ad.targetUrl.trim().isEmpty
+                                      ? closePopup
+                                      : openPopupLink,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryBlue,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    ad.targetUrl.trim().isEmpty
+                                        ? 'حسنًا'
+                                        : 'افتح الآن',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleAccountAuthSuccess() {
+    var targetIndex = _pendingAuthTabIndex;
+    _pendingAuthTabIndex = null;
+
+    if (targetIndex == null || targetIndex == _accountScreenIndex) {
+      targetIndex = _lastNonAccountTabIndex;
+    }
+
+    if (targetIndex == _accountScreenIndex) {
+      targetIndex = _homeTabIndex;
+    }
+
+    if (_index == targetIndex) {
+      return;
+    }
+
+    _applyIndex(targetIndex);
+  }
+
+  _SideNavItem get _homeNavItem => _SideNavItem(
         index: _homeTabIndex,
-        title: '\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',
+        title: 'الرئيسية',
         icon: Icons.home_outlined,
-      ),
-      _SideNavItem(
-        index: _marketTodayTabIndex,
-        title: '\u0627\u0644\u0633\u0648\u0642 \u0627\u0644\u064a\u0648\u0645',
-        icon: Icons.trending_up_outlined,
-      ),
-      _SideNavItem(
+      );
+
+  _SideNavItem get _indicesNavItem => _SideNavItem(
         index: _indicesTabIndex,
-        title: '\u0627\u0644\u0645\u0624\u0634\u0631\u0627\u062a',
+        title: 'المؤشرات',
         icon: Icons.insights_outlined,
-      ),
-      _SideNavItem(
-        index: _allStocksTabIndex,
-        title: '\u0643\u0644 \u0627\u0644\u0623\u0633\u0647\u0645',
-        icon: Icons.list_alt_outlined,
-      ),
-      _SideNavItem(
-        index: _favoritesTabIndex,
-        title: '\u0627\u0644\u0645\u0641\u0636\u0644\u0629',
-        icon: Icons.star_border_rounded,
-      ),
-      if (!_hideOurAppsTab)
+      );
+
+  _SideNavItem get _educationNavItem => _SideNavItem(
+        index: _educationTabIndex,
+        title: 'المحتوى التعليمي',
+        icon: Icons.menu_book_outlined,
+      );
+
+  List<_SideNavItem> get _stocksNavItems => <_SideNavItem>[
+        _SideNavItem(
+          index: _favoritesTabIndex,
+          title: 'المفضلة',
+          icon: Icons.star_border_rounded,
+        ),
+        _SideNavItem(
+          index: _allStocksTabIndex,
+          title: 'كل الأسهم',
+          icon: Icons.list_alt_outlined,
+        ),
+        _SideNavItem(
+          index: _marketTodayTabIndex,
+          title: 'الأسهم الرابحة والخاسرة',
+          icon: Icons.analytics_outlined,
+        ),
+      ];
+
+  List<_SideNavItem> get _aboutNavItems {
+    final items = <_SideNavItem>[];
+
+    if (!_hideOurAppsTab) {
+      items.add(
         _SideNavItem(
           index: _ourAppsTabIndex,
-          title: '\u062a\u0637\u0628\u064a\u0642\u0627\u062a\u0646\u0627',
+          title: 'تطبيقاتنا',
           icon: Icons.apps_outlined,
         ),
-      _SideNavItem(
-        index: _educationTabIndex,
-        title:
-            '\u0627\u0644\u0645\u062d\u062a\u0648\u0649 \u0627\u0644\u062a\u0639\u0644\u064a\u0645\u064a',
-        icon: Icons.menu_book_outlined,
-      ),
+      );
+    }
+
+    items.addAll(<_SideNavItem>[
       _SideNavItem(
         index: _aboutScreenIndex,
-        title: '\u0639\u0646 \u0627\u0644\u062a\u0637\u0628\u064a\u0642',
+        title: 'عن التطبيق',
         icon: Icons.info_outline_rounded,
       ),
       _SideNavItem(
         index: _contactScreenIndex,
-        title: '\u0627\u062a\u0635\u0644 \u0628\u0646\u0627',
+        title: 'اتصل بنا',
         icon: Icons.contact_page_outlined,
       ),
-    ];
+    ]);
+
+    return items;
   }
 
-  Drawer _buildSideDrawer(BuildContext context) {
+  Drawer _buildSideDrawer(
+    BuildContext context,
+    AppManagerProvider manager,
+  ) {
     final screenWidth = MediaQuery.of(context).size.width;
     final drawerWidth = screenWidth > 380 ? 320.0 : screenWidth * 0.86;
 
@@ -368,12 +621,18 @@ class _AppShellScreenState extends State<AppShellScreen> {
       width: drawerWidth,
       elevation: 0,
       backgroundColor: Colors.transparent,
-      child: _buildSideNavigationPanel(closeOnSelect: true),
+      child: _buildSideNavigationPanel(
+        closeOnSelect: true,
+        manager: manager,
+      ),
     );
   }
 
-  Widget _buildSideNavigationPanel({required bool closeOnSelect}) {
-    final items = _navigationItems();
+  Widget _buildSideNavigationPanel({
+    required bool closeOnSelect,
+    required AppManagerProvider manager,
+  }) {
+    final compact = MediaQuery.of(context).size.width < 360;
 
     return Container(
       decoration: BoxDecoration(
@@ -392,76 +651,523 @@ class _AppShellScreenState extends State<AppShellScreen> {
         ],
       ),
       child: SafeArea(
-        child: ListView.builder(
+        child: ListView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(10, 16, 10, 18),
-          itemCount: items.length,
-          itemBuilder: (context, i) {
-            final item = items[i];
-            final bool isSelected = _index == item.index;
-
-            return Padding(
+          children: <Widget>[
+            Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: AnimatedContainer(
-                duration: AppAnimations.buttonAnimation,
-                decoration: BoxDecoration(
-                  gradient: isSelected
-                      ? const LinearGradient(
-                          colors: <Color>[
-                            Color(0x1FCE1126),
-                            Color(0x0FC09300),
-                          ],
-                          begin: Alignment.centerRight,
-                          end: Alignment.centerLeft,
-                        )
-                      : null,
-                  color: isSelected ? null : Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppColors.primaryBlue.withValues(alpha: 0.28)
-                        : AppColors.border,
-                  ),
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      if (closeOnSelect && Navigator.of(context).canPop()) {
-                        Navigator.of(context).pop();
-                      }
-                      _setIndex(item.index);
-                    },
-                    child: ListTile(
-                      dense: true,
-                      contentPadding:
-                          const EdgeInsetsDirectional.fromSTEB(12, 6, 10, 6),
-                      leading: Icon(
-                        item.icon,
-                        size: 22,
-                        color: isSelected
-                            ? AppColors.primaryBlue
-                            : AppColors.textSecondary,
-                      ),
-                      title: Text(
-                        item.title,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: isSelected
-                              ? AppColors.textPrimary
-                              : AppColors.textSecondary,
-                          fontWeight:
-                              isSelected ? FontWeight.w800 : FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              child: _buildSideNavTile(
+                item: _homeNavItem,
+                closeOnSelect: closeOnSelect,
+                compact: compact,
               ),
-            );
-          },
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _buildStocksAccordion(
+                closeOnSelect: closeOnSelect,
+                compact: compact,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _buildSideNavTile(
+                item: _indicesNavItem,
+                closeOnSelect: closeOnSelect,
+                compact: compact,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _buildSideNavTile(
+                item: _educationNavItem,
+                closeOnSelect: closeOnSelect,
+                compact: compact,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _buildAboutAccordion(
+                closeOnSelect: closeOnSelect,
+                compact: compact,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _buildManagedTradingAccountButton(
+              compact: compact,
+              menuCta: manager.menuCta,
+            ),
+            const SizedBox(height: 12),
+            _buildManagedSocialMediaSection(
+              compact: compact,
+              socialLinks: manager.socialLinks,
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildSideNavTile({
+    required _SideNavItem item,
+    required bool closeOnSelect,
+    required bool compact,
+    bool isSubItem = false,
+  }) {
+    final isSelected = _index == item.index;
+    final borderRadius = BorderRadius.circular(compact ? 12 : 14);
+
+    return SizedBox(
+      height: isSubItem ? (compact ? 42 : 46) : (compact ? 48 : 52),
+      child: AnimatedContainer(
+        duration: AppAnimations.buttonAnimation,
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? const LinearGradient(
+                  colors: <Color>[
+                    Color(0x1FCE1126),
+                    Color(0x12C09300),
+                  ],
+                  begin: Alignment.centerRight,
+                  end: Alignment.centerLeft,
+                )
+              : null,
+          color: isSelected
+              ? null
+              : (isSubItem ? const Color(0xFFFDF6F7) : Colors.transparent),
+          borderRadius: borderRadius,
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primaryBlue.withValues(alpha: 0.28)
+                : AppColors.border,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: borderRadius,
+            onTap: () {
+              if (closeOnSelect && Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+              _setIndex(item.index);
+            },
+            child: Padding(
+              padding: EdgeInsetsDirectional.fromSTEB(
+                isSubItem ? (compact ? 16 : 18) : (compact ? 12 : 14),
+                0,
+                compact ? 10 : 12,
+                0,
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    item.icon,
+                    size: isSubItem ? (compact ? 17 : 18) : (compact ? 20 : 22),
+                    color: isSelected
+                        ? AppColors.primaryBlue
+                        : AppColors.textSecondary,
+                  ),
+                  SizedBox(width: compact ? 8 : 10),
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontSize: isSubItem
+                            ? (compact ? 11.5 : 12.1)
+                            : (compact ? 12.0 : 12.8),
+                        color: isSelected
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        fontWeight:
+                            isSelected ? FontWeight.w800 : FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStocksAccordion({
+    required bool closeOnSelect,
+    required bool compact,
+  }) {
+    return _buildSideNavAccordion(
+      title: 'الأسهم',
+      icon: Icons.show_chart_rounded,
+      items: _stocksNavItems,
+      closeOnSelect: closeOnSelect,
+      compact: compact,
+      isExpanded: _isStocksExpanded,
+      onToggle: () {
+        setState(() {
+          _isStocksExpanded = !_isStocksExpanded;
+        });
+      },
+    );
+  }
+
+  Widget _buildAboutAccordion({
+    required bool closeOnSelect,
+    required bool compact,
+  }) {
+    return _buildSideNavAccordion(
+      title: 'عنا',
+      icon: Icons.info_outline_rounded,
+      items: _aboutNavItems,
+      closeOnSelect: closeOnSelect,
+      compact: compact,
+      isExpanded: _isAboutExpanded,
+      onToggle: () {
+        setState(() {
+          _isAboutExpanded = !_isAboutExpanded;
+        });
+      },
+    );
+  }
+
+  Widget _buildSideNavAccordion({
+    required String title,
+    required IconData icon,
+    required List<_SideNavItem> items,
+    required bool closeOnSelect,
+    required bool compact,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+  }) {
+    final hasSelectedItem = items.any((item) => item.index == _index);
+    final borderRadius = BorderRadius.circular(compact ? 12 : 14);
+
+    return AnimatedContainer(
+      duration: AppAnimations.buttonAnimation,
+      decoration: BoxDecoration(
+        gradient: hasSelectedItem
+            ? const LinearGradient(
+                colors: <Color>[
+                  Color(0x1FCE1126),
+                  Color(0x12C09300),
+                ],
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
+              )
+            : null,
+        color: hasSelectedItem ? null : Colors.transparent,
+        borderRadius: borderRadius,
+        border: Border.all(
+          color: hasSelectedItem
+              ? AppColors.primaryBlue.withValues(alpha: 0.28)
+              : AppColors.border,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          children: <Widget>[
+            InkWell(
+              borderRadius: borderRadius,
+              onTap: onToggle,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 12 : 14,
+                  vertical: compact ? 13 : 14,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      icon,
+                      size: compact ? 20 : 22,
+                      color: hasSelectedItem
+                          ? AppColors.primaryBlue
+                          : AppColors.textSecondary,
+                    ),
+                    SizedBox(width: compact ? 8 : 10),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: compact ? 12.0 : 12.8,
+                          color: hasSelectedItem
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontWeight: hasSelectedItem
+                              ? FontWeight.w800
+                              : FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: isExpanded ? 0.5 : 0,
+                      duration: AppAnimations.buttonAnimation,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: hasSelectedItem
+                            ? AppColors.primaryBlue
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: AppAnimations.buttonAnimation,
+              alignment: Alignment.topCenter,
+              child: isExpanded
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                      child: Column(
+                        children: items
+                            .map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: _buildSideNavTile(
+                                  item: item,
+                                  closeOnSelect: closeOnSelect,
+                                  compact: compact,
+                                  isSubItem: true,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManagedTradingAccountButton({
+    required bool compact,
+    required ManagedMenuCta? menuCta,
+  }) {
+    if (menuCta == null || !menuCta.isUsable) {
+      return const SizedBox.shrink();
+    }
+
+    final borderRadius = BorderRadius.circular(compact ? 14 : 16);
+    final backgroundColor =
+        _tryParseHexColor(menuCta.backgroundColor) ?? AppColors.primaryBlue;
+    final textColor = _tryParseHexColor(menuCta.textColor) ?? Colors.white;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: borderRadius,
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: backgroundColor.withValues(alpha: 0.24),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: borderRadius,
+          onTap: () => _launchExternalLink(menuCta.url),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 14 : 16,
+              vertical: compact ? 12 : 14,
+            ),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: compact ? 34 : 38,
+                  height: compact ? 34 : 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.open_in_new_rounded,
+                    color: textColor,
+                  ),
+                ),
+                SizedBox(width: compact ? 10 : 12),
+                Expanded(
+                  child: Text(
+                    menuCta.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: compact ? 12.3 : 13.3,
+                      color: textColor,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_outward_rounded,
+                  color: textColor,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManagedSocialMediaSection({
+    required bool compact,
+    required List<SocialLinkModel> socialLinks,
+  }) {
+    if (socialLinks.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        compact ? 12 : 14,
+        compact ? 11 : 12,
+        compact ? 12 : 14,
+        compact ? 12 : 13,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(compact ? 14 : 16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '\u062a\u0627\u0628\u0639\u0646\u0627',
+            style: AppTextStyles.bodySmall.copyWith(
+              fontSize: compact ? 10.8 : 11.8,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: compact ? 10 : 12),
+          Wrap(
+            spacing: compact ? 8 : 10,
+            runSpacing: compact ? 8 : 10,
+            children: socialLinks
+                .map(
+                  (item) => _buildManagedSocialMediaButton(
+                    item: item,
+                    compact: compact,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManagedSocialMediaButton({
+    required SocialLinkModel item,
+    required bool compact,
+  }) {
+    final accentColor = _socialAccentColor(item.platform);
+    final iconData = _socialIconData(item.platform);
+    final borderRadius = BorderRadius.circular(compact ? 13 : 14);
+    final isX = item.platform.trim().toLowerCase() == 'x';
+
+    return Tooltip(
+      message: item.label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: borderRadius,
+          onTap: () => _launchExternalLink(item.url),
+          child: Ink(
+            width: compact ? 44 : 48,
+            height: compact ? 44 : 48,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.10),
+              borderRadius: borderRadius,
+              border: Border.all(
+                color: accentColor.withValues(alpha: 0.28),
+              ),
+            ),
+            child: Center(
+              child: FaIcon(
+                iconData,
+                size: compact ? 17 : 18,
+                color: isX ? AppColors.textPrimary : accentColor,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color? _tryParseHexColor(String? rawValue) {
+    final value = (rawValue ?? '').trim();
+    if (value.isEmpty) {
+      return null;
+    }
+
+    final normalized = value.startsWith('#') ? value.substring(1) : value;
+    if (normalized.length != 6 && normalized.length != 8) {
+      return null;
+    }
+
+    final parsed = int.tryParse(normalized, radix: 16);
+    if (parsed == null) {
+      return null;
+    }
+
+    return Color(normalized.length == 6 ? (0xFF000000 | parsed) : parsed);
+  }
+
+  Color _socialAccentColor(String platform) {
+    switch (platform.trim().toLowerCase()) {
+      case 'telegram':
+        return const Color(0xFF27A7E7);
+      case 'facebook':
+        return const Color(0xFF1877F2);
+      case 'instagram':
+        return const Color(0xFFE75A8D);
+      case 'whatsapp':
+        return const Color(0xFF25D366);
+      case 'x':
+        return const Color(0xFF1E1E1E);
+      default:
+        return AppColors.primaryBlue;
+    }
+  }
+
+  IconData _socialIconData(String platform) {
+    switch (platform.trim().toLowerCase()) {
+      case 'telegram':
+        return FontAwesomeIcons.telegram;
+      case 'facebook':
+        return FontAwesomeIcons.facebookF;
+      case 'instagram':
+        return FontAwesomeIcons.instagram;
+      case 'whatsapp':
+        return FontAwesomeIcons.whatsapp;
+      case 'x':
+        return FontAwesomeIcons.xTwitter;
+      default:
+        return FontAwesomeIcons.link;
+    }
   }
 
   Widget _buildBody(bool isDesktopNav) {
@@ -486,7 +1192,10 @@ class _AppShellScreenState extends State<AppShellScreen> {
         children: <Widget>[
           SizedBox(
             width: 290,
-            child: _buildSideNavigationPanel(closeOnSelect: false),
+            child: _buildSideNavigationPanel(
+              closeOnSelect: false,
+              manager: context.read<AppManagerProvider>(),
+            ),
           ),
           Expanded(child: pages),
         ],
@@ -550,6 +1259,9 @@ class _AppShellScreenState extends State<AppShellScreen> {
     if (manager.initialized && manager.requiresProfileCompletion) {
       _scheduleMandatoryProfileCompletion(manager);
     }
+    if (manager.initialized) {
+      _maybeShowPopupAd(manager);
+    }
 
     return Scaffold(
       key: _scaffoldKey,
@@ -558,7 +1270,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
         isDesktopNav: isDesktopNav,
         isAuthenticated: manager.isAuthenticated,
       ),
-      drawer: isDesktopNav ? null : _buildSideDrawer(context),
+      drawer: isDesktopNav ? null : _buildSideDrawer(context, manager),
       bottomNavigationBar: ManualAdBanner(
         stickyBottom: true,
         ad: manager.activeAd,
@@ -608,6 +1320,55 @@ class _HeaderContent extends StatelessWidget {
   final VoidCallback onHome;
   final VoidCallback onAccount;
   final bool isAuthenticated;
+
+  Widget _buildHeaderLogo(BuildContext context, double logoMaxWidth) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: logoMaxWidth),
+      child: SizedBox(
+        height: 48,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => _openWebsiteWithConfirm(context),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Image.asset(
+                'assets/images/logo.png',
+                fit: BoxFit.contain,
+                alignment: Alignment.centerRight,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (_, __, ___) {
+                  return const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        Icons.assessment_rounded,
+                        color: AppColors.primaryBlue,
+                        size: 24,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'ظ…ط±ط§ظ‚ط¨ ط§ظ„ط£ط³ظ‡ظ…',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _openWebsiteWithConfirm(BuildContext context) async {
     final bool? go = await showDialog<bool>(
@@ -702,8 +1463,10 @@ class _HeaderContent extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Row(
-                textDirection: TextDirection.ltr,
+                textDirection: TextDirection.rtl,
                 children: <Widget>[
+                  _buildHeaderLogo(context, logoMaxWidth),
+                  const Spacer(),
                   _HeaderActionButton(
                     tooltip: 'الرئيسية',
                     onTap: onHome,
@@ -720,7 +1483,8 @@ class _HeaderContent extends StatelessWidget {
                     isAuthenticated: isAuthenticated,
                     isSelected: currentIndex == accountIndex,
                   ),
-                  if (!isDesktopNav) ...<Widget>[
+                  if (!isDesktopNav &&
+                      MediaQuery.sizeOf(context).width < 0) ...<Widget>[
                     const SizedBox(width: 10),
                     _HeaderActionButton(
                       tooltip: 'القائمة',
@@ -731,53 +1495,64 @@ class _HeaderContent extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const Spacer(),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: logoMaxWidth),
-                    child: SizedBox(
-                      height: 48,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: () => _openWebsiteWithConfirm(context),
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Image.asset(
-                              'assets/images/logo.png',
-                              fit: BoxFit.contain,
+                  if (currentIndex < 0) const Spacer(),
+                  if (currentIndex < 0)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: logoMaxWidth),
+                      child: SizedBox(
+                        height: 48,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => _openWebsiteWithConfirm(context),
+                            child: Align(
                               alignment: Alignment.centerRight,
-                              filterQuality: FilterQuality.high,
-                              errorBuilder: (_, __, ___) {
-                                return const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    Icon(
-                                      Icons.assessment_rounded,
-                                      color: AppColors.primaryBlue,
-                                      size: 24,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'مراقب الأسهم',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontFamily: 'Tajawal',
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 16,
-                                        color: AppColors.textPrimary,
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                fit: BoxFit.contain,
+                                alignment: Alignment.centerRight,
+                                filterQuality: FilterQuality.high,
+                                errorBuilder: (_, __, ___) {
+                                  return const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      Icon(
+                                        Icons.assessment_rounded,
+                                        color: AppColors.primaryBlue,
+                                        size: 24,
                                       ),
-                                    ),
-                                  ],
-                                );
-                              },
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'مراقب الأسهم',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontFamily: 'Tajawal',
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 16,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
+                  const SizedBox(width: 10),
+                  if (!isDesktopNav)
+                    _HeaderActionButton(
+                      tooltip: 'القائمة',
+                      onTap: () => scaffoldKey.currentState?.openDrawer(),
+                      child: const Icon(
+                        Icons.menu_rounded,
+                        color: _shellAccent,
+                      ),
+                    ),
                 ],
               ),
               if (showHeaderTools) ...<Widget>[
@@ -944,16 +1719,7 @@ class _AuthIndicatorDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 8,
-      height: 8,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Color(0xFF22C55E),
-          shape: BoxShape.circle,
-        ),
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
 
@@ -1319,7 +2085,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${stock.symbol} - ${stock.id}',
+                              _stockSecondaryLabel(stock.symbol, stock.id),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.bodySmall.copyWith(

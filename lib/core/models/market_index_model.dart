@@ -17,6 +17,24 @@ class MarketIndexModel {
 
   bool get isGain => change >= 0;
 
+  MarketIndexModel copyWith({
+    String? ticker,
+    String? name,
+    double? value,
+    double? change,
+    double? changePercent,
+    DateTime? updateTimeUtc,
+  }) {
+    return MarketIndexModel(
+      ticker: ticker ?? this.ticker,
+      name: name ?? this.name,
+      value: value ?? this.value,
+      change: change ?? this.change,
+      changePercent: changePercent ?? this.changePercent,
+      updateTimeUtc: updateTimeUtc ?? this.updateTimeUtc,
+    );
+  }
+
   factory MarketIndexModel.fromJson(Map<String, dynamic> json) {
     final active = json['active'] is Map<String, dynamic>
         ? Map<String, dynamic>.from(json['active'] as Map<String, dynamic>)

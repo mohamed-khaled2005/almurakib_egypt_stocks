@@ -325,6 +325,9 @@ class OurAppsScreen extends StatelessWidget {
             return _MiniAppTile(
               item: item,
               storeLabel: storeLabel,
+              storeIcon: useAppStore
+                  ? Icons.apple_rounded
+                  : Icons.play_circle_fill_rounded,
               accentColor: _egyptAccent,
               onTap: () => _openStore(context, item.urlFor(useAppStore)),
             );
@@ -357,12 +360,14 @@ class _MiniAppTile extends StatelessWidget {
   const _MiniAppTile({
     required this.item,
     required this.storeLabel,
+    required this.storeIcon,
     required this.accentColor,
     required this.onTap,
   });
 
   final _AppItem item;
   final String storeLabel;
+  final IconData storeIcon;
   final Color accentColor;
   final VoidCallback onTap;
 
@@ -381,12 +386,12 @@ class _MiniAppTile extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   _AppIcon(url: item.imageUrl, accentColor: accentColor),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text(
                     item.name,
                     maxLines: 2,
@@ -394,20 +399,20 @@ class _MiniAppTile extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: AppTextStyles.bodySmall.copyWith(
                       fontWeight: FontWeight.w900,
-                      fontSize: 13.5,
+                      fontSize: 13,
                       height: 1.2,
                       letterSpacing: 0.1,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: 11,
+                      vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: accentColor.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: accentColor.withValues(alpha: 0.28),
@@ -417,7 +422,7 @@ class _MiniAppTile extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         Icon(
-                          Icons.open_in_new_rounded,
+                          storeIcon,
                           size: 14,
                           color: accentColor,
                         ),

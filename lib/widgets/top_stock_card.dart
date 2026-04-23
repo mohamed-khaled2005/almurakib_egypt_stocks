@@ -24,7 +24,9 @@ class TopStockCard extends StatelessWidget {
     final raw = (stock.id.isNotEmpty ? stock.id : stock.symbol).trim();
     if (raw.isEmpty) return '?';
     final cleaned = raw.contains(':') ? raw.split(':').last : raw;
-    return cleaned.length >= 2 ? cleaned.substring(0, 2) : cleaned.substring(0, 1);
+    return cleaned.length >= 2
+        ? cleaned.substring(0, 2)
+        : cleaned.substring(0, 1);
   }
 
   Widget _fallbackAvatar() {
@@ -88,11 +90,12 @@ class TopStockCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final trendColor = isGainer ? AppColors.gain : AppColors.loss;
-    final trendIcon = isGainer ? Icons.trending_up_rounded : Icons.trending_down_rounded;
+    final trendIcon =
+        isGainer ? Icons.trending_up_rounded : Icons.trending_down_rounded;
 
     return Container(
-      width: 170,
-      margin: const EdgeInsets.only(right: 12),
+      width: 156,
+      margin: const EdgeInsets.only(right: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -112,7 +115,7 @@ class TopStockCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -122,13 +125,14 @@ class TopStockCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 36,
+                      height: 36,
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: AppColors.scaffold,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.black.withOpacity(0.05)),
+                        border:
+                            Border.all(color: Colors.black.withOpacity(0.05)),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
@@ -136,20 +140,23 @@ class TopStockCard extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: trendColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          Icon(trendIcon, size: 12, color: trendColor),
+                          Icon(trendIcon, size: 11, color: trendColor),
                           const SizedBox(width: 4),
                           Text(
                             Formatters.formatPercent(stock.changePercent),
                             style: TextStyle(
                               fontFamily: 'Tajawal',
-                              fontSize: 11,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w800,
                               color: trendColor,
                             ),
@@ -160,7 +167,7 @@ class TopStockCard extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 // Body: Stock Name (✅ سطرين)
                 Column(
@@ -173,7 +180,7 @@ class TopStockCard extends StatelessWidget {
                       softWrap: true,
                       style: const TextStyle(
                         fontFamily: 'Tajawal',
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
                         height: 1.15,
@@ -194,7 +201,7 @@ class TopStockCard extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 // Footer: Price + Action Arrow
                 Row(
@@ -205,14 +212,14 @@ class TopStockCard extends StatelessWidget {
                       Formatters.formatPrice(stock.price),
                       style: const TextStyle(
                         fontFamily: 'Tajawal',
-                        fontSize: 18,
+                        fontSize: 16.5,
                         fontWeight: FontWeight.w900,
                         color: AppColors.textPrimary,
                       ),
                     ),
                     Container(
-                      width: 28,
-                      height: 28,
+                      width: 26,
+                      height: 26,
                       decoration: BoxDecoration(
                         color: AppColors.textPrimary,
                         shape: BoxShape.circle,
@@ -227,7 +234,7 @@ class TopStockCard extends StatelessWidget {
                       child: const Icon(
                         Icons.arrow_forward_rounded,
                         color: Colors.white,
-                        size: 16,
+                        size: 15,
                       ),
                     ),
                   ],

@@ -54,6 +54,31 @@ class StockTranslations {
 
     return null;
   }
+
+  String? getArabicIndexName({required String ticker, required String name}) {
+    final normalizedTicker = _norm(ticker);
+    final normalizedName = _norm(name);
+
+    final byTicker = _getAr(normalizedTicker);
+    if (byTicker != null) return byTicker;
+
+    final byName = _getAr(normalizedName);
+    if (byName != null) return byName;
+
+    if (normalizedTicker.contains(':')) {
+      final shortTicker = normalizedTicker.split(':').last.trim();
+      final byShortTicker = _getAr(shortTicker);
+      if (byShortTicker != null) return byShortTicker;
+    }
+
+    if (normalizedName.contains(':')) {
+      final shortName = normalizedName.split(':').last.trim();
+      final byShortName = _getAr(shortName);
+      if (byShortName != null) return byShortName;
+    }
+
+    return null;
+  }
 }
 
 class TranslationService {
@@ -66,7 +91,8 @@ class TranslationService {
   static bool isTranslationAvailable = false;
 
   /// ✅ لا TTL — لا 24 ساعة — لا أي صلاحية زمنية
-  static Future<StockTranslations?> getTranslations({bool forceRefresh = false}) async {
+  static Future<StockTranslations?> getTranslations(
+      {bool forceRefresh = false}) async {
     // لو عندنا كاش في الرام وطالب مش force -> رجّعه
     if (!forceRefresh && _cache != null) return _cache;
 
@@ -87,7 +113,8 @@ class TranslationService {
 
       dynamic raw = data['stocks_by_id'];
       if (raw == null) raw = data['stocksById'];
-      if (raw == null) raw = data; // fallback لِـ JSON shape فقط (مش API fallback)
+      if (raw == null)
+        raw = data; // fallback لِـ JSON shape فقط (مش API fallback)
 
       if (raw is! Map) {
         isTranslationAvailable = false;

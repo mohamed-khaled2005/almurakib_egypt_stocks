@@ -21,11 +21,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   bool _loading = true;
   String? _error;
+  bool _loadingInFlight = false;
+  bool _pendingReload = false;
+  String _lastLoadedFingerprint = '';
 
   @override
   void initState() {
     super.initState();
-    _favoritesListener = () => _loadFavorites(forceReload: true);
+    _favoritesListener = _onFavoritesChanged;
     FavoritesService.favoritesNotifier.addListener(_favoritesListener!);
     _loadFavorites(forceReload: true);
   }
@@ -61,68 +64,106 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
   }
 
-  Future<void> _loadFavorites({bool forceReload = false}) async {
+  void _onFavoritesChanged() {
+    _loadFavorites(
+      showLoading: false,
+      symbolsOverride: FavoritesService.favoritesNotifier.value.toList(),
+    );
+  }
+
+  Future<StockModel?> _fetchDetailSafe(String symbol) async {
+    try {
+      return await StockService.getStockDetail(symbol);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _loadFavorites({
+    bool forceReload = false,
+    bool showLoading = true,
+    List<String>? symbolsOverride,
+  }) async {
     if (!mounted) return;
 
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (_loadingInFlight) {
+      _pendingReload = true;
+      return;
+    }
+
+    _loadingInFlight = true;
+
+    if (showLoading) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
-      final favoriteSymbols =
+      final favoriteSymbols = symbolsOverride ??
           await FavoritesService.getFavorites(forceReload: forceReload);
 
-      if (favoriteSymbols.isEmpty) {
+      final normalizedSymbols = favoriteSymbols
+          .map(_normalizeSymbol)
+          .where((symbol) => symbol.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+
+      final fingerprint = normalizedSymbols.join('|');
+
+      if (!forceReload &&
+          _error == null &&
+          fingerprint == _lastLoadedFingerprint) {
+        if (showLoading && mounted) {
+          setState(() => _loading = false);
+        }
+        return;
+      }
+
+      if (normalizedSymbols.isEmpty) {
         if (!mounted) return;
         setState(() {
           _favoriteStocks.clear();
           _loading = false;
+          _error = null;
         });
+        _lastLoadedFingerprint = '';
         return;
       }
 
       final stocksByKey = <String, StockModel>{};
 
       try {
-        final stocks = await StockService.getBySymbols(favoriteSymbols);
+        final stocks = await StockService.getBySymbols(normalizedSymbols);
         for (final stock in stocks) {
           _indexStock(stocksByKey, stock);
         }
       } catch (_) {}
 
-      final missingSymbols = favoriteSymbols.where((symbol) {
+      final missingSymbols = normalizedSymbols.where((symbol) {
         final normalized = _normalizeSymbol(symbol);
         return !stocksByKey.containsKey(symbol.trim().toUpperCase()) &&
             !stocksByKey.containsKey(normalized);
       }).toList();
 
       if (missingSymbols.isNotEmpty) {
-        try {
-          final allStocks = await StockService.getStocksList(
-            perPage: 500,
-            page: 1,
-          );
-          for (final stock in allStocks) {
-            _indexStock(stocksByKey, stock);
-          }
-        } catch (_) {}
+        final fetched = await Future.wait<StockModel?>(
+          missingSymbols.map(_fetchDetailSafe),
+        );
+        for (final stock in fetched.whereType<StockModel>()) {
+          _indexStock(stocksByKey, stock);
+        }
       }
 
       final resolvedStocks = <StockModel>[];
       final seenKeys = <String>{};
 
-      for (final symbol in favoriteSymbols) {
+      for (final symbol in normalizedSymbols) {
         final normalized = _normalizeSymbol(symbol);
         StockModel? stock =
             stocksByKey[symbol.trim().toUpperCase()] ?? stocksByKey[normalized];
-
-        if (stock == null) {
-          try {
-            stock = await StockService.getStockDetail(symbol);
-            _indexStock(stocksByKey, stock);
-          } catch (_) {}
-        }
 
         if (stock == null) continue;
 
@@ -138,6 +179,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ..clear()
           ..addAll(resolvedStocks);
         _loading = false;
+        _lastLoadedFingerprint = fingerprint;
         _error = resolvedStocks.isEmpty
             ? 'تعذر تحميل بيانات الأسهم المفضلة حاليًا.'
             : null;
@@ -148,6 +190,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         _error = 'تعذر تحميل المفضلة حاليًا.';
         _loading = false;
       });
+    } finally {
+      _loadingInFlight = false;
+
+      if (_pendingReload) {
+        _pendingReload = false;
+        _loadFavorites(
+          showLoading: false,
+          symbolsOverride: FavoritesService.favoritesNotifier.value.toList(),
+        );
+      }
     }
   }
 
@@ -175,7 +227,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       MaterialPageRoute<void>(
         builder: (_) => StockDetailScreen(stock: stock),
       ),
-    ).then((_) => _loadFavorites(forceReload: true));
+    ).then((_) => _loadFavorites(showLoading: false));
   }
 
   @override
@@ -276,7 +328,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () => _loadFavorites(forceReload: true),
+            onPressed: () =>
+                _loadFavorites(forceReload: true, showLoading: true),
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('إعادة المحاولة'),
             style: ElevatedButton.styleFrom(

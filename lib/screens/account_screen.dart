@@ -1,31 +1,42 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/utils/constants.dart';
 import '../data/country_options.dart';
+import '../data/trading_status_options.dart';
 import '../models/managed_app_user.dart';
 import '../providers/app_manager_provider.dart';
+import '../utils/app_manager_config.dart';
+import '../utils/phone_number_helper.dart';
 import '../widgets/app_section_header.dart';
+import '../widgets/country_picker_form_field.dart';
 import 'auth_screen.dart';
 
 class AccountScreen extends StatefulWidget {
-  const AccountScreen({super.key});
+  const AccountScreen({
+    super.key,
+    this.onAuthSuccess,
+  });
+
+  final VoidCallback? onAuthSuccess;
 
   @override
   State<AccountScreen> createState() => _AccountScreenState();
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _currentPasswordController =
-      TextEditingController();
-  final TextEditingController _newPasswordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
 
-  String? _selectedCountryCode;
   String _syncedName = '';
   String _syncedPhone = '';
   String? _syncedCountryCode;
+  String? _syncedTradingStatus;
+  String? _selectedCountryCode;
+  String? _selectedTradingStatus;
 
   @override
   void dispose() {
@@ -37,131 +48,53 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Future<void> _openAuth() async {
-    final allowed = await Navigator.push<bool>(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute<bool>(builder: (_) => const AuthScreen()),
     );
 
-    if (!mounted || allowed != true) return;
+    if (!mounted || result != true) {
+      return;
+    }
 
+    widget.onAuthSuccess?.call();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('تم تسجيل الدخول بنجاح.')),
     );
   }
 
-  void _setControllerText(TextEditingController controller, String value) {
-    controller.value = TextEditingValue(
-      text: value,
-      selection: TextSelection.collapsed(offset: value.length),
-    );
-  }
+  CountryOption? _selectedCountry() =>
+      countryOptionByCode(_selectedCountryCode);
 
-  String? _resolveCountryCode(String? code, String? name) {
-    final normalizedCode = (code ?? '').trim().toUpperCase();
-    if (normalizedCode.isNotEmpty &&
-        kCountryOptions.any((country) => country.code == normalizedCode)) {
-      return normalizedCode;
-    }
+  String? _validatePhone(String? value) {
+    final manager = context.read<AppManagerProvider>();
+    final input = (value ?? '').trim();
 
-    final normalizedName = (name ?? '').trim();
-    if (normalizedName.isEmpty) return null;
-
-    for (final country in kCountryOptions) {
-      if (country.name == normalizedName) {
-        return country.code;
-      }
-    }
-
-    return null;
-  }
-
-  CountryOption? _selectedCountry() {
-    final code = (_selectedCountryCode ?? '').trim().toUpperCase();
-    if (code.isEmpty) return null;
-
-    for (final country in kCountryOptions) {
-      if (country.code == code) {
-        return country;
-      }
-    }
-
-    return null;
-  }
-
-  CountryOption? _countryFromUser(ManagedAppUser user) {
-    final code = _resolveCountryCode(user.countryCode, user.countryName);
-    if (code == null) return null;
-
-    for (final country in kCountryOptions) {
-      if (country.code == code) {
-        return country;
-      }
-    }
-
-    return null;
-  }
-
-  String _displayCountryName(ManagedAppUser user) {
-    final country = _countryFromUser(user);
-    if (country != null) return country.name;
-
-    return (user.countryName ?? '').trim();
-  }
-
-  String _providerLabel(String value) {
-    switch (value.toLowerCase()) {
-      case 'google':
-        return 'Google';
-      case 'apple':
-        return 'Apple';
-      case 'password':
-        return 'Email';
-      default:
-        return value;
-    }
-  }
-
-  String? _validatePhone(String value) {
-    final input = value.trim();
     if (input.isEmpty) {
-      return 'أدخل رقم الهاتف.';
+      return manager.shouldRequirePhoneNumberForCurrentUser
+          ? 'أدخل رقم الهاتف.'
+          : null;
     }
 
-    final normalized = input.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(normalized)) {
-      return 'أدخل رقم هاتف صحيح.';
+    final country = _selectedCountry();
+    if (country == null) {
+      return 'اختر الدولة أولًا.';
     }
 
-    return null;
-  }
+    final normalized = PhoneNumberHelper.tryNormalize(
+      rawInput: input,
+      regionCode: country.code,
+    );
 
-  void _syncProfileFields(ManagedAppUser user) {
-    final fullName = (user.fullName ?? '').trim();
-    if (_nameController.text.trim().isEmpty ||
-        _nameController.text.trim() == _syncedName) {
-      _setControllerText(_nameController, fullName);
-    }
-    _syncedName = fullName;
-
-    final phone = (user.phoneNumber ?? '').trim();
-    if (_phoneController.text.trim().isEmpty ||
-        _phoneController.text.trim() == _syncedPhone) {
-      _setControllerText(_phoneController, phone);
-    }
-    _syncedPhone = phone;
-
-    final countryCode = _resolveCountryCode(user.countryCode, user.countryName);
-    if (_selectedCountryCode == null ||
-        _selectedCountryCode == _syncedCountryCode) {
-      _selectedCountryCode = countryCode;
-    }
-    _syncedCountryCode = countryCode;
+    return normalized == null ? 'أدخل رقم هاتف صحيحًا.' : null;
   }
 
   Future<void> _saveProfile(AppManagerProvider manager) async {
-    final user = manager.user;
-    if (user == null) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
+    final user = manager.user;
     final country = _selectedCountry();
     if (country == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -170,31 +103,34 @@ class _AccountScreenState extends State<AccountScreen> {
       return;
     }
 
-    final phoneError = _validatePhone(_phoneController.text);
-    if (phoneError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(phoneError)),
-      );
-      return;
-    }
+    final normalizedPhone = _phoneController.text.trim().isEmpty
+        ? null
+        : PhoneNumberHelper.tryNormalize(
+            rawInput: _phoneController.text.trim(),
+            regionCode: country.code,
+          );
 
-    final canChangePassword = user.hasPassword;
     final ok = await manager.updateProfile(
       fullName: _nameController.text.trim(),
       countryCode: country.code,
       countryName: country.name,
-      phoneNumber: _phoneController.text.trim(),
-      currentPassword:
-          canChangePassword && _currentPasswordController.text.trim().isNotEmpty
-              ? _currentPasswordController.text.trim()
-              : null,
-      newPassword:
-          canChangePassword && _newPasswordController.text.trim().isNotEmpty
-              ? _newPasswordController.text.trim()
-              : null,
+      phoneNumber: normalizedPhone?.e164,
+      tradingStatus: AppManagerConfig.supportsTradingStatus
+          ? _selectedTradingStatus
+          : null,
+      currentPassword: user?.hasPassword == true &&
+              _currentPasswordController.text.trim().isNotEmpty
+          ? _currentPasswordController.text.trim()
+          : null,
+      newPassword: user?.hasPassword == true &&
+              _newPasswordController.text.trim().isNotEmpty
+          ? _newPasswordController.text.trim()
+          : null,
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -206,18 +142,24 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
     );
 
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
 
+    _setControllerText(_phoneController, normalizedPhone?.e164 ?? '');
     _currentPasswordController.clear();
     _newPasswordController.clear();
     _syncedName = _nameController.text.trim();
-    _syncedPhone = _phoneController.text.trim();
+    _syncedPhone = normalizedPhone?.e164 ?? '';
     _syncedCountryCode = country.code;
+    _syncedTradingStatus = _selectedTradingStatus;
   }
 
-  Future<void> _logout(AppManagerProvider manager) async {
+  Future<void> _logoutAndNavigate(AppManagerProvider manager) async {
     await manager.logout();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('تم تسجيل الخروج بنجاح.')),
@@ -226,7 +168,9 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _confirmDelete(AppManagerProvider manager) async {
     final user = manager.user;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
 
     final passwordController = TextEditingController();
     final shouldDelete = await showDialog<bool>(
@@ -293,7 +237,9 @@ class _AccountScreenState extends State<AccountScreen> {
     final password = passwordController.text.trim();
     passwordController.dispose();
 
-    if (!mounted || !shouldDelete) return;
+    if (!mounted || !shouldDelete) {
+      return;
+    }
 
     if (user.hasPassword && password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -306,7 +252,9 @@ class _AccountScreenState extends State<AccountScreen> {
       password: user.hasPassword ? password : null,
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -316,6 +264,60 @@ class _AccountScreenState extends State<AccountScreen> {
               : (manager.errorMessage ?? 'تعذر حذف الحساب حاليًا.'),
         ),
       ),
+    );
+  }
+
+  void _setControllerText(TextEditingController controller, String value) {
+    controller.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+  }
+
+  void _syncFormFromUser(ManagedAppUser user) {
+    final manager = context.read<AppManagerProvider>();
+    final name = user.displayName.trim();
+    final phone = (user.phoneNumber ?? '').trim();
+    final countryCode = countryOptionByCode(user.countryCode)?.code ??
+        countryOptionByCode(manager.suggestedCountryCode)?.code;
+    final tradingStatus = tradingStatusOptionByValue(user.tradingStatus)?.value;
+
+    if (_nameController.text.trim() == _syncedName) {
+      _setControllerText(_nameController, name);
+    }
+    if (_phoneController.text.trim() == _syncedPhone) {
+      _setControllerText(_phoneController, phone);
+    }
+    if ((_selectedCountryCode ?? '') == (_syncedCountryCode ?? '')) {
+      _selectedCountryCode = countryCode;
+    }
+    if ((_selectedTradingStatus ?? '') == (_syncedTradingStatus ?? '')) {
+      _selectedTradingStatus = tradingStatus;
+    }
+
+    _syncedName = name;
+    _syncedPhone = phone;
+    _syncedCountryCode = countryCode;
+    _syncedTradingStatus = tradingStatus;
+  }
+
+  InputDecoration _fieldDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: AppColors.background,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.primaryBlue),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
 
@@ -349,102 +351,28 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
-  InputDecoration _fieldDecoration() {
-    return InputDecoration(
-      filled: true,
-      fillColor: AppColors.background,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.primaryBlue),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-    );
-  }
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     bool obscureText = false,
     TextInputType? keyboardType,
+    bool enabled = true,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         _buildLabel(label),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
+          enabled: enabled,
+          validator: validator,
           decoration: _fieldDecoration(),
         ),
       ],
-    );
-  }
-
-  Widget _buildCountryField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        _buildLabel('الدولة'),
-        const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
-          initialValue: _selectedCountryCode,
-          isExpanded: true,
-          decoration: _fieldDecoration(),
-          items: kCountryOptions
-              .map(
-                (country) => DropdownMenuItem<String>(
-                  value: country.code,
-                  child: Text(
-                    '${country.flagEmoji} ${country.name} (${country.dialCode})',
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: (value) => setState(() => _selectedCountryCode = value),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoChip({
-    required IconData icon,
-    required String text,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 14, color: AppColors.primaryBlue),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -531,225 +459,284 @@ class _AccountScreenState extends State<AccountScreen> {
       );
     }
 
-    _syncProfileFields(user);
-    final countryName = _displayCountryName(user);
-    final phoneNumber = (user.phoneNumber ?? '').trim();
+    _syncFormFromUser(user);
 
     return SingleChildScrollView(
       padding: padding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const AppSectionHeader(title: 'حسابي'),
-          const SizedBox(height: 16),
-          _buildCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primaryBlue.withValues(alpha: 0.12),
-                      ),
-                      child: const Icon(
-                        Icons.account_circle_rounded,
-                        color: AppColors.primaryBlue,
-                        size: 32,
-                      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const AppSectionHeader(title: 'حسابي'),
+            const SizedBox(height: 16),
+            _buildCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    'تعديل البيانات',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            user.email,
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            user.fullName?.trim().isNotEmpty == true
-                                ? user.fullName!
-                                : 'لم يتم إضافة الاسم بعد',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTextField(
+                    controller: _nameController,
+                    label: 'الاسم',
+                    enabled: !manager.isBusy,
+                    validator: (value) {
+                      final input = (value ?? '').trim();
+                      if (input.isEmpty) {
+                        return 'أدخل الاسم الكامل.';
+                      }
+                      if (input.length < 3) {
+                        return 'اكتب اسمًا واضحًا لا يقل عن 3 أحرف.';
+                      }
+                      final meaningful = input.replaceAll(
+                        RegExp(r'[\p{P}\p{S}\s]+', unicode: true),
+                        '',
+                      );
+                      if (meaningful.length < 2) {
+                        return 'أدخل اسمًا صحيحًا.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _buildLabel('الدولة'),
+                  const SizedBox(height: 6),
+                  CountryPickerFormField(
+                    key: ValueKey('account-country-${_selectedCountryCode ?? "none"}'),
+                    initialValue: _selectedCountryCode,
+                    enabled: !manager.isBusy,
+                    showLabel: false,
+                    label: 'الدولة',
+                    hintText: 'ابحث واختر الدولة',
+                    sheetBackgroundColor: Colors.white,
+                    accentColor: AppColors.primaryBlue,
+                    decoration: _fieldDecoration(),
+                    validator: (value) {
+                      if ((value ?? '').trim().isEmpty) {
+                        return 'اختر الدولة.';
+                      }
+                      return null;
+                    },
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCountryCode = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTextField(
+                    controller: _phoneController,
+                    label: manager.shouldRequirePhoneNumberForCurrentUser
+                        ? 'رقم الهاتف'
+                        : 'رقم الهاتف (اختياري)',
+                    keyboardType: TextInputType.phone,
+                    enabled: !manager.isBusy,
+                    validator: _validatePhone,
+                  ),
+                  if (AppManagerConfig.supportsTradingStatus) ...<Widget>[
+                    const SizedBox(height: 10),
+                    _buildLabel(kTradingStatusQuestionLabel),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedTradingStatus,
+                      dropdownColor: Colors.white,
+                      decoration: _fieldDecoration(),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Tajawal',
+                        fontWeight: FontWeight.w700,
                       ),
+                      items: kTradingStatusOptions
+                          .map(
+                            (option) => DropdownMenuItem<String>(
+                              value: option.value,
+                              child: Text(option.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: manager.isBusy
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _selectedTradingStatus = value;
+                              });
+                            },
+                      validator: (value) {
+                        if ((value ?? '').trim().isEmpty) {
+                          return 'اختر إجابة السؤال.';
+                        }
+                        return null;
+                      },
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    _buildInfoChip(
-                      icon: Icons.verified_user_outlined,
-                      text:
-                          'طريقة الدخول: ${_providerLabel(user.authProvider)}',
-                    ),
-                    _buildInfoChip(
-                      icon: Icons.info_outline_rounded,
-                      text: 'الحالة: ${user.status}',
-                    ),
-                    if (countryName.isNotEmpty)
-                      _buildInfoChip(
-                        icon: Icons.public_rounded,
-                        text: countryName,
-                      ),
-                    if (phoneNumber.isNotEmpty)
-                      _buildInfoChip(
-                        icon: Icons.phone_android_rounded,
-                        text: phoneNumber,
-                      ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          _buildCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
-                  'تعديل البيانات',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w900,
-                  ),
+            if (user.hasPassword) ...<Widget>[
+              const SizedBox(height: 12),
+              _buildCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Text(
+                      'تغيير كلمة المرور',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildTextField(
+                      controller: _currentPasswordController,
+                      label: 'كلمة المرور الحالية',
+                      obscureText: true,
+                      enabled: !manager.isBusy,
+                      validator: (value) {
+                        final current = (value ?? '').trim();
+                        final next = _newPasswordController.text.trim();
+                        if (next.isNotEmpty && current.isEmpty) {
+                          return 'أدخل كلمة المرور الحالية.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _buildTextField(
+                      controller: _newPasswordController,
+                      label: 'كلمة المرور الجديدة',
+                      obscureText: true,
+                      enabled: !manager.isBusy,
+                      validator: (value) {
+                        final next = (value ?? '').trim();
+                        final current = _currentPasswordController.text.trim();
+                        if (current.isNotEmpty && next.isEmpty) {
+                          return 'أدخل كلمة المرور الجديدة.';
+                        }
+                        if (next.isNotEmpty && next.length < 8) {
+                          return 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                _buildTextField(
-                  controller: _nameController,
-                  label: 'الاسم',
-                ),
-                const SizedBox(height: 10),
-                _buildCountryField(),
-                const SizedBox(height: 10),
-                _buildTextField(
-                  controller: _phoneController,
-                  label: 'رقم الهاتف',
-                  keyboardType: TextInputType.phone,
-                ),
-                if (user.hasPassword) ...<Widget>[
-                  const SizedBox(height: 10),
-                  _buildTextField(
-                    controller: _currentPasswordController,
-                    label: 'كلمة المرور الحالية',
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildTextField(
-                    controller: _newPasswordController,
-                    label: 'كلمة المرور الجديدة',
-                    obscureText: true,
+              ),
+            ],
+            const SizedBox(height: 12),
+            _buildCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: SizedBox(
+                          height: 46,
+                          child: ElevatedButton(
+                            onPressed: manager.isBusy
+                                ? null
+                                : () => _saveProfile(manager),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryBlue,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: manager.isBusy
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'حفظ التعديلات',
+                                    style: TextStyle(
+                                      fontFamily: 'Tajawal',
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SizedBox(
+                          height: 46,
+                          child: OutlinedButton.icon(
+                            onPressed: manager.isBusy
+                                ? null
+                                : () => _logoutAndNavigate(manager),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                              side: const BorderSide(color: AppColors.error),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            icon: const Icon(Icons.logout_rounded, size: 18),
+                            label: const Text(
+                              'تسجيل الخروج',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-                const SizedBox(height: 12),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: SizedBox(
-                        height: 46,
-                        child: ElevatedButton(
-                          onPressed: manager.isBusy
-                              ? null
-                              : () => _saveProfile(manager),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryBlue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text(
-                            'حفظ التعديلات',
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    'حذف الحساب',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'سيؤدي حذف الحساب إلى إزالة بياناتك المرتبطة بالتطبيق بشكل نهائي.',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed:
+                        manager.isBusy ? null : () => _confirmDelete(manager),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SizedBox(
-                        height: 46,
-                        child: OutlinedButton.icon(
-                          onPressed:
-                              manager.isBusy ? null : () => _logout(manager),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.error,
-                            side: const BorderSide(color: AppColors.error),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          icon: const Icon(Icons.logout_rounded, size: 18),
-                          label: const Text(
-                            'تسجيل الخروج',
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    child: const Text('حذف الحساب'),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          _buildCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
-                  'حذف الحساب',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'سيؤدي حذف الحساب إلى إزالة بياناتك المرتبطة بالتطبيق بشكل نهائي.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed:
-                      manager.isBusy ? null : () => _confirmDelete(manager),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: const BorderSide(color: AppColors.error),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text('حذف الحساب'),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

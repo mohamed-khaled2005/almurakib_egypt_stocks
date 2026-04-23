@@ -40,13 +40,27 @@ class StockService {
     }
 
     final seenTickers = <String>{};
-    final indices = response
+    var indices = response
         .whereType<Map>()
         .map((entry) =>
             MarketIndexModel.fromJson(Map<String, dynamic>.from(entry)))
         .where((item) => item.ticker.trim().isNotEmpty)
         .where((item) => seenTickers.add(item.ticker.trim().toUpperCase()))
         .toList();
+
+    final translations = await TranslationService.getTranslations();
+    if (translations != null) {
+      indices = indices.map((item) {
+        final arabicName = translations.getArabicIndexName(
+          ticker: item.ticker,
+          name: item.name,
+        );
+        if (arabicName == null || arabicName.trim().isEmpty) {
+          return item;
+        }
+        return item.copyWith(name: arabicName.trim());
+      }).toList();
+    }
 
     return indices;
   }

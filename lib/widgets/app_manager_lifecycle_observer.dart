@@ -50,13 +50,18 @@ class _AppManagerLifecycleObserverState
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final manager = _manager;
-    if (manager == null) return;
+    if (manager == null) {
+      return;
+    }
 
     if (state == AppLifecycleState.resumed) {
       manager.startSessionIfNeeded(forceRestart: true);
+      manager.startAutoRefresh();
+      manager.refreshManagedContent(force: true);
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
+      manager.stopAutoRefresh();
       manager.endSession();
     }
   }
@@ -65,16 +70,24 @@ class _AppManagerLifecycleObserverState
   Widget build(BuildContext context) => widget.child;
 
   Future<void> _bootstrap() async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     await FavoritesService.init();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     final manager = context.read<AppManagerProvider>();
     _manager = manager;
     _lastAuthState = manager.isAuthenticated;
     manager.addListener(_handleManagerChanged);
     FavoritesService.favoritesNotifier.addListener(_handleLocalFavorites);
+
+    manager.startSessionIfNeeded();
+    manager.startAutoRefresh();
+    manager.refreshManagedContent();
 
     unawaited(_bootstrapPushToken(manager));
     await _syncManagerFavoritesToLocal(force: true);
@@ -90,7 +103,9 @@ class _AppManagerLifecycleObserverState
       }
 
       await Future<void>.delayed(const Duration(milliseconds: 900));
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       await _bindPushToken(manager);
     } catch (_) {
@@ -103,7 +118,9 @@ class _AppManagerLifecycleObserverState
       await PushNotificationService.instance.initialize().timeout(
             const Duration(seconds: 6),
           );
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       final token = await PushNotificationService.instance.getToken().timeout(
             const Duration(seconds: 4),
@@ -128,7 +145,9 @@ class _AppManagerLifecycleObserverState
 
   void _handleManagerChanged() {
     final manager = _manager;
-    if (manager == null) return;
+    if (manager == null) {
+      return;
+    }
 
     final remoteSignature = _signature(manager.preferences.favoriteItems);
     if (remoteSignature != _lastRemoteFavoritesSignature) {
@@ -145,11 +164,15 @@ class _AppManagerLifecycleObserverState
 
   void _handleLocalFavorites() {
     final manager = _manager;
-    if (manager == null || _updatingLocalFavorites) return;
+    if (manager == null || _updatingLocalFavorites) {
+      return;
+    }
 
     final items = FavoritesService.favoritesNotifier.value.toList()..sort();
     final localSignature = _signature(items);
-    if (localSignature == _lastLocalFavoritesSignature) return;
+    if (localSignature == _lastLocalFavoritesSignature) {
+      return;
+    }
 
     _lastLocalFavoritesSignature = localSignature;
     unawaited(
@@ -162,14 +185,18 @@ class _AppManagerLifecycleObserverState
 
   Future<void> _syncManagerFavoritesToLocal({bool force = false}) async {
     final manager = _manager;
-    if (manager == null) return;
+    if (manager == null) {
+      return;
+    }
 
     final remote = List<String>.from(manager.preferences.favoriteItems)..sort();
     final remoteSignature = _signature(remote);
     final local = FavoritesService.favoritesNotifier.value.toList()..sort();
     final localSignature = _signature(local);
 
-    if (!force && remoteSignature == localSignature) return;
+    if (!force && remoteSignature == localSignature) {
+      return;
+    }
 
     _updatingLocalFavorites = true;
     try {

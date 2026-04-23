@@ -9,6 +9,7 @@ class FavoritesService {
       ValueNotifier<Set<String>>(<String>{});
 
   static bool _initialized = false;
+  static bool _loadedFromStorage = false;
 
   /// ✅ نادِها مرة عند فتح التطبيق
   static Future<void> init() async {
@@ -20,8 +21,8 @@ class FavoritesService {
   static String _norm(String s) => s.trim().toUpperCase();
 
   static Future<List<String>> getFavorites({bool forceReload = false}) async {
-    // لو عندنا قيمة في الذاكرة ومش طالب إعادة تحميل
-    if (!forceReload && favoritesNotifier.value.isNotEmpty) {
+    // لو محملين من التخزين من قبل ومش طالب إعادة تحميل
+    if (!forceReload && _loadedFromStorage) {
       return favoritesNotifier.value.toList()..sort();
     }
 
@@ -29,8 +30,11 @@ class FavoritesService {
     final list = prefs.getStringList(_key) ?? <String>[];
 
     final set = list.map(_norm).where((e) => e.isNotEmpty).toSet();
+    _loadedFromStorage = true;
 
-    favoritesNotifier.value = set;
+    if (!setEquals(favoritesNotifier.value, set)) {
+      favoritesNotifier.value = set;
+    }
     return set.toList()..sort();
   }
 
@@ -99,15 +103,21 @@ class FavoritesService {
   }
 
   static Future<void> clearAll() async {
-    favoritesNotifier.value = <String>{};
+    _loadedFromStorage = true;
+    if (favoritesNotifier.value.isNotEmpty) {
+      favoritesNotifier.value = <String>{};
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);
   }
 
   static Future<void> overwriteFavorites(List<String> symbols) async {
     final next = symbols.map(_norm).where((item) => item.isNotEmpty).toSet();
+    _loadedFromStorage = true;
 
-    favoritesNotifier.value = next;
+    if (!setEquals(favoritesNotifier.value, next)) {
+      favoritesNotifier.value = next;
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_key, next.toList()..sort());
   }

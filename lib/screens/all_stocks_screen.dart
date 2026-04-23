@@ -856,6 +856,29 @@ class _StockCard extends StatelessWidget {
     return '$n $_currency';
   }
 
+  String _secondaryLabel() {
+    final symbol = stock.symbol.trim();
+    final id = stock.id.trim();
+    if (symbol.isEmpty) {
+      return id;
+    }
+    if (id.isEmpty) {
+      return symbol;
+    }
+
+    final normalizedSymbol = symbol.toLowerCase();
+    final normalizedId = id.toLowerCase();
+    final symbolTail = normalizedSymbol.contains(':')
+        ? normalizedSymbol.split(':').last
+        : normalizedSymbol;
+
+    if (normalizedSymbol == normalizedId || symbolTail == normalizedId) {
+      return symbol;
+    }
+
+    return '$symbol • $id';
+  }
+
   Widget _fallbackAvatar() {
     final txt = stock.symbol.isNotEmpty
         ? (stock.symbol.length > 2
@@ -974,7 +997,7 @@ class _StockCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '${stock.symbol} • ${stock.id}',
+                        _secondaryLabel(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.bodySmall.copyWith(

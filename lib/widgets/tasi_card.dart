@@ -17,54 +17,34 @@ class TasiCard extends StatelessWidget {
   // ✅ عرض المؤشر بعملة الدولة بدل "نقطة"
   static const String _currency = 'ج.م';
 
-  bool _isEgxMarketOpen() {
-    // ✅ EGX: Sunday -> Thursday
-    // ✅ Hours (practical): 09:30 -> 14:30 Cairo time
-    final now = DateTime.now(); // وقت الجهاز (مصر غالباً)
-
-    final wd = now.weekday; // Mon=1 .. Sun=7
-    final isTradingDay = (wd == DateTime.sunday) ||
-        (wd >= DateTime.monday && wd <= DateTime.thursday);
-
-    final minutes = now.hour * 60 + now.minute;
-    const openMinutes = 9 * 60 + 30; // 09:30
-    const closeMinutes = 14 * 60 + 30; // 14:30
-
-    return isTradingDay && minutes >= openMinutes && minutes < closeMinutes;
-  }
-
-  String _fmtEgp(double v) => '${Formatters.formatNumber(v)} $_currency';
-
   @override
   Widget build(BuildContext context) {
     final isGain = tasi.change >= 0;
-    final isOpen = _isEgxMarketOpen();
+    final isOpen = tasi.isOpen;
 
-    // ✅ FIX: لون الكارت يبقى Neutral لو السوق مغلق
-    final Color themeColor = isOpen
-        ? (isGain ? AppColors.gain : AppColors.loss)
-        : AppColors.neutral;
+    final Color themeColor =
+        isOpen ? (isGain ? AppColors.gain : AppColors.loss) : AppColors.neutral;
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: themeColor.withOpacity(0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
-            blurRadius: 6,
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(18),
         child: Stack(
           children: [
             Positioned.fill(
@@ -74,7 +54,7 @@ class TasiCard extends StatelessWidget {
                     begin: AlignmentDirectional.topStart,
                     end: AlignmentDirectional.bottomEnd,
                     colors: [
-                      themeColor.withOpacity(0.06),
+                      themeColor.withOpacity(0.04),
                       Colors.white,
                     ],
                   ),
@@ -82,16 +62,16 @@ class TasiCard extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: -20,
-              bottom: -20,
+              left: -14,
+              bottom: -14,
               child: Icon(
                 Icons.show_chart_rounded,
-                size: 150,
-                color: themeColor.withOpacity(0.06),
+                size: 86,
+                color: themeColor.withOpacity(0.05),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -101,14 +81,14 @@ class TasiCard extends StatelessWidget {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
+                                  blurRadius: 6,
                                 ),
                               ],
                             ),
@@ -117,10 +97,10 @@ class TasiCard extends StatelessWidget {
                               color: isOpen
                                   ? AppColors.primaryBlue
                                   : AppColors.neutral,
-                              size: 24,
+                              size: 16,
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -128,16 +108,17 @@ class TasiCard extends StatelessWidget {
                                 'المؤشر الرئيسي',
                                 style: AppTextStyles.bodySmall.copyWith(
                                   color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 11.5,
                                 ),
                               ),
                               Text(
                                 'EGX30',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 10.5,
                                   fontWeight: FontWeight.w900,
-                                  color: AppColors.textSecondary
-                                      .withOpacity(0.5),
+                                  color:
+                                      AppColors.textSecondary.withOpacity(0.5),
                                   letterSpacing: 1,
                                 ),
                               ),
@@ -145,11 +126,29 @@ class TasiCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      _buildStatusBadge(isOpen),
+                      if (onRefresh != null)
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: onRefresh,
+                            borderRadius: BorderRadius.circular(50),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: const Icon(
+                                Icons.refresh_rounded,
+                                size: 15,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
+                  const SizedBox(height: 14),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
@@ -158,32 +157,32 @@ class TasiCard extends StatelessWidget {
                         Formatters.formatNumber(tasi.value),
                         style: const TextStyle(
                           fontFamily: 'Tajawal',
-                          fontSize: 36,
+                          fontSize: 24,
                           fontWeight: FontWeight.w900,
                           color: AppColors.textPrimary,
                           height: 1.0,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      // ✅ بدل "نقطة" نخليها عملة الدولة
+                      const SizedBox(width: 6),
                       Text(
                         _currency,
                         style: TextStyle(
                           fontFamily: 'Tajawal',
-                          fontSize: 14,
+                          fontSize: 10.8,
                           fontWeight: FontWeight.bold,
                           color: AppColors.textSecondary.withOpacity(0.6),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
+                          horizontal: 9,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: themeColor.withOpacity(0.10),
                           borderRadius: BorderRadius.circular(12),
@@ -195,32 +194,25 @@ class TasiCard extends StatelessWidget {
                               isGain
                                   ? Icons.trending_up_rounded
                                   : Icons.trending_down_rounded,
-                              size: 18,
+                              size: 14,
                               color: themeColor,
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 5),
                             Text(
                               Formatters.formatPercent(tasi.changePercent),
                               style: TextStyle(
                                 fontFamily: 'Tajawal',
-                                fontSize: 14,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.w800,
                                 color: themeColor,
                               ),
                             ),
-                            Container(
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 8),
-                              width: 1,
-                              height: 12,
-                              color: themeColor.withOpacity(0.3),
-                            ),
-                            // ✅ change كمان يبقى بعملة الدولة
+                            const SizedBox(width: 8),
                             Text(
                               '${Formatters.formatChange(tasi.change)} $_currency',
                               style: TextStyle(
                                 fontFamily: 'Tajawal',
-                                fontSize: 14,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.w700,
                                 color: themeColor,
                               ),
@@ -228,27 +220,6 @@ class TasiCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Spacer(),
-                      if (onRefresh != null)
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: onRefresh,
-                            borderRadius: BorderRadius.circular(50),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.border),
-                              ),
-                              child: const Icon(
-                                Icons.refresh_rounded,
-                                size: 18,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ],
@@ -256,45 +227,6 @@ class TasiCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(bool isOpen) {
-    final icon = isOpen ? Icons.lock_open_rounded : Icons.lock_rounded;
-
-    final bg = isOpen
-        ? AppColors.gain.withOpacity(0.10)
-        : AppColors.neutral.withOpacity(0.10);
-
-    final bd = isOpen
-        ? AppColors.gain.withOpacity(0.20)
-        : AppColors.neutral.withOpacity(0.20);
-
-    final fg = isOpen ? AppColors.gain : AppColors.neutral;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: bd),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: fg),
-          const SizedBox(width: 6),
-          Text(
-            isOpen ? 'السوق مفتوح' : 'السوق مغلق',
-            style: TextStyle(
-              fontFamily: 'Tajawal',
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: fg,
-            ),
-          ),
-        ],
       ),
     );
   }

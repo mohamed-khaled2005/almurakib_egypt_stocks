@@ -38,8 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
   StockModel? _topLoser;
 
   List<StockModel> _favoriteStocks = [];
-  Set<String> _favoriteSymbols = {};
-
   bool _loading = true;
   String? _error;
   bool _translationsAvailable = false;
@@ -80,10 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshFavoritesOnly(Set<String> symbols) async {
     if (!mounted) return;
-
-    setState(() {
-      _favoriteSymbols = symbols.toSet();
-    });
 
     if (_loadingFavsOnly) return;
     _loadingFavsOnly = true;
@@ -175,7 +169,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _topGainer = g;
           _topLoser = l;
           _favoriteStocks = favStocks;
-          _favoriteSymbols = favoriteSymbols;
           _loading = false;
         });
       } else {
@@ -185,7 +178,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _topGainer = topGainer;
           _topLoser = topLoser;
           _favoriteStocks = favStocks;
-          _favoriteSymbols = favoriteSymbols;
           _loading = false;
         });
       }
@@ -216,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     String currentDate =
-        DateFormat('EEEE, d MMMM y', 'ar').format(DateTime.now());
+        DateFormat('EEEE d MMMM y', 'ar').format(DateTime.now());
     currentDate = currentDate
         .replaceAll('٠', '0')
         .replaceAll('١', '1')
@@ -243,10 +235,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: FadeAnimation(
                       child: ListView(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 16),
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         children: [
-                          _buildHeader(currentDate),
-                          const SizedBox(height: 24),
+                          _buildHeader(
+                            date: currentDate,
+                            isMarketOpen: _tasiIndex?.isOpen ?? false,
+                          ),
+                          const SizedBox(height: 14),
                           if (!_translationsAvailable) _buildTranslationAlert(),
                           if (_tasiIndex != null)
                             SlideAnimation(
@@ -255,9 +252,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   boxShadow: [
                                     BoxShadow(
                                       color: AppColors.primaryBlue
-                                          .withOpacity(0.15),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
+                                          .withOpacity(0.10),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 6),
                                     ),
                                   ],
                                 ),
@@ -267,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                             ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 20),
                           _buildUnifiedTitle(
                             title: 'أداء السوق اليوم',
                             action: widget.indicesTabIndex == null
@@ -302,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           if (_topGainer != null || _topLoser != null)
                             Column(
                               children: [
@@ -316,7 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                 if (_topGainer != null && _topLoser != null)
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 14),
                                 if (_topLoser != null)
                                   SlideAnimation(
                                     delay: const Duration(milliseconds: 200),
@@ -328,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                               ],
                             ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 24),
                           _buildUnifiedTitle(
                             title: 'مفضلتك',
                             action: InkWell(
@@ -356,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           if (_favoriteStocks.isNotEmpty)
                             ...List.generate(_favoriteStocks.length, (index) {
                               final stock = _favoriteStocks[index];
@@ -392,16 +389,50 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader(String date) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildHeader({
+    required String date,
+    required bool isMarketOpen,
+  }) {
+    final statusColor = isMarketOpen ? AppColors.gain : AppColors.neutral;
+
+    return Row(
       children: [
-        Text(
-          date,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
+        Expanded(
+          child: Text(
+            'اليوم: $date',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.10),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: statusColor.withOpacity(0.22)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isMarketOpen ? Icons.lock_open_rounded : Icons.lock_rounded,
+                size: 13,
+                color: statusColor,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                isMarketOpen ? 'السوق مفتوح' : 'السوق مغلق',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 10.8,
+                  fontWeight: FontWeight.w800,
+                  color: statusColor,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -429,7 +460,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 title,
                 style: AppTextStyles.headingSmall.copyWith(
                   fontWeight: FontWeight.w900,
-                  fontSize: 20,
+                  fontSize: 18,
                   color: Colors.black87,
                 ),
               ),
@@ -453,23 +484,23 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: 8, right: 4, left: 4),
+          padding: const EdgeInsets.only(bottom: 6, right: 4, left: 4),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 14, color: color),
+                child: Icon(icon, size: 13, color: color),
               ),
               const SizedBox(width: 8),
               Text(
                 title,
                 style: const TextStyle(
                   fontFamily: 'Tajawal',
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                 ).copyWith(color: color),
               ),
@@ -521,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildEmptyFavoritesState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -536,14 +567,14 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppColors.primaryGold.withOpacity(0.10),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.star_rounded,
-              size: 40,
+              size: 34,
               color: AppColors.primaryGold,
             ),
           ),
@@ -552,7 +583,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'قائمة المراقبة فارغة',
             style: AppTextStyles.bodyMedium.copyWith(
               fontWeight: FontWeight.bold,
-              fontSize: 18,
+              fontSize: 16.5,
             ),
           ),
           const SizedBox(height: 8),
@@ -564,7 +595,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -573,7 +604,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundColor: AppColors.primaryBlue,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
               ),
@@ -581,7 +612,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'استكشاف السوق',
                 style: TextStyle(
                   fontFamily: 'Tajawal',
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
               ),

@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/utils/constants.dart';
+import '../data/country_options.dart';
+import '../data/trading_status_options.dart';
 import '../providers/app_manager_provider.dart';
+import '../utils/app_manager_config.dart';
+import '../utils/phone_number_helper.dart';
+import '../widgets/country_picker_form_field.dart';
 import 'app_shell_screen.dart';
 import 'profile_completion_screen.dart';
 
@@ -31,34 +36,102 @@ class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _email = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final TextEditingController _fullName = TextEditingController();
+  final TextEditingController _phone = TextEditingController();
 
   bool _isRegisterMode = false;
   bool _obscurePassword = true;
+  bool _didManuallySelectCountry = false;
+  String? _selectedCountryCode;
+  String? _selectedTradingStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    final manager = context.read<AppManagerProvider>();
+    _selectedCountryCode =
+        countryOptionByCode(manager.user?.countryCode)?.code ??
+            countryOptionByCode(manager.suggestedCountryCode)?.code;
+  }
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
     _fullName.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
+  CountryOption? _selectedCountry() =>
+      countryOptionByCode(_selectedCountryCode);
+
+  void _syncSuggestedCountry(AppManagerProvider manager) {
+    if (_didManuallySelectCountry) {
+      return;
+    }
+
+    final suggestedCountryCode =
+        countryOptionByCode(manager.user?.countryCode)?.code ??
+            countryOptionByCode(manager.suggestedCountryCode)?.code;
+
+    if (suggestedCountryCode != null) {
+      _selectedCountryCode = suggestedCountryCode;
+    }
+  }
+
+  String? _validateOptionalPhone(String? value) {
+    final input = (value ?? '').trim();
+    if (input.isEmpty) {
+      return null;
+    }
+
+    final country = _selectedCountry();
+    if (country == null) {
+      return 'اختر الدولة أولًا.';
+    }
+
+    final normalized = PhoneNumberHelper.tryNormalize(
+      rawInput: input,
+      regionCode: country.code,
+    );
+
+    return normalized == null ? 'أدخل رقم هاتف صحيحًا.' : null;
+  }
+
   Future<void> _submitEmailAuth() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     final manager = context.read<AppManagerProvider>();
+    final selectedCountry = _selectedCountry();
+    final normalizedPhone = _isRegisterMode && _phone.text.trim().isNotEmpty
+        ? PhoneNumberHelper.tryNormalize(
+            rawInput: _phone.text.trim(),
+            regionCode: selectedCountry!.code,
+          )
+        : null;
+
     final ok = _isRegisterMode
         ? await manager.register(
             email: _email.text,
             password: _password.text,
             fullName: _fullName.text,
+            countryCode: selectedCountry!.code,
+            countryName: selectedCountry.name,
+            phoneNumber: normalizedPhone?.e164,
+            tradingStatus: AppManagerConfig.supportsTradingStatus
+                ? _selectedTradingStatus
+                : null,
           )
         : await manager.login(
             email: _email.text,
             password: _password.text,
           );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     if (ok) {
       await _handleSuccess();
       return;
@@ -71,7 +144,9 @@ class _AuthScreenState extends State<AuthScreen> {
     final manager = context.read<AppManagerProvider>();
     final ok = await manager.loginWithGoogle();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     if (ok) {
       await _handleSuccess();
       return;
@@ -84,7 +159,9 @@ class _AuthScreenState extends State<AuthScreen> {
     final manager = context.read<AppManagerProvider>();
     final ok = await manager.loginWithApple();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     if (ok) {
       await _handleSuccess();
       return;
@@ -94,10 +171,14 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _handleSuccess() async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     final completed = await ProfileCompletionScreen.ensureCompleted(context);
-    if (!mounted || !completed) return;
+    if (!mounted || !completed) {
+      return;
+    }
 
     if (widget.redirectToHomeOnSuccess) {
       Navigator.pushAndRemoveUntil(
@@ -134,6 +215,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final manager = context.watch<AppManagerProvider>();
+    _syncSuggestedCountry(manager);
     final canUseApple = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
     return PopScope(
@@ -241,8 +323,8 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildHero() {
     final title = _isRegisterMode ? 'إنشاء حساب جديد' : 'تسجيل الدخول';
     final description = _isRegisterMode
-        ? 'أنشئ حسابك لحفظ المفضلة ومزامنة إعداداتك بين أجهزتك داخل تطبيق الأسهم المصرية.'
-        : 'سجّل دخولك للوصول إلى مفضلتك وحسابك ومزامنة بياناتك بين الأجهزة.';
+        ? 'أنشئ حسابك لحفظ المفضلة ومزامنة إعداداتك وبياناتك داخل تطبيق الأسهم المصرية.'
+        : 'سجّل دخولك للوصول إلى حسابك ومزامنة بياناتك بين الأجهزة.';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -380,14 +462,99 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 validator: (value) {
                   final input = (value ?? '').trim();
-                  if (input.isEmpty) return null;
+                  if (input.isEmpty) {
+                    return 'أدخل الاسم الكامل.';
+                  }
                   if (input.length < 3) {
                     return 'اكتب اسمًا واضحًا لا يقل عن 3 أحرف.';
+                  }
+                  final meaningful = input.replaceAll(
+                    RegExp(r'[\p{P}\p{S}\s]+', unicode: true),
+                    '',
+                  );
+                  if (meaningful.length < 2) {
+                    return 'أدخل اسمًا صحيحًا.';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 10),
+              CountryPickerFormField(
+                key: ValueKey('auth-country-${_selectedCountryCode ?? "none"}'),
+                initialValue: _selectedCountryCode,
+                enabled: !manager.isBusy,
+                showLabel: false,
+                label: 'الدولة',
+                hintText: 'ابحث واختر الدولة',
+                sheetBackgroundColor: Colors.white,
+                accentColor: _authAccent,
+                decoration: _fieldDecoration(
+                  label: 'الدولة',
+                  icon: Icons.public_rounded,
+                ),
+                validator: (value) {
+                  if ((value ?? '').trim().isEmpty) {
+                    return 'اختر الدولة.';
+                  }
+                  return null;
+                },
+                onChanged: (value) {
+                  setState(() {
+                    _didManuallySelectCountry = true;
+                    _selectedCountryCode = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _phone,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Tajawal',
+                ),
+                decoration: _fieldDecoration(
+                  label: 'رقم الهاتف (اختياري)',
+                  icon: Icons.phone_android_rounded,
+                ),
+                validator: _validateOptionalPhone,
+              ),
+              if (AppManagerConfig.supportsTradingStatus) ...<Widget>[
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedTradingStatus,
+                  decoration: _fieldDecoration(
+                    label: kTradingStatusQuestionLabel,
+                    icon: Icons.query_stats_rounded,
+                  ),
+                  dropdownColor: Colors.white,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  items: kTradingStatusOptions
+                      .map(
+                        (option) => DropdownMenuItem<String>(
+                          value: option.value,
+                          child: Text(option.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedTradingStatus = value;
+                    });
+                  },
+                  validator: (value) {
+                    if ((value ?? '').trim().isEmpty) {
+                      return 'اختر إجابة السؤال.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+              ],
             ],
             TextFormField(
               controller: _email,

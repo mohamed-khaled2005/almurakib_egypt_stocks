@@ -9,6 +9,8 @@
   final String name;
   final String dialCode;
 
+  String get searchableText => '$name $dialCode $code'.toLowerCase();
+
   String get flagEmoji {
     final normalized = code.trim().toUpperCase();
     if (normalized.length != 2) return '';
@@ -16,6 +18,21 @@
     final second = normalized.codeUnitAt(1) - 0x41 + 0x1F1E6;
     return String.fromCharCode(first) + String.fromCharCode(second);
   }
+}
+
+CountryOption? countryOptionByCode(String? rawCode) {
+  final normalized = (rawCode ?? '').trim().toUpperCase();
+  if (normalized.isEmpty) {
+    return null;
+  }
+
+  for (final country in kCountryOptions) {
+    if (country.code == normalized) {
+      return country;
+    }
+  }
+
+  return null;
 }
 
 const List<CountryOption> kCountryOptions = <CountryOption>[
