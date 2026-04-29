@@ -1,17 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
-import '../core/models/tasi_index_model.dart';
+import '../core/models/market_index_model.dart';
 import '../core/models/stock_model.dart';
 import '../core/services/stock_service.dart';
 import '../core/services/favorites_service.dart';
 import '../core/services/translation_service.dart';
 import '../core/utils/constants.dart';
+import '../core/utils/formatters.dart';
 
 import '../animations/fade_animation.dart';
 import '../animations/slide_animation.dart';
-import '../widgets/tasi_card.dart';
 import '../widgets/top_stock_card.dart';
 import '../widgets/stock_list_item.dart';
 import 'stock_detail_screen.dart';
@@ -19,12 +19,14 @@ import 'stock_detail_screen.dart';
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateToTab;
   final int allStocksTabIndex;
+  final int favoritesTabIndex;
   final int? indicesTabIndex;
 
   const HomeScreen({
     super.key,
     this.onNavigateToTab,
     this.allStocksTabIndex = 2,
+    this.favoritesTabIndex = 4,
     this.indicesTabIndex,
   });
 
@@ -33,7 +35,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  TasiIndexModel? _tasiIndex;
+  static const int _homeIndicesPreview = 2;
+  static const String _currency = 'ج.م';
+
+  List<MarketIndexModel> _marketIndices = <MarketIndexModel>[];
   StockModel? _topGainer;
   StockModel? _topLoser;
 
@@ -115,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final translationsFuture = TranslationService.getTranslations();
-      final tasiFuture = StockService.getTasiIndex();
+      final indicesFuture = StockService.getMarketIndices(forceRefresh: true);
 
       // ✅ حمل المفضلة من notifier/SharedPreferences
       final favFuture = FavoritesService.getFavorites(forceReload: true);
@@ -123,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final allStocksFuture =
           StockService.getStocksList(perPage: _perPage, page: 1);
 
-      final tasi = await tasiFuture;
+      final indices = await indicesFuture;
       final favoriteSymbolsList = await favFuture;
       final allStocks = await allStocksFuture;
 
@@ -165,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (!mounted) return;
         setState(() {
-          _tasiIndex = tasi;
+          _marketIndices = indices;
           _topGainer = g;
           _topLoser = l;
           _favoriteStocks = favStocks;
@@ -174,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         if (!mounted) return;
         setState(() {
-          _tasiIndex = tasi;
+          _marketIndices = indices;
           _topGainer = topGainer;
           _topLoser = topLoser;
           _favoriteStocks = favStocks;
@@ -198,11 +203,222 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _navigateToIndices() {
-    final target = widget.indicesTabIndex;
-    if (widget.onNavigateToTab != null && target != null) {
-      widget.onNavigateToTab!(target);
+  void _navigateToFavorites() {
+    if (widget.onNavigateToTab != null) {
+      widget.onNavigateToTab!(widget.favoritesTabIndex);
     }
+  }
+
+  bool _isMarketOpen() {
+    final now = DateTime.now();
+    final weekday = now.weekday;
+    final isTradingDay = weekday == DateTime.sunday ||
+        (weekday >= DateTime.monday && weekday <= DateTime.thursday);
+    if (!isTradingDay) return false;
+
+    final minutes = now.hour * 60 + now.minute;
+    return minutes >= (9 * 60 + 30) && minutes < (14 * 60 + 30);
+  }
+
+  String _formatTickerLabel(String ticker) {
+    final normalized = ticker.trim();
+    if (normalized.isEmpty) return '';
+    final parts = normalized.split(':');
+    return parts.isEmpty ? normalized : parts.last.trim().toUpperCase();
+  }
+
+  Widget _buildIndexBlock({required MarketIndexModel index}) {
+    final hasData = index.hasMarketData;
+    final isGain = index.change >= 0;
+    final trendColor = !hasData
+        ? AppColors.neutral
+        : isGain
+            ? AppColors.gain
+            : AppColors.loss;
+    final title =
+        index.name.isEmpty ? _formatTickerLabel(index.ticker) : index.name;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.55)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.035),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Row(
+        textDirection: TextDirection.ltr,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          _buildIndexRefreshButton(),
+          const SizedBox(width: 8),
+          _buildIndexChangeBadge(
+            index: index,
+            trendColor: trendColor,
+            isGain: isGain,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 11.2,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textSecondary.withValues(alpha: 0.86),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    textDirection: TextDirection.rtl,
+                    children: <Widget>[
+                      Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Text(
+                          hasData
+                              ? Formatters.formatNumber(index.value)
+                              : 'غير متاح',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: hasData ? 20 : 13,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                      if (hasData) ...<Widget>[
+                        const SizedBox(width: 5),
+                        Text(
+                          _currency,
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.86),
+                            height: 1.0,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIndexRefreshButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _loadData,
+        borderRadius: BorderRadius.circular(99),
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            border: Border.all(color: AppColors.border),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.035),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.refresh_rounded,
+            size: 16,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIndexChangeBadge({
+    required MarketIndexModel index,
+    required Color trendColor,
+    required bool isGain,
+  }) {
+    final hasData = index.hasMarketData;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: trendColor.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        textDirection: TextDirection.rtl,
+        children: <Widget>[
+          Icon(
+            !hasData
+                ? Icons.remove_rounded
+                : isGain
+                    ? Icons.trending_up_rounded
+                    : Icons.trending_down_rounded,
+            size: 14,
+            color: trendColor,
+          ),
+          const SizedBox(width: 6),
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Text(
+              hasData ? Formatters.formatPercent(index.changePercent) : '--',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 11.2,
+                fontWeight: FontWeight.w900,
+                color: trendColor,
+              ),
+            ),
+          ),
+          if (hasData) ...<Widget>[
+            const SizedBox(width: 8),
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Text(
+                Formatters.formatChange(index.change),
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w800,
+                  color: trendColor,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   @override
@@ -241,63 +457,66 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           _buildHeader(
                             date: currentDate,
-                            isMarketOpen: _tasiIndex?.isOpen ?? false,
+                            isMarketOpen: _isMarketOpen(),
                           ),
                           const SizedBox(height: 14),
                           if (!_translationsAvailable) _buildTranslationAlert(),
-                          if (_tasiIndex != null)
-                            SlideAnimation(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.primaryBlue
-                                          .withOpacity(0.10),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 6),
+                          if (_marketIndices.isNotEmpty) ...[
+                            ...List.generate(
+                              _marketIndices.take(_homeIndicesPreview).length,
+                              (index) {
+                                final item = _marketIndices[index];
+                                return SlideAnimation(
+                                  delay: Duration(milliseconds: index * 90),
+                                  child: Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom: index ==
+                                              _marketIndices
+                                                      .take(_homeIndicesPreview)
+                                                      .length -
+                                                  1
+                                          ? 0
+                                          : 12,
+                                    ),
+                                    child: _buildIndexBlock(index: item),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                          _buildUnifiedTitle(
+                            title: 'أداء السوق اليوم',
+                            action: InkWell(
+                              onTap: _navigateToAllStocks,
+                              borderRadius: BorderRadius.circular(20),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'كل الأسهم',
+                                      style: TextStyle(
+                                        fontFamily: 'Tajawal',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primaryBlue,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 16,
+                                      color: AppColors.primaryBlue,
                                     ),
                                   ],
                                 ),
-                                child: TasiCard(
-                                  tasi: _tasiIndex!,
-                                  onRefresh: _loadData,
-                                ),
                               ),
                             ),
-                          const SizedBox(height: 20),
-                          _buildUnifiedTitle(
-                            title: 'أداء السوق اليوم',
-                            action: widget.indicesTabIndex == null
-                                ? null
-                                : InkWell(
-                                    onTap: _navigateToIndices,
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            'المؤشرات',
-                                            style: TextStyle(
-                                              fontFamily: 'Tajawal',
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppColors.primaryBlue,
-                                            ),
-                                          ),
-                                          SizedBox(width: 4),
-                                          Icon(
-                                            Icons.arrow_forward_rounded,
-                                            size: 16,
-                                            color: AppColors.primaryBlue,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
                           ),
                           const SizedBox(height: 12),
                           if (_topGainer != null || _topLoser != null)
@@ -329,12 +548,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           _buildUnifiedTitle(
                             title: 'مفضلتك',
                             action: InkWell(
-                              onTap: _navigateToAllStocks,
+                              onTap: _navigateToFavorites,
                               borderRadius: BorderRadius.circular(20),
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
                                       'عرض الكل',
@@ -443,30 +663,35 @@ class _HomeScreenState extends State<HomeScreen> {
     return SlideAnimation(
       delay: const Duration(milliseconds: 100),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 4,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: AppTextStyles.headingSmall.copyWith(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
+          Container(
+            width: 4,
+            height: 24,
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-          if (action != null) action,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.headingSmall.copyWith(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          if (action != null) ...[
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 140),
+              child: Align(alignment: Alignment.centerLeft, child: action),
+            ),
+          ],
         ],
       ),
     );

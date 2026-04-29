@@ -10,43 +10,110 @@ import 'translation_service.dart';
 import 'last_update_service.dart';
 
 class StockService {
-  static Future<TasiIndexModel> getTasiIndex() async {
-    print('📊 جلب مؤشر السوق (EGX)...');
+  static List<MarketIndexModel>? _marketIndicesCache;
+  static Future<List<MarketIndexModel>>? _marketIndicesInFlight;
 
-    // ✅ المؤكد شغال: exchange=EGX
-    final data = await ApiClient.get(
-      ApiEndpoints.indicesLatest(exchange: ApiKeys.egyptExchange),
+  static Future<TasiIndexModel> getTasiIndex() async {
+    final indices = await getMarketIndices();
+    if (indices.isEmpty) {
+      throw Exception('لا توجد بيانات للمؤشر');
+    }
+
+    final mainIndex = indices.firstWhere(
+      (item) => _tickerMatches(item.ticker, ApiKeys.egyptMainIndexTicker),
+      orElse: () => indices.first,
     );
 
-    // ✅ تحديث وقت "آخر تحديث" من السيرفر (UTC)
-    LastUpdateService.updateFromApi(data);
-
-    _prioritizeIndexTicker(data, ApiKeys.egyptMainIndexTicker);
-
-    return TasiIndexModel.fromJson(data);
+    return TasiIndexModel(
+      value: mainIndex.value,
+      change: mainIndex.change,
+      changePercent: mainIndex.changePercent,
+      updateTimeUtc: mainIndex.updateTimeUtc,
+      indexSymbol: mainIndex.ticker,
+    );
   }
 
-  static Future<List<MarketIndexModel>> getMarketIndices() async {
-    final data = await ApiClient.get(
-      ApiEndpoints.indicesLatest(exchange: ApiKeys.egyptExchange),
+  static Future<List<MarketIndexModel>> getMarketIndices({
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh && _marketIndicesCache != null) {
+      return _marketIndicesCache!;
+    }
+
+    if (!forceRefresh && _marketIndicesInFlight != null) {
+      return _marketIndicesInFlight!;
+    }
+
+    _marketIndicesInFlight = _loadMarketIndices();
+    try {
+      final indices = await _marketIndicesInFlight!;
+      _marketIndicesCache = indices;
+      return indices;
+    } finally {
+      _marketIndicesInFlight = null;
+    }
+  }
+
+  static Future<List<MarketIndexModel>> _loadMarketIndices() async {
+    final listData = await ApiClient.get(
+      ApiEndpoints.indicesList(country: ApiKeys.defaultCountry),
     );
 
-    LastUpdateService.updateFromApi(data);
-    _prioritizeIndexTicker(data, ApiKeys.egyptMainIndexTicker);
+    LastUpdateService.updateFromApi(listData);
 
-    final response = data['response'];
-    if (response is! List) {
+    final listResponse = listData['response'];
+    if (listResponse is! List) {
       throw Exception('صيغة المؤشرات غير متوقعة');
     }
 
     final seenTickers = <String>{};
-    var indices = response
-        .whereType<Map>()
-        .map((entry) =>
-            MarketIndexModel.fromJson(Map<String, dynamic>.from(entry)))
-        .where((item) => item.ticker.trim().isNotEmpty)
-        .where((item) => seenTickers.add(item.ticker.trim().toUpperCase()))
-        .toList();
+    final listedIndices = <MarketIndexModel>[];
+    for (final entry in listResponse.whereType<Map>()) {
+      final index = MarketIndexModel.fromJson(
+        Map<String, dynamic>.from(entry),
+      );
+      final normalizedTicker = _normalizeTicker(index.ticker);
+      if (normalizedTicker.isEmpty || !seenTickers.add(normalizedTicker)) {
+        continue;
+      }
+      listedIndices.add(index);
+    }
+
+    if (listedIndices.isEmpty) return <MarketIndexModel>[];
+
+    final latestByTicker = <String, MarketIndexModel>{};
+    try {
+      final latestData = await ApiClient.get(
+        ApiEndpoints.indicesLatest(
+          symbol: listedIndices.map((item) => item.ticker).join(','),
+        ),
+      );
+      LastUpdateService.updateFromApi(latestData);
+
+      final latestResponse = latestData['response'];
+      if (latestResponse is List) {
+        for (final entry in latestResponse.whereType<Map>()) {
+          final index = MarketIndexModel.fromJson(
+            Map<String, dynamic>.from(entry),
+          );
+          final normalizedTicker = _normalizeTicker(index.ticker);
+          if (normalizedTicker.isEmpty) continue;
+          latestByTicker[normalizedTicker] = index;
+        }
+      }
+    } catch (_) {
+      // Keep the index list visible even if live prices are temporarily unavailable.
+    }
+
+    var indices = listedIndices.map((listed) {
+      final latest = latestByTicker[_normalizeTicker(listed.ticker)];
+      if (latest == null) return listed;
+
+      return latest.copyWith(
+        ticker: listed.ticker,
+        name: listed.name.isNotEmpty ? listed.name : latest.name,
+      );
+    }).toList();
 
     final translations = await TranslationService.getTranslations();
     if (translations != null) {
@@ -65,16 +132,12 @@ class StockService {
     return indices;
   }
 
-  static void _prioritizeIndexTicker(Map<String, dynamic> data, String ticker) {
-    final resp = data['response'];
-    if (resp is! List || resp.isEmpty) return;
+  static bool _tickerMatches(String actual, String expected) {
+    return _normalizeTicker(actual) == _normalizeTicker(expected);
+  }
 
-    final idx =
-        resp.indexWhere((e) => e is Map && e['ticker']?.toString() == ticker);
-    if (idx <= 0) return; // -1 not found or already first
-
-    final item = resp.removeAt(idx);
-    resp.insert(0, item);
+  static String _normalizeTicker(String value) {
+    return value.trim().toUpperCase();
   }
 
   static Future<List<StockModel>> getTopGainers({int limit = 10}) async {
@@ -161,8 +224,8 @@ class StockService {
       ),
     ]);
 
-    final latestData = results[0] as Map<String, dynamic>;
-    final listData = results[1] as Map<String, dynamic>;
+    final latestData = results[0];
+    final listData = results[1];
 
     // ✅ حدّث آخر وقت بناءً على الاثنين
     LastUpdateService.updateFromApi(latestData);

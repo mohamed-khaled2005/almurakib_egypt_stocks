@@ -40,6 +40,14 @@ class ApiEndpoints {
     return _build('indices_latest', params);
   }
 
+  static String indicesList({String? country}) {
+    final safeCountry = (country == null || country.trim().isEmpty)
+        ? ApiKeys.defaultCountry
+        : country.trim();
+
+    return _build('indices', {'country': safeCountry});
+  }
+
   /// ✅ Stocks Latest
   static String latest({
     String? symbol,
@@ -90,8 +98,23 @@ class ApiEndpoints {
   }
 
   static const Set<String> _validHistoryPeriods = {
-    '1m','5m','15m','30m','1h','4h','1d','1w','1month',
-    '1','5','15','30','60','240','1440','10080',
+    '1m',
+    '5m',
+    '15m',
+    '30m',
+    '1h',
+    '4h',
+    '1d',
+    '1w',
+    '1month',
+    '1',
+    '5',
+    '15',
+    '30',
+    '60',
+    '240',
+    '1440',
+    '10080',
   };
 
   static String _sanitizeHistoryPeriod(String p) {

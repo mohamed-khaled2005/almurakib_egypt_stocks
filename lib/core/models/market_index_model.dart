@@ -5,6 +5,7 @@ class MarketIndexModel {
     required this.value,
     required this.change,
     required this.changePercent,
+    this.hasMarketData = true,
     this.updateTimeUtc,
   });
 
@@ -13,6 +14,7 @@ class MarketIndexModel {
   final double value;
   final double change;
   final double changePercent;
+  final bool hasMarketData;
   final DateTime? updateTimeUtc;
 
   bool get isGain => change >= 0;
@@ -23,6 +25,7 @@ class MarketIndexModel {
     double? value,
     double? change,
     double? changePercent,
+    bool? hasMarketData,
     DateTime? updateTimeUtc,
   }) {
     return MarketIndexModel(
@@ -31,6 +34,7 @@ class MarketIndexModel {
       value: value ?? this.value,
       change: change ?? this.change,
       changePercent: changePercent ?? this.changePercent,
+      hasMarketData: hasMarketData ?? this.hasMarketData,
       updateTimeUtc: updateTimeUtc ?? this.updateTimeUtc,
     );
   }
@@ -41,18 +45,34 @@ class MarketIndexModel {
         : json['active'] is Map
             ? Map<String, dynamic>.from(json['active'] as Map)
             : <String, dynamic>{};
+    final profile = json['profile'] is Map<String, dynamic>
+        ? Map<String, dynamic>.from(json['profile'] as Map<String, dynamic>)
+        : json['profile'] is Map
+            ? Map<String, dynamic>.from(json['profile'] as Map)
+            : <String, dynamic>{};
 
     final updateTimeRaw =
         (json['updateTime'] ?? json['update_time'])?.toString().trim();
+    final valueRaw = active['c'] ?? json['c'];
+    final changeRaw = active['ch'] ?? json['ch'];
+    final changePercentRaw = active['chp'] ?? json['chp'];
 
     return MarketIndexModel(
-      ticker: (json['ticker'] ?? json['symbol'] ?? '').toString().trim(),
-      name: (json['name'] ?? json['index_name'] ?? json['ticker'] ?? '')
+      ticker: (json['ticker'] ?? json['symbol'] ?? profile['symbol'] ?? '')
           .toString()
           .trim(),
-      value: _parseDouble(active['c'] ?? json['c']),
-      change: _parseDouble(active['ch'] ?? json['ch']),
-      changePercent: _parseDouble(active['chp'] ?? json['chp']),
+      name: (json['name'] ??
+              json['index_name'] ??
+              profile['name'] ??
+              json['ticker'] ??
+              '')
+          .toString()
+          .trim(),
+      value: _parseDouble(valueRaw),
+      change: _parseDouble(changeRaw),
+      changePercent: _parseDouble(changePercentRaw),
+      hasMarketData:
+          valueRaw != null || changeRaw != null || changePercentRaw != null,
       updateTimeUtc: _parseDateTime(updateTimeRaw),
     );
   }

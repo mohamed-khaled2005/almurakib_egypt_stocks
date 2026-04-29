@@ -6,6 +6,7 @@ import '../core/utils/constants.dart';
 import '../widgets/app_section_header.dart';
 
 const String _currency = 'ج.م';
+const String _unavailable = 'غير متاح';
 
 String _formatIndexDate(DateTime? value) {
   if (value == null) {
@@ -26,6 +27,50 @@ String _formatSignedPercent(double value) {
   return '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)}%';
 }
 
+Color _trendColor(MarketIndexModel index) {
+  if (!index.hasMarketData) return AppColors.textSecondary;
+  return index.isGain ? AppColors.gain : AppColors.loss;
+}
+
+IconData _trendIcon(MarketIndexModel index) {
+  if (!index.hasMarketData) return Icons.remove_rounded;
+  return index.isGain ? Icons.trending_up_rounded : Icons.trending_down_rounded;
+}
+
+String _formatIndexValue(MarketIndexModel index) {
+  if (!index.hasMarketData) return _unavailable;
+  return '${index.value.toStringAsFixed(2)} $_currency';
+}
+
+String _formatIndexMainValue(MarketIndexModel index) {
+  if (!index.hasMarketData) return _unavailable;
+  return index.value.toStringAsFixed(2);
+}
+
+String _formatIndexChange(MarketIndexModel index) {
+  if (!index.hasMarketData) return _unavailable;
+  return '${_formatSignedValue(index.change)} $_currency';
+}
+
+String _formatIndexPercent(MarketIndexModel index) {
+  if (!index.hasMarketData) return _unavailable;
+  return _formatSignedPercent(index.changePercent);
+}
+
+String _formatTrendLabel(MarketIndexModel index) {
+  if (!index.hasMarketData) return _unavailable;
+  return index.isGain ? 'صاعد' : 'هابط';
+}
+
+String _formatTrendDescription(MarketIndexModel index) {
+  if (!index.hasMarketData) {
+    return 'بيانات التداول غير متاحة حاليًا لهذا المؤشر.';
+  }
+  return index.isGain
+      ? 'المؤشر يتحرك حاليًا في نطاق إيجابي.'
+      : 'المؤشر يتحرك حاليًا في نطاق ضاغط أو هابط.';
+}
+
 class MarketIndicesScreen extends StatefulWidget {
   const MarketIndicesScreen({super.key});
 
@@ -44,14 +89,16 @@ class _MarketIndicesScreenState extends State<MarketIndicesScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool forceRefresh = false}) async {
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      final items = await StockService.getMarketIndices();
+      final items = await StockService.getMarketIndices(
+        forceRefresh: forceRefresh,
+      );
       if (!mounted) return;
       setState(() {
         _indices = items;
@@ -81,7 +128,7 @@ class _MarketIndicesScreenState extends State<MarketIndicesScreen> {
       backgroundColor: AppColors.scaffold,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: () => _load(forceRefresh: true),
           color: AppColors.primaryBlue,
           child: _loading
               ? const Center(
@@ -94,7 +141,10 @@ class _MarketIndicesScreenState extends State<MarketIndicesScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(24),
                       children: <Widget>[
-                        _ErrorState(message: _error!, onRetry: _load),
+                        _ErrorState(
+                          message: _error!,
+                          onRetry: () => _load(forceRefresh: true),
+                        ),
                       ],
                     )
                   : ListView(
@@ -151,7 +201,7 @@ class MarketIndexDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trendColor = index.isGain ? AppColors.gain : AppColors.loss;
+    final trendColor = _trendColor(index);
     final formattedDate = _formatIndexDate(index.updateTimeUtc);
     final title = index.name.isEmpty ? index.ticker : index.name;
 
@@ -194,7 +244,7 @@ class MarketIndexDetailScreen extends StatelessWidget {
                     width: cardWidth,
                     child: _MetricTile(
                       label: 'القيمة الحالية',
-                      value: '${index.value.toStringAsFixed(2)} $_currency',
+                      value: _formatIndexValue(index),
                       icon: Icons.show_chart_rounded,
                       accentColor: AppColors.primaryBlue,
                     ),
@@ -203,10 +253,8 @@ class MarketIndexDetailScreen extends StatelessWidget {
                     width: cardWidth,
                     child: _MetricTile(
                       label: 'التغير بالنقاط',
-                      value: '${_formatSignedValue(index.change)} $_currency',
-                      icon: index.isGain
-                          ? Icons.trending_up_rounded
-                          : Icons.trending_down_rounded,
+                      value: _formatIndexChange(index),
+                      icon: _trendIcon(index),
                       accentColor: trendColor,
                     ),
                   ),
@@ -214,7 +262,7 @@ class MarketIndexDetailScreen extends StatelessWidget {
                     width: cardWidth,
                     child: _MetricTile(
                       label: 'نسبة التغير',
-                      value: _formatSignedPercent(index.changePercent),
+                      value: _formatIndexPercent(index),
                       icon: Icons.percent_rounded,
                       accentColor: trendColor,
                     ),
@@ -252,9 +300,8 @@ class _IndexCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trendColor = index.isGain ? AppColors.gain : AppColors.loss;
-    final trendIcon =
-        index.isGain ? Icons.trending_up_rounded : Icons.trending_down_rounded;
+    final trendColor = _trendColor(index);
+    final trendIcon = _trendIcon(index);
 
     return Material(
       color: Colors.transparent,
@@ -331,7 +378,7 @@ class _IndexCard extends StatelessWidget {
                   Expanded(
                     child: _MetricTile(
                       label: 'القيمة',
-                      value: '${index.value.toStringAsFixed(2)} $_currency',
+                      value: _formatIndexValue(index),
                       icon: Icons.show_chart_rounded,
                       accentColor: AppColors.primaryBlue,
                       compact: true,
@@ -341,7 +388,7 @@ class _IndexCard extends StatelessWidget {
                   Expanded(
                     child: _MetricTile(
                       label: 'التغير',
-                      value: '${_formatSignedValue(index.change)} $_currency',
+                      value: _formatIndexChange(index),
                       icon: trendIcon,
                       accentColor: trendColor,
                       compact: true,
@@ -433,9 +480,7 @@ class _DetailHeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  index.isGain
-                      ? 'المؤشر يتحرك حاليًا في نطاق إيجابي.'
-                      : 'المؤشر يتحرك حاليًا في نطاق ضاغط أو هابط.',
+                  _formatTrendDescription(index),
                   style: AppTextStyles.bodyMedium.copyWith(
                     fontWeight: FontWeight.w700,
                     height: 1.6,
@@ -450,23 +495,25 @@ class _DetailHeroCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: <Widget>[
                           Text(
-                            index.value.toStringAsFixed(2),
-                            style: const TextStyle(
+                            _formatIndexMainValue(index),
+                            style: TextStyle(
                               fontFamily: 'Tajawal',
-                              fontSize: 30,
+                              fontSize: index.hasMarketData ? 30 : 18,
                               fontWeight: FontWeight.w900,
                               color: AppColors.textPrimary,
                               height: 1.0,
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _currency,
-                            style: AppTextStyles.bodySmall.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textSecondary,
+                          if (index.hasMarketData) ...<Widget>[
+                            const SizedBox(width: 6),
+                            Text(
+                              _currency,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
@@ -480,7 +527,7 @@ class _DetailHeroCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        _formatSignedPercent(index.changePercent),
+                        _formatIndexPercent(index),
                         style: TextStyle(
                           fontFamily: 'Tajawal',
                           fontWeight: FontWeight.w900,
@@ -495,11 +542,9 @@ class _DetailHeroCard extends StatelessWidget {
                   children: <Widget>[
                     Expanded(
                       child: _HeroMetricPill(
-                        icon: index.isGain
-                            ? Icons.arrow_upward_rounded
-                            : Icons.arrow_downward_rounded,
+                        icon: _trendIcon(index),
                         label: 'التغير',
-                        value: '${_formatSignedValue(index.change)} $_currency',
+                        value: _formatIndexChange(index),
                         accentColor: trendColor,
                       ),
                     ),
@@ -508,7 +553,7 @@ class _DetailHeroCard extends StatelessWidget {
                       child: _HeroMetricPill(
                         icon: Icons.show_chart_rounded,
                         label: 'اتجاه المؤشر',
-                        value: index.isGain ? 'صاعد' : 'هابط',
+                        value: _formatTrendLabel(index),
                         accentColor: trendColor,
                       ),
                     ),

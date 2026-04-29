@@ -149,6 +149,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
       return HomeScreen(
         onNavigateToTab: _setIndex,
         allStocksTabIndex: _allStocksTabIndex,
+        favoritesTabIndex: _favoritesTabIndex,
         indicesTabIndex: _indicesTabIndex,
       );
     }
@@ -1032,10 +1033,10 @@ class _AppShellScreenState extends State<AppShellScreen> {
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-        compact ? 12 : 14,
         compact ? 11 : 12,
-        compact ? 12 : 14,
-        compact ? 12 : 13,
+        compact ? 10 : 11,
+        compact ? 11 : 12,
+        compact ? 11 : 12,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1055,23 +1056,37 @@ class _AppShellScreenState extends State<AppShellScreen> {
           Text(
             '\u062a\u0627\u0628\u0639\u0646\u0627',
             style: AppTextStyles.bodySmall.copyWith(
-              fontSize: compact ? 10.8 : 11.8,
+              fontSize: compact ? 10.8 : 11.2,
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w800,
             ),
           ),
-          SizedBox(height: compact ? 10 : 12),
-          Wrap(
-            spacing: compact ? 8 : 10,
-            runSpacing: compact ? 8 : 10,
-            children: socialLinks
-                .map(
-                  (item) => _buildManagedSocialMediaButton(
-                    item: item,
-                    compact: compact,
-                  ),
-                )
-                .toList(),
+          SizedBox(height: compact ? 9 : 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final maxWidth =
+                  constraints.maxWidth.isFinite ? constraints.maxWidth : 256.0;
+              final firstRowCount =
+                  socialLinks.length < 5 ? socialLinks.length : 5;
+              final spacing = maxWidth < 260 ? 6.0 : 8.0;
+              final rawButtonSize = firstRowCount <= 1
+                  ? 44.0
+                  : (maxWidth - spacing * (firstRowCount - 1)) / firstRowCount;
+              final buttonSize = rawButtonSize.clamp(34.0, 44.0).toDouble();
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: socialLinks
+                    .map(
+                      (item) => _buildManagedSocialMediaButton(
+                        item: item,
+                        size: buttonSize,
+                      ),
+                    )
+                    .toList(),
+              );
+            },
           ),
         ],
       ),
@@ -1080,11 +1095,11 @@ class _AppShellScreenState extends State<AppShellScreen> {
 
   Widget _buildManagedSocialMediaButton({
     required SocialLinkModel item,
-    required bool compact,
+    required double size,
   }) {
     final accentColor = _socialAccentColor(item.platform);
     final iconData = _socialIconData(item.platform);
-    final borderRadius = BorderRadius.circular(compact ? 13 : 14);
+    final borderRadius = BorderRadius.circular(size <= 38 ? 11 : 13);
     final isX = item.platform.trim().toLowerCase() == 'x';
 
     return Tooltip(
@@ -1095,8 +1110,8 @@ class _AppShellScreenState extends State<AppShellScreen> {
           borderRadius: borderRadius,
           onTap: () => _launchExternalLink(item.url),
           child: Ink(
-            width: compact ? 44 : 48,
-            height: compact ? 44 : 48,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               color: accentColor.withValues(alpha: 0.10),
               borderRadius: borderRadius,
@@ -1107,7 +1122,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
             child: Center(
               child: FaIcon(
                 iconData,
-                size: compact ? 17 : 18,
+                size: size <= 36 ? 14.5 : (size <= 40 ? 16 : 17),
                 color: isX ? AppColors.textPrimary : accentColor,
               ),
             ),
