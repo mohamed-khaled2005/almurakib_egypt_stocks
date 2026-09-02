@@ -17,6 +17,10 @@ class PhoneNumberHelper {
 
   static final PhoneNumberUtil _phoneUtil = PhoneNumberUtil.instance;
 
+  static bool isValidForCountryCode(String rawInput, String regionCode) {
+    return tryNormalize(rawInput: rawInput, regionCode: regionCode) != null;
+  }
+
   static NormalizedPhoneNumber? tryNormalize({
     required String rawInput,
     required String regionCode,

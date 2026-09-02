@@ -14,8 +14,10 @@ import '../models/managed_app_user.dart';
 import '../models/manual_ad_model.dart';
 import '../models/remote_ui_config_model.dart';
 import '../services/app_manager_api_service.dart';
+import '../services/facebook_sdk_service.dart';
 import '../services/push_notification_service.dart';
 import '../utils/app_manager_config.dart';
+import '../utils/safe_error_message.dart';
 
 class AppManagerProvider with ChangeNotifier {
   AppManagerProvider({AppManagerApiService? api})
@@ -73,6 +75,8 @@ class AppManagerProvider with ChangeNotifier {
   AppPreferencesModel get preferences => _preferences;
   ManualAdModel? get activeAd => _activeAd;
   RemoteUiConfigModel get remoteUiConfig => _remoteUiConfig;
+  List<ManagedAppListing> get ourApps => _remoteUiConfig.ourApps;
+  FacebookSdkConfig get facebookSdk => _remoteUiConfig.facebookSdk;
   ManagedMenuCta? get menuCta => _remoteUiConfig.menuCta;
   List<SocialLinkModel> get socialLinks => _remoteUiConfig.socialLinks;
   ManualAdModel? get popupAd => _remoteUiConfig.popupAd;
@@ -241,7 +245,7 @@ class AppManagerProvider with ChangeNotifier {
       await _applyAuthResult(result, eventName: 'user_register');
       return true;
     } catch (error) {
-      _errorMessage = error.toString();
+      _errorMessage = SafeErrorMessage.forUser(error);
       notifyListeners();
       return false;
     } finally {
@@ -267,7 +271,65 @@ class AppManagerProvider with ChangeNotifier {
       await _applyAuthResult(result, eventName: 'user_login');
       return true;
     } catch (error) {
-      _errorMessage = error.toString();
+      _errorMessage = SafeErrorMessage.forUser(error);
+      notifyListeners();
+      return false;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  Future<bool> requestPasswordReset(String email) async {
+    _setBusy(true);
+    _errorMessage = null;
+    try {
+      await _api.requestPasswordReset(email: email.trim());
+      return true;
+    } catch (error) {
+      _errorMessage = SafeErrorMessage.forUser(error);
+      notifyListeners();
+      return false;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  Future<String?> verifyPasswordResetCode({
+    required String email,
+    required String code,
+  }) async {
+    _setBusy(true);
+    _errorMessage = null;
+    try {
+      return await _api.verifyPasswordResetCode(
+        email: email.trim(),
+        code: code.trim(),
+      );
+    } catch (error) {
+      _errorMessage = SafeErrorMessage.forUser(error);
+      notifyListeners();
+      return null;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  Future<bool> resetPassword({
+    required String email,
+    required String resetToken,
+    required String password,
+  }) async {
+    _setBusy(true);
+    _errorMessage = null;
+    try {
+      await _api.resetPassword(
+        email: email.trim(),
+        resetToken: resetToken.trim(),
+        password: password,
+      );
+      return true;
+    } catch (error) {
+      _errorMessage = SafeErrorMessage.forUser(error);
       notifyListeners();
       return false;
     } finally {
@@ -531,6 +593,7 @@ class AppManagerProvider with ChangeNotifier {
         clearPopupAd: filteredPopupAd == null,
       );
       notifyListeners();
+      await FacebookSdkService.instance.configure(_remoteUiConfig.facebookSdk);
     } catch (_) {
       // Keep current UI config if fetch fails.
     }

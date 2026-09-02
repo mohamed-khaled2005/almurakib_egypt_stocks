@@ -307,6 +307,60 @@ class AppManagerApiService {
     );
   }
 
+  Future<void> requestPasswordReset({required String email}) async {
+    await _request(
+      method: 'POST',
+      path: '/auth/password/forgot',
+      retryCount: 0,
+      body: <String, dynamic>{
+        'email': email.trim(),
+        'target_app_slug': AppManagerConfig.appSlug,
+      },
+    );
+  }
+
+  Future<String> verifyPasswordResetCode({
+    required String email,
+    required String code,
+  }) async {
+    final data = await _request(
+      method: 'POST',
+      path: '/auth/password/verify',
+      retryCount: 0,
+      body: <String, dynamic>{
+        'email': email.trim(),
+        'code': code.trim(),
+        'target_app_slug': AppManagerConfig.appSlug,
+      },
+    );
+
+    final resetToken = (data['reset_token'] ?? '').toString().trim();
+    if (resetToken.isEmpty) {
+      throw const AppManagerApiException(
+        'تعذر إنشاء جلسة استرجاع كلمة المرور. حاول مرة أخرى.',
+      );
+    }
+    return resetToken;
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String resetToken,
+    required String password,
+  }) async {
+    await _request(
+      method: 'POST',
+      path: '/auth/password/reset',
+      retryCount: 0,
+      body: <String, dynamic>{
+        'email': email.trim(),
+        'reset_token': resetToken,
+        'password': password,
+        'password_confirmation': password,
+      },
+    );
+  }
+
   Future<AuthResult> socialLogin({
     required String provider,
     String? idToken,
@@ -590,6 +644,16 @@ class AppManagerApiService {
     if (popupAd is Map<String, dynamic>) {
       popupAd['image_url'] =
           _normalizeAssetUrl((popupAd['image_url'] ?? '').toString());
+    }
+
+    final ourApps = data['our_apps'];
+    if (ourApps is List) {
+      for (final rawApp in ourApps.whereType<Map>()) {
+        final logoUrl = (rawApp['logo_url'] ?? '').toString();
+        if (logoUrl.trim().isNotEmpty) {
+          rawApp['logo_url'] = _normalizeAssetUrl(logoUrl);
+        }
+      }
     }
 
     return RemoteUiConfigModel.fromJson(data);

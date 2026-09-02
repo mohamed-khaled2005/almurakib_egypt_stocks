@@ -10,6 +10,7 @@ import '../utils/app_manager_config.dart';
 import '../utils/phone_number_helper.dart';
 import '../widgets/country_picker_form_field.dart';
 import 'app_shell_screen.dart';
+import 'forgot_password_screen.dart';
 import 'profile_completion_screen.dart';
 
 const Color _authAccent = AppColors.primaryBlue;
@@ -615,6 +616,41 @@ class _AuthScreenState extends State<AuthScreen> {
                 return null;
               },
             ),
+            if (!_isRegisterMode) ...<Widget>[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: manager.isBusy
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ForgotPasswordScreen(
+                                initialEmail: _email.text.trim(),
+                              ),
+                            ),
+                          );
+                        },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'نسيت كلمة المرور؟',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _authAccent,
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             SizedBox(
               height: 50,

@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../animations/fade_animation.dart';
 import '../animations/slide_animation.dart';
 import '../core/utils/constants.dart';
+import '../models/remote_ui_config_model.dart';
+import '../providers/app_manager_provider.dart';
 import '../widgets/app_section_header.dart';
 
 const Color _egyptAccent = AppColors.primaryBlue;
@@ -39,10 +42,9 @@ BoxDecoration buildCardDecoration({
 class OurAppsScreen extends StatelessWidget {
   const OurAppsScreen({super.key});
 
-  static const List<_AppItem> _apps = <_AppItem>[
+  static const List<_AppItem> _defaultApps = <_AppItem>[
     _AppItem(
-      name:
-          '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0623\u0633\u0647\u0645 \u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062a\u064a\u0629',
+      name: 'مراقب الاسهم الاماراتية',
       playStoreUrl:
           'https://play.google.com/store/apps/details?id=com.almurakib.emiratesappstocks',
       appStoreUrl:
@@ -51,7 +53,7 @@ class OurAppsScreen extends StatelessWidget {
           'https://play-lh.googleusercontent.com/ndvDmG-MD_KFP1ejcUg7hfsQOZh52okON9TeHVYg5WtjE5iUy6vbJfaaosQ5zEIx0RO3t4ac_uBCxzPDWNL7Qg=w480-h960-rw',
     ),
     _AppItem(
-      name: '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0641\u0636\u0629',
+      name: 'مراقب الفضة',
       playStoreUrl:
           'https://play.google.com/store/apps/details?id=com.almurakib.silvermonitor',
       appStoreUrl:
@@ -60,18 +62,16 @@ class OurAppsScreen extends StatelessWidget {
           'https://play-lh.googleusercontent.com/yLohp0qB8efPmZnr4eUlNtrUUboyV7qXcm9aRWoFSM0n7-Zeb9Br4GhuHiGZSI_6flWXOqu9Vn6VT36mLfUp=w480-h960-rw',
     ),
     _AppItem(
-      name:
-          '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0623\u0633\u0647\u0645 \u0627\u0644\u0623\u0645\u0631\u064a\u0643\u064a\u0629',
+      name: 'مراقب الاسهم الامريكية',
       playStoreUrl:
           'https://play.google.com/store/apps/details?id=com.almurakib.usaappstocks',
       appStoreUrl:
-          'https://apps.apple.com/sg/app/%D9%85%D8%B1%D8%A7%D9%82%D8%A8-%D8%A7%D9%84%D8%A7%D8%B3%D9%87%D9%85-%D8%A7%D9%84%D8%A7%D9%85%D8%B1%D9%8A%D9%83%D9%8A%D8%A9/id6759033724',
+          'https://apps.apple.com/sg/app/%D9%85%D8%B1%D8%A7%D9%82%D8%A8-%D8%A7%D9%84%D8%A7%D8%B3%D9%87%D9%85-%D8%A7%D9%84%D8%A7%D9%85%D8%A7%D8%B1%D8%A7%D8%AA%D9%8A%D8%A9/id6759033724',
       imageUrl:
           'https://play-lh.googleusercontent.com/wqDKcI9Pga22rkZNzxssaiU7qVlk-36bd1EKHXV-greisW7XcQuqjdCBcm17QZVP8mgKs_-uwyvBgo6YXzRh2us=w480-h960-rw',
     ),
     _AppItem(
-      name:
-          '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0623\u0633\u0647\u0645 \u0627\u0644\u0642\u0637\u0631\u064a\u0629',
+      name: 'مراقب الاسهم القطرية',
       playStoreUrl:
           'https://play.google.com/store/apps/details?id=com.almurakib.qatarappstocks',
       appStoreUrl:
@@ -80,7 +80,7 @@ class OurAppsScreen extends StatelessWidget {
           'https://play-lh.googleusercontent.com/rN4Htz4G-T7Y-5nVODMGNmmPE1vNRNsFBPQOlgYXp4-kwZMfrSKx-a0h-vRtMS9b19cx54Cfu_Y3psiVDXZ9XA4=w480-h960-rw',
     ),
     _AppItem(
-      name: '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0630\u0647\u0628',
+      name: 'مراقب الذهب',
       playStoreUrl:
           'https://play.google.com/store/apps/details?id=com.almurakib.goldmonitor',
       appStoreUrl:
@@ -89,8 +89,16 @@ class OurAppsScreen extends StatelessWidget {
           'https://play-lh.googleusercontent.com/gEft1mhy5KD6GwMC9P6Ge-zJLb2fB72BIOmDmxfzB3rSETTix2wT4lEydIhSaZKLztjHiAQIkTbTYNWmCRK8VA=w480-h960-rw',
     ),
     _AppItem(
-      name:
-          '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0643\u0631\u064a\u0628\u062a\u0648',
+      name: 'مراقب البيتكوين',
+      playStoreUrl:
+          'https://play.google.com/store/apps/details?id=com.almurakib.bitcoin',
+      appStoreUrl:
+          'https://apps.apple.com/sg/app/%D9%85%D8%B1%D8%A7%D9%82%D8%A8-%D8%A7%D9%84%D8%A8%D9%8A%D8%AA%D9%83%D9%88%D9%8A%D9%86/id6759033381',
+      imageUrl:
+          'https://play-lh.googleusercontent.com/4QG34b9vQ7wVf3cR7q4kI_GvI1A_Q1_X1j_L1K_R1O1Q=w480-h960-rw',
+    ),
+    _AppItem(
+      name: 'مراقب الكريبتو',
       playStoreUrl:
           'https://play.google.com/store/apps/details?id=com.almurakib.cryptomonitor',
       appStoreUrl:
@@ -99,8 +107,7 @@ class OurAppsScreen extends StatelessWidget {
           'https://play-lh.googleusercontent.com/U4gMdj8FrCjKBT6n3Dw_7MpYnJCnvGISNPSkOw8leGaGkqiQ9ku5SM7uRJVT946DPP3IZqfOZmjAKlV2__cD-w=w480-h960-rw',
     ),
     _AppItem(
-      name:
-          '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0639\u0645\u0644\u0627\u062a',
+      name: 'مراقب العملات',
       playStoreUrl:
           'https://play.google.com/store/apps/details?id=com.almurakib.currencyexchange.app',
       appStoreUrl:
@@ -109,8 +116,7 @@ class OurAppsScreen extends StatelessWidget {
           'https://play-lh.googleusercontent.com/BKkuz_2ZP_NG_KbfvBVpvebAYtPONoMpe5uLgzV_nFh8_9kjgL-4pC0WUk5sAuNlcBfUaJ4HilQGJO3o55iGxA=w480-h960-rw',
     ),
     _AppItem(
-      name:
-          '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0623\u0633\u0647\u0645 \u0627\u0644\u0633\u0639\u0648\u062f\u064a\u0629',
+      name: 'مراقب الاسهم السعودية',
       playStoreUrl:
           'https://play.google.com/store/apps/details?id=com.almurakib.saudiappstocks',
       appStoreUrl:
@@ -119,73 +125,83 @@ class OurAppsScreen extends StatelessWidget {
           'https://play-lh.googleusercontent.com/mgW7dsDFDi8_fgwuFyUmgdzxGBnva3vDqDcwAvN7lRCK2-QzA1hhjiwk_wuR6z0n3xYfxCvhfUQf5rySXlPj=w480-h960-rw',
     ),
     _AppItem(
-      name:
-          '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0623\u0633\u0647\u0645 \u0627\u0644\u0645\u0635\u0631\u064a\u0629',
+      name: 'صراف',
       playStoreUrl:
-          'https://play.google.com/store/apps/details?id=com.almurakib.egyptappstocks',
+          'https://play.google.com/store/apps/details?id=com.almurakib.sarraf&hl=en',
       appStoreUrl:
-          'https://apps.apple.com/sg/app/%D9%85%D8%B1%D8%A7%D9%82%D8%A8-%D8%A7%D9%84%D8%A7%D8%B3%D9%87%D9%85-%D8%A7%D9%84%D9%85%D8%B5%D8%B1%D9%8A%D8%A9/id6759033465',
+          'https://apps.apple.com/sg/app/%D8%B5%D8%B1-%D8%A7%D9%81/id6766881553',
       imageUrl:
-          'https://play-lh.googleusercontent.com/wVGNy3MT-L2zpkFHF_F9SCgjd8rEeJuK4OMNAeSDn8kRr_t2TMgwfl3ZWdtW1TNQJrclkEFvxIOYM7LjEEaICg=w480-h960-rw',
+          'https://play-lh.googleusercontent.com/uKqr-V9BKzafR0liM9I9-PoKLoqq2xOuzuyA-WTQlrsYlpOm2ICwPgdw3FMxrhpZQraVP7pl9e8lY1dK0UXlIg=w480-h960-rw',
+      appStoreImageUrl:
+          'https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/88/0f/b2/880fb29b-ba50-bfb0-6bcc-cf80521130c3/Placeholder.mill/400x400bb-75.webp',
     ),
     _AppItem(
-      name:
-          '\u0645\u0631\u0627\u0642\u0628 \u0627\u0644\u0628\u064a\u062a\u0643\u0648\u064a\u0646',
+      name: 'مراقب الوقود',
       playStoreUrl:
-          'https://play.google.com/store/apps/details?id=com.almurakib.bitcoin',
+          'https://play.google.com/store/apps/details?id=com.almurakib.fuel&hl=en',
       appStoreUrl:
-          'https://apps.apple.com/sg/app/%D9%85%D8%B1%D8%A7%D9%82%D8%A8-%D8%A7%D9%84%D8%A8%D9%8A%D8%AA%D9%83%D9%88%D9%8A%D9%86/id6759033453',
+          'https://apps.apple.com/sg/app/%D9%85%D8%B1%D8%A7%D9%82%D8%A8-%D8%A7%D9%84%D9%88%D9%82%D9%88%D8%AF/id6768018888',
       imageUrl:
-          'https://play-lh.googleusercontent.com/xHhXxlevam5VlaSwJ7mR4dNiWilSR53b-AvSPqAmQlOB_0Id8kT6KjqDsCbumj41sSx7e37CCwS8IiAm6Vr41A=w480-h960-rw',
+          'https://play-lh.googleusercontent.com/8He7Qica1oC0F5VvbUW-fchAEyjqn1VlGVjT1LFmM9aMFsYznn1IQggKVoWyyM-gFqQh4SoA1UtkZTJ84ct6=w480-h960-rw',
+      appStoreImageUrl:
+          'https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/f8/2a/8b/f82a8b50-9bf0-b046-f76b-dcb6fd14d898/Placeholder.mill/400x400bb-75.webp',
     ),
   ];
+
+  static EdgeInsets _pagePadding(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width >= 1200) {
+      return const EdgeInsets.symmetric(horizontal: 48, vertical: 20);
+    }
+    if (width >= 800) {
+      return const EdgeInsets.symmetric(horizontal: 28, vertical: 16);
+    }
+    return const EdgeInsets.symmetric(horizontal: 16, vertical: 12);
+  }
 
   bool get _useAppStore =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   String get _storeLabel => _useAppStore ? 'App Store' : 'Google Play';
 
-  EdgeInsets _pagePadding(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final horizontal = width >= 1100
-        ? 28.0
-        : width >= 700
-            ? 22.0
-            : 16.0;
-    return EdgeInsets.fromLTRB(horizontal, 16, horizontal, 28);
-  }
-
   TextStyle _paragraphStyle({Color? color}) {
     return AppTextStyles.bodySmall.copyWith(
-      color: color ?? AppColors.textPrimary,
+      color: color ?? AppColors.textSecondary,
       fontWeight: FontWeight.w500,
       height: 1.55,
-      letterSpacing: 0.05,
+      letterSpacing: 0,
     );
   }
 
-  Future<void> _openStore(BuildContext context, String url) async {
-    final uri = Uri.parse(url);
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '\u062a\u0639\u0630\u0631 \u0641\u062a\u062d \u0627\u0644\u0631\u0627\u0628\u0637 \u0627\u0644\u0622\u0646',
-          ),
-        ),
-      );
+  List<_AppItem> _resolveApps(List<ManagedAppListing> managedApps) {
+    if (managedApps.isEmpty) {
+      return _defaultApps;
     }
+
+    final mapped = managedApps
+        .map(
+          (app) => _AppItem(
+            name: app.name,
+            playStoreUrl: app.playStoreUrl ?? '',
+            appStoreUrl: app.appStoreUrl ?? '',
+            imageUrl: app.logoUrl,
+          ),
+        )
+        .where((item) => item.hasUrlFor(_useAppStore))
+        .toList();
+
+    return mapped.isEmpty ? _defaultApps : mapped;
   }
 
   @override
   Widget build(BuildContext context) {
+    final manager = context.watch<AppManagerProvider>();
     final useAppStore = _useAppStore;
     final storeLabel = _storeLabel;
+    final apps = _resolveApps(manager.ourApps);
 
     return FadeAnimation(
-      child: Directionality(
-        textDirection: TextDirection.rtl,
+      child: Center(
         child: SingleChildScrollView(
           padding: _pagePadding(context),
           child: Column(
@@ -193,7 +209,7 @@ class OurAppsScreen extends StatelessWidget {
             children: <Widget>[
               const SizedBox(height: 6),
               const AppSectionHeader(
-                title: '\u062a\u0637\u0628\u064a\u0642\u0627\u062a\u0646\u0627',
+                title: 'تطبيقاتنا',
               ),
               const SizedBox(height: 16),
               SlideAnimation(child: _buildHeaderCard(storeLabel)),
@@ -202,6 +218,7 @@ class OurAppsScreen extends StatelessWidget {
                 delay: const Duration(milliseconds: 160),
                 child: _buildAppsGrid(
                   context,
+                  apps: apps,
                   useAppStore: useAppStore,
                   storeLabel: storeLabel,
                 ),
@@ -264,7 +281,7 @@ class OurAppsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            '\u062a\u0637\u0628\u064a\u0642\u0627\u062a \u0627\u0644\u0645\u0631\u0627\u0642\u0628',
+            'تطبيقات المراقب',
             style: AppTextStyles.headingSmall.copyWith(
               fontWeight: FontWeight.w900,
               height: 1.15,
@@ -273,8 +290,8 @@ class OurAppsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '\u064a\u0633\u0631\u0646\u0627 \u0623\u0646 \u0646\u0642\u062f\u0645 \u0644\u0643\u0645 \u0645\u062c\u0645\u0648\u0639\u0629 \u062a\u0637\u0628\u064a\u0642\u0627\u062a\u0646\u0627 \u0627\u0644\u0631\u0633\u0645\u064a\u0629\u060c \u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0627\u0644\u062a\u0637\u0628\u064a\u0642 \u0644\u0644\u0627\u0646\u062a\u0642\u0627\u0644 \u0625\u0644\u0649 \u0635\u0641\u062d\u0629 \u0627\u0644\u062a\u062d\u0645\u064a\u0644 \u0639\u0644\u0649 $storeLabel.',
-            style: _paragraphStyle(color: AppColors.textSecondary),
+            'يسرنا أن نقدم لكم مجموعة تطبيقاتنا الرسمية، اضغط على التطبيق للانتقال إلى صفحة التحميل على $storeLabel.',
+            style: _paragraphStyle(),
           ),
         ],
       ),
@@ -283,45 +300,46 @@ class OurAppsScreen extends StatelessWidget {
 
   Widget _buildAppsGrid(
     BuildContext context, {
+    required List<_AppItem> apps,
     required bool useAppStore,
     required String storeLabel,
   }) {
-    if (_apps.isEmpty) {
+    if (apps.isEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(18),
-        decoration: buildCardDecoration(
-          color: Colors.white,
-          border: Border.all(color: AppColors.border),
-        ),
+        decoration: buildCardDecoration(color: Colors.white),
         child: Text(
-          '\u0644\u0627 \u062a\u0648\u062c\u062f \u062a\u0637\u0628\u064a\u0642\u0627\u062a \u0644\u0644\u0639\u0631\u0636 \u062d\u0627\u0644\u064a\u064b\u0627.',
-          style: _paragraphStyle(color: AppColors.textSecondary),
+          'لا توجد تطبيقات للعرض حالياً.',
+          style: _paragraphStyle(),
         ),
       );
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const crossAxisCount = 2;
-        final aspect = constraints.maxWidth >= 650
-            ? 1.08
+        final crossAxisCount = constraints.maxWidth >= 900
+            ? 3
+            : 2;
+
+        final mainAxisExtent = constraints.maxWidth >= 650
+            ? 150.0
             : constraints.maxWidth >= 520
-                ? 0.96
-                : 0.84;
+                ? 156.0
+                : 162.0;
 
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: _apps.length,
+          itemCount: apps.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: aspect,
+            mainAxisExtent: mainAxisExtent,
           ),
           itemBuilder: (context, index) {
-            final item = _apps[index];
+            final item = apps[index];
             return _MiniAppTile(
               item: item,
               storeLabel: storeLabel,
@@ -329,12 +347,32 @@ class OurAppsScreen extends StatelessWidget {
                   ? Icons.apple_rounded
                   : Icons.play_circle_fill_rounded,
               accentColor: _egyptAccent,
+              useAppStore: useAppStore,
               onTap: () => _openStore(context, item.urlFor(useAppStore)),
             );
           },
         );
       },
     );
+  }
+
+  Future<void> _openStore(BuildContext context, String url) async {
+    final parsed = Uri.tryParse(url.trim());
+    if (parsed == null || !parsed.hasScheme) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('الرابط غير صالح.')),
+        );
+      }
+      return;
+    }
+
+    final ok = await launchUrl(parsed, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر فتح الرابط الآن.')),
+      );
+    }
   }
 }
 
@@ -344,16 +382,20 @@ class _AppItem {
     required this.playStoreUrl,
     required this.appStoreUrl,
     required this.imageUrl,
+    this.appStoreImageUrl,
   });
 
   final String name;
   final String playStoreUrl;
   final String appStoreUrl;
   final String imageUrl;
+  final String? appStoreImageUrl;
 
-  String urlFor(bool useAppStore) {
-    return useAppStore ? appStoreUrl : playStoreUrl;
-  }
+  bool hasUrlFor(bool useAppStore) =>
+      (useAppStore ? appStoreUrl : playStoreUrl).trim().isNotEmpty;
+  String urlFor(bool useAppStore) => useAppStore ? appStoreUrl : playStoreUrl;
+  String imageUrlFor(bool useAppStore) =>
+      useAppStore ? (appStoreImageUrl ?? imageUrl) : imageUrl;
 }
 
 class _MiniAppTile extends StatelessWidget {
@@ -362,6 +404,7 @@ class _MiniAppTile extends StatelessWidget {
     required this.storeLabel,
     required this.storeIcon,
     required this.accentColor,
+    required this.useAppStore,
     required this.onTap,
   });
 
@@ -369,6 +412,7 @@ class _MiniAppTile extends StatelessWidget {
   final String storeLabel;
   final IconData storeIcon;
   final Color accentColor;
+  final bool useAppStore;
   final VoidCallback onTap;
 
   @override
@@ -377,7 +421,6 @@ class _MiniAppTile extends StatelessWidget {
       decoration: buildCardDecoration(
         color: Colors.white,
         radius: 18,
-        border: Border.all(color: AppColors.border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
@@ -390,7 +433,10 @@ class _MiniAppTile extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  _AppIcon(url: item.imageUrl, accentColor: accentColor),
+                  _AppIcon(
+                    url: item.imageUrlFor(useAppStore),
+                    accentColor: accentColor,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     item.name,
@@ -398,10 +444,9 @@ class _MiniAppTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: AppTextStyles.bodySmall.copyWith(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
                       height: 1.2,
-                      letterSpacing: 0.1,
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -413,28 +458,27 @@ class _MiniAppTile extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: accentColor.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(99),
                       border: Border.all(
-                        color: accentColor.withValues(alpha: 0.28),
+                        color: accentColor.withValues(alpha: 0.24),
                       ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Icon(
-                          storeIcon,
-                          size: 14,
-                          color: accentColor,
-                        ),
+                        Icon(storeIcon, size: 14, color: accentColor),
                         const SizedBox(width: 6),
-                        Text(
-                          storeLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11.5,
-                            color: accentColor,
+                        Flexible(
+                          child: Text(
+                            storeLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: accentColor,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              height: 1,
+                            ),
                           ),
                         ),
                       ],
@@ -451,10 +495,7 @@ class _MiniAppTile extends StatelessWidget {
 }
 
 class _AppIcon extends StatelessWidget {
-  const _AppIcon({
-    required this.url,
-    required this.accentColor,
-  });
+  const _AppIcon({required this.url, required this.accentColor});
 
   final String url;
   final Color accentColor;
@@ -462,22 +503,22 @@ class _AppIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 56,
-      height: 56,
+      width: 54,
+      height: 54,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: accentColor.withValues(alpha: 0.22)),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 10,
-            spreadRadius: 0.2,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(15),
         child: Image.network(
           url,
           fit: BoxFit.cover,
@@ -496,10 +537,8 @@ class _AppIcon extends StatelessWidget {
               ),
             );
           },
-          errorBuilder: (_, __, ___) => const Icon(
-            Icons.apps_outlined,
-            color: AppColors.textSecondary,
-          ),
+          errorBuilder: (context, error, stackTrace) =>
+              const Icon(Icons.apps_outlined, color: AppColors.textSecondary),
         ),
       ),
     );

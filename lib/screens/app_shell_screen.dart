@@ -1168,7 +1168,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
     }
   }
 
-  IconData _socialIconData(String platform) {
+  FaIconData _socialIconData(String platform) {
     switch (platform.trim().toLowerCase()) {
       case 'telegram':
         return FontAwesomeIcons.telegram;
