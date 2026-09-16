@@ -208,13 +208,13 @@ class MarketIndexDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.scaffold,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.cardDark,
         surfaceTintColor: Colors.transparent,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         title: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Tajawal',
             fontSize: 18,
             fontWeight: FontWeight.w900,
@@ -345,7 +345,7 @@ class _IndexCard extends StatelessWidget {
                           index.name.isEmpty ? index.ticker : index.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Tajawal',
                             fontSize: 14.2,
                             fontWeight: FontWeight.w900,
@@ -470,7 +470,7 @@ class _DetailHeroCard extends StatelessWidget {
                 const SizedBox(height: 14),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Tajawal',
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
@@ -692,7 +692,7 @@ class _MetricTile extends StatelessWidget {
                     value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Tajawal',
                       fontSize: 12,
                       fontWeight: FontWeight.w900,
@@ -710,7 +710,7 @@ class _MetricTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
         boxShadow: <BoxShadow>[
@@ -783,7 +783,7 @@ class _SectionLabel extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Tajawal',
             fontSize: 17,
             fontWeight: FontWeight.w900,
@@ -809,7 +809,7 @@ class _DetailChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: AppColors.border),
       ),
@@ -824,7 +824,7 @@ class _DetailChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Tajawal',
               fontSize: 11.5,
               fontWeight: FontWeight.w800,
@@ -851,7 +851,7 @@ class _ErrorState extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.border),
       ),
@@ -863,7 +863,7 @@ class _ErrorState extends StatelessWidget {
             color: AppColors.error,
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'تعذر تحميل المؤشرات',
             style: TextStyle(
               fontFamily: 'Tajawal',

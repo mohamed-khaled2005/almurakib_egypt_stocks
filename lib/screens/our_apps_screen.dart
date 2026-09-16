@@ -10,7 +10,7 @@ import '../models/remote_ui_config_model.dart';
 import '../providers/app_manager_provider.dart';
 import '../widgets/app_section_header.dart';
 
-const Color _egyptAccent = AppColors.primaryBlue;
+Color get _egyptAccent => AppColors.primaryBlue;
 
 BoxDecoration buildCardDecoration({
   bool withShadow = true,
@@ -260,7 +260,7 @@ class OurAppsScreen extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                const Icon(
+                Icon(
                   Icons.store_rounded,
                   size: 16,
                   color: _egyptAccent,
@@ -419,7 +419,7 @@ class _MiniAppTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: buildCardDecoration(
-        color: Colors.white,
+        color: AppColors.cardDark,
         radius: 18,
       ),
       child: ClipRRect(
@@ -538,7 +538,7 @@ class _AppIcon extends StatelessWidget {
             );
           },
           errorBuilder: (context, error, stackTrace) =>
-              const Icon(Icons.apps_outlined, color: AppColors.textSecondary),
+              Icon(Icons.apps_outlined, color: AppColors.textSecondary),
         ),
       ),
     );

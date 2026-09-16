@@ -138,7 +138,7 @@ class TasiCard extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 border: Border.all(color: AppColors.border),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.refresh_rounded,
                                 size: 15,
                                 color: AppColors.textSecondary,
@@ -155,7 +155,7 @@ class TasiCard extends StatelessWidget {
                     children: [
                       Text(
                         Formatters.formatNumber(tasi.value),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Tajawal',
                           fontSize: 24,
                           fontWeight: FontWeight.w900,

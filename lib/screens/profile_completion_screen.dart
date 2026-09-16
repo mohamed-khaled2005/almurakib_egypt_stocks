@@ -173,7 +173,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   }) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: AppColors.border),
+      borderSide: BorderSide(color: AppColors.border),
     );
 
     return InputDecoration(
@@ -183,7 +183,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
         fontWeight: FontWeight.w700,
       ),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.cardDark,
       prefixIcon: Icon(icon, color: AppColors.primaryBlue, size: 20),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: border,

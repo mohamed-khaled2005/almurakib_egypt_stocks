@@ -68,8 +68,8 @@ class AboutScreen extends StatelessWidget {
               const SizedBox(height: 40),
 
               // 4. حقوق الملكية
-              const SlideAnimation(
-                delay: Duration(milliseconds: 400),
+              SlideAnimation(
+                delay: const Duration(milliseconds: 400),
                 child: Center(
                   child: Text(
                     '© 2024 جميع الحقوق محفوظة لمنصة المراقب',
@@ -212,7 +212,7 @@ class AboutScreen extends StatelessWidget {
                   children: [
                     Text(
                       item.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -222,7 +222,7 @@ class AboutScreen extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       item.desc,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 13,
                         height: 1.5,

@@ -178,7 +178,7 @@ class TopStockCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       softWrap: true,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
@@ -191,7 +191,7 @@ class TopStockCard extends StatelessWidget {
                       stock.symbol,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -210,7 +210,7 @@ class TopStockCard extends StatelessWidget {
                   children: [
                     Text(
                       Formatters.formatPrice(stock.price),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 16.5,
                         fontWeight: FontWeight.w900,

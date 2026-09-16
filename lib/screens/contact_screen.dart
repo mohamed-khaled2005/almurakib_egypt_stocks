@@ -16,127 +16,108 @@ class ContactScreen extends StatelessWidget {
   // ✅ زر تيليجرام
   static const String _telegramUrl = 'https://t.me/Almurakib';
 
-  // =========================
-  // ✅ سياسة الخصوصية (كاملة)
-  // =========================
+  // ==========================================================
+  // ✅ سياسة الخصوصية الشاملة والمحدثة
+  // ==========================================================
   static const String _privacyPolicyText = '''
-نحن في تطبيق "مراقب الأسهم المصرية" (التابع لمنصة المراقب almurakib.com) نحترم خصوصيتك ونسعى لحماية بياناتك وفق أفضل الممارسات.
+نحن في تطبيق "مراقب الأسهم المصرية" (إحدى خدمات منصة المراقب Almurakib LLC) نلتزم التزاماً كاملاً بحماية خصوصيتك وأمان بياناتك الرقمية والشخصية وفقاً لأعلى المعايير القانونية والتقنية.
 
-المعلومات التي قد نقوم بجمعها
-قد يقوم التطبيق بجمع أنواع محدودة من البيانات بهدف تحسين الخدمة، وتشمل:
-• معلومات الاستخدام العامة داخل التطبيق (مثل الصفحات التي تفتحها والأحداث العامة داخل الواجهة).
-• بيانات الجهاز (نوع الجهاز، إصدار النظام، لغة الجهاز) لأغراض التوافق وحل المشاكل.
-• بيانات تحليلية مجهولة (Anonymous Analytics) لتحسين الأداء وتجربة المستخدم.
+1. البيانات التي نقوم بجمعها:
+• بيانات الحساب والتسجيل: عند إنشاء حساب، نقوم بجمع الاسم، عنوان البريد الإلكتروني، ورقم الهاتف للتحقق وتأمين تسجيل الدخول واستعادة الحساب.
+• تفضيلات المستخدم: نقوم بحفظ ومزامنة الأسهم المفضلة وقوائم المتابعة الخاصة بك سحابياً لتمكينك من الوصول إليها عبر أجهزتك.
+• بيانات الجهاز والتشغيل: نوع الجهاز، نظام التشغيل وإصداره، لغة النظام، والمعرفات الرقمية المجهولة (Device IDs) لضمان استقرار الخدمة وتوافقها.
+• رموز الإشعارات (Push Notification Tokens): نجمع رموز خدمة الإشعارات لإرسال تنبيهات الأسواق والتحديثات والأخبار المهمة، ويمكنك تعطيل الإشعارات من إعدادات جهازك في أي وقت.
+• تحليلات الاستخدام والإعلانات: نستخدم أدوات تحليلية وتتبعية متقدمة (مثل Firebase و Facebook SDK) لتسجيل مرات ظهور الإعلانات (Impressions) والنقرات (Clicks) والأحداث التفاعلية لتحسين تجربة الاستخدام وملاءمة المحتوى الإعلاني.
 
-ملاحظات مهمة
-• لا يطلب التطبيق منك إنشاء حساب.
-• لا يجمع التطبيق بشكل افتراضي بيانات تعريف شخصية حساسة مثل الاسم أو العنوان أو الموقع الجغرافي الدقيق.
-• عند تواصلك معنا طوعاً عبر البريد الإلكتروني أو الواتساب، قد يتم استخدام بيانات التواصل التي ترسلها أنت فقط للرد على استفسارك.
+2. كيفية استخدام البيانات:
+• إدارة حسابك وتوثيق ملكيته واسترجاع كلمة المرور عبر البريد أو الهاتف.
+• مزامنة تفضيلاتك وقوائم الأسهم المتابعة عبر الخوادم السحابية.
+• قياس أداء الحملات الإعلانية ومتابعة تفاعل المستخدمين مع الإعلانات المعروضة داخل التطبيق.
+• إرسال الإشعارات التنبيهية حول حركة الأسواق والتقارير المالية.
+• حماية التطبيق من الهجمات التقنية ومنع الاحتيال أو إساءة الاستخدام.
 
-كيفية استخدام المعلومات
-نستخدم البيانات فقط من أجل:
-• تحسين تجربة المستخدم.
-• تطوير ميزات التطبيق.
-• تحليل الأداء وحل المشاكل التقنية.
-• حماية الخدمة ومنع إساءة الاستخدام عند الحاجة.
+3. مشاركة البيانات وحمايتها:
+• لا نقوم إطلاقاً ببيع بياناتك الشخصية لأي طرف ثالث.
+• لا تتم مشاركة البيانات إلا مع مزودي البنية التحتية والخدمات السحابية والتحليلية المعتمدين لغايات التشغيل فقط.
+• نعتمد بروتوكولات تشفير متقدمة (SSL/TLS) لحماية حركة البيانات، وتشفير كلمات المرور والرموز الحساسة.
 
-مشاركة البيانات مع أطراف ثالثة
-لا نقوم ببيع بيانات المستخدم. قد تتم مشاركة بيانات تقنية محدودة (غير تعريفية) مع مزودي خدمات التحليلات/الأعطال أو مزودي البنية التحتية فقط عند الضرورة التشغيلية أو وفقاً للقانون.
+4. حقوق المستخدم:
+• يحق لك الوصول إلى بياناتك المسجلة أو تعديلها من شاشة الحساب في أي وقت.
+• يحق لك طلب حذف حسابك نهائياً وكافة البيانات المرتبطة به بالتواصل معنا مباشرة.
+• يحق لك إلغاء الاشتراك في الإشعارات أو تخصيص التفضيلات في أي وقت.
 
-الروابط الخارجية
-قد يحتوي التطبيق على روابط لموقع المراقب أو منصات خارجية. استخدامك لتلك الروابط يخضع لسياسات الجهات الخارجية.
-
-حماية البيانات
-نعتمد إجراءات تقنية وتنظيمية للمحافظة على أمان المعلومات وتقليل مخاطر الوصول غير المصرح به.
-
-التعديلات على سياسة الخصوصية
-قد نقوم بتحديث هذه السياسة من وقت لآخر، وسيتم نشر النسخة المحدّثة داخل التطبيق.
-
-باستخدامك للتطبيق فإنك توافق على سياسة الخصوصية هذه.
+باستخدامك للتطبيق، فإنك توافق على بنود سياسة الخصوصية هذه.
 ''';
 
-  // =========================
-  // ✅ إخلاء المسؤولية (كاملة)
-  // =========================
+  // ==========================================================
+  // ✅ إخلاء المسؤولية القانوني والمالي
+  // ==========================================================
   static const String _disclaimerText = '''
-تطبيق "مراقب الأسهم المصرية" يوفّر بيانات الأسهم والمؤشرات لأغراض معلوماتية فقط، ولا يضمن دقّتها بنسبة 100% في جميع الأوقات.
+تطبيق "مراقب الأسهم المصرية" هو منصة معلوماتية وإرشادية مستقلة تقدم بيانات حركة أسعار الأسهم والمؤشرات المالية لأغراض إعلامية وتثقيفية عامة فقط.
 
-مصدر البيانات
-يتم جمع البيانات من مزوّدي بيانات خارجيين عبر واجهات برمجية (APIs)، وقد تتغير القيم دون إشعار مسبق نتيجة:
-• تقلبات السوق.
-• تأخر التحديث أو انقطاع الاتصال.
-• اختلاف مصادر التسعير بين المزودين.
-• فروقات بين السعر المعروض في التطبيق والسعر لدى منصات التداول/الجهات الرسمية.
+1. طبيعة البيانات المعروضة:
+• يتم جمع البيانات من مصادر ومزودي بيانات خارجيين عبر واجهات برمجية متخصصة.
+• على الرغم من سعينا الدائم لتحديث الأسعار بأقصى سرعة ودقة ممكنة، إلا أن البيانات المعروضة قد تخضع لتأخير زمني ناتج عن تقلبات الأسواق أو ظروف الاتصال الشبكي أو سياسات مزودي البيانات.
 
-لا يُعدّ التطبيق استشارة مالية
-المحتوى المعروض لا يُعدّ توصية أو استشارة مالية أو دعوة للشراء/البيع/التداول. يُنصح المستخدم دائماً بالتحقق من الأسعار من مصادر رسمية قبل اتخاذ أي قرار.
+2. التطبيق ليس استشارة مالية أو منصة تداول:
+• لا يعتبر المحتوى المعروض في هذا التطبيق بأي حال من الأحوال توصية استثمارية أو مشورة مالية أو قانونية أو دعوة للشراء أو البيع أو الاكتتاب في أي ورقة مالية أو سهم.
+• التطبيق ليس وسيطاً مالياً أو منصة لتنفيذ صفقات التداول أو إدارة المحافظ الاستثمارية.
 
-حدود المسؤولية
-لا يتحمل التطبيق أو موقع المراقب أي مسؤولية عن:
-• أي خسائر مالية أو قرارات يتم اتخاذها اعتماداً على المعلومات المعروضة.
-• تأخر أو انقطاع في عرض البيانات أو عدم توفرها.
-• اختلاف البيانات بين التطبيق والأسواق الفعلية أو مزودي الخدمة.
-• أي أضرار مباشرة أو غير مباشرة ناتجة عن استخدام التطبيق.
+3. المسؤولية الكاملة للمستثمر:
+• تداول الأسهم والأسواق المالية ينطوي على مخاطر مالية عالية وتقلبات سعرية مستمرة قد تؤدي إلى خسارة جزء من رأس المال أو كله.
+• يتحمل المستخدم بمفرده المسؤولية الكاملة عن أي قرارات استثمارية أو مالية يتخذها بناءً على المعلومات الواردة في التطبيق.
+• لا تتحمل شركة "المراقب Almurakib LLC" أو ملاك التطبيق أو العاملون فيه أي مسؤولية عن أي خسائر مالية مباشرة أو غير مباشرة أو أرباح فائتة تنجم عن استخدام التطبيق أو الاعتماد على بياناته.
 
-باستخدامك للتطبيق فإنك تقر بأن استخدامك يتم على مسؤوليتك الشخصية.
+يُنصح دائماً باستشارة مستشار مالي مرخص ومراجعة المنصات الرسمية للسوق المالي قبل اتخاذ أي قرار استثماري.
 ''';
 
-  // =========================
-  // ✅ الشروط والأحكام (كاملة)
-  // =========================
+  // ==========================================================
+  // ✅ الشروط والأحكام الكاملة
+  // ==========================================================
   static const String _termsText = '''
-يرجى قراءة هذه الشروط بعناية قبل استخدام تطبيق "مراقب الأسهم المصرية". استخدامك للتطبيق يعني موافقتك الكاملة على جميع الشروط أدناه وعلى السياسات المرتبطة بها مثل سياسة الخصوصية وإخلاء المسؤولية.
+يرجى قراءة هذه الشروط والأحكام بعناية قبل استخدام تطبيق "مراقب الأسهم المصرية". استخدامك للتطبيق أو تسجيل حساب فيه يُعد موافقة صريحة وغير مشروطة على كافة البنود والشروط والسياسات المرتبطة به.
 
-1. قبول الشروط
-باستخدام التطبيق، أنت توافق على الالتزام بهذه الشروط وأي تحديثات مستقبلية لها.
+1. الأهلية وإنشاء الحساب:
+• يجب أن يكون عمرك 18 عاماً فأكثر لاستخدام التطبيق وإنشاء حساب.
+• أنت مسؤول مسؤولية كاملة عن الحفاظ على سرية بيانات تسجيل دخولك وكلمة المرور الخاصة بك، وعن كافة الأنشطة التي تتم من خلال حسابك.
+• يجب تقديم معلومات صحيحة ودقيقة عند التسجيل أو إضافة رقم الهاتف والبريد الإلكتروني.
 
-2. استخدام التطبيق
-• يهدف التطبيق لتوفير معلومات عن الأسهم والمؤشرات فقط، ولا يُعدّ أداة تداول أو محفظة أو منصة استثمار.
-• يُحظر استخدام التطبيق لأي نشاط غير قانوني أو يضر بالخدمة أو بالمستخدمين الآخرين.
-• قد نقوم بإيقاف أو تعديل الخدمة أو بعض الميزات دون إشعار مسبق لأسباب تقنية أو تشغيلية.
+2. الاستخدام المصرح به وقواعد السلوك:
+• يُرخص لك استخدام التطبيق للأغراض الشخصية غير التجارية.
+• يُحظر تماماً محاولة تفكيك التطبيق أو استخدام أي وسائل مؤتمتة (Scraping/Bots) لاستخراج البيانات أو تحميل خوادم التطبيق بما يجاوز الاستخدام الطبيعي.
+• يُحظر إساءة استخدام الخدمات التفاعلية أو محاولة التحايل على أنظمة تتبع الإعلانات أو إساءة استغلال كوبونات وخصومات الترويج.
 
-3. الملكية الفكرية
-جميع المحتويات والبيانات والتصاميم داخل التطبيق تعود للجهة المالكة/موقع المراقب، ولا يجوز إعادة استخدامها أو نسخها دون إذن خطي.
+3. الملكية الفكرية وحقوق النشر:
+• كافة التصاميم، الشعارات، الواجهات، النصوص البرمجية، والمحتويات الإرشادية مملوكة حصرياً لشركة Almurakib LLC ومحمية بموجب قوانين الملكية الفكرية الدولية.
+• لا يجوز نسخ أو اقتباس أو توزيع أي جزء من محتوى التطبيق دون موافقة كتابية مسبقة.
 
-4. دقة البيانات
-رغم سعينا لتوفير بيانات دقيقة ومحدثة، قد تظهر فروقات أو تأخر. لا نتحمل مسؤولية أي قرارات مالية تعتمد على البيانات داخل التطبيق.
+4. الإعلانات والروابط الترويجية:
+• قد يحتوي التطبيق على إعلانات وروابط خارجية لمواقع ومنصات تابعة لجهات أخرى.
+• يخضع تتبع الإعلانات لسياساتنا في قياس الظهور والنقر، ولكن المنصة لا تتحمل أي مسؤولية عن محتوى المنتجات أو الخدمات المعلن عنها من قبل أطراف ثالثة.
 
-5. تحديثات التطبيق
-قد نقوم بتحديث التطبيق وتحسينه بشكل دوري. قد تتغير بعض الميزات أو تختفي دون إشعار مسبق.
+5. تعديل الخدمات وإنهاء الاستخدام:
+• تحتفظ المنصة بحق تعديل أو إيقاف أو تحديث أي ميزة أو خدمة في التطبيق في أي وقت دون إشعار مسبق.
+• يحق للمنصة تعليق أو حظر أي حساب يخالف شروط الاستخدام أو يُظهر نشاطاً مشبوهاً.
 
-6. حدود المسؤولية
-لا يتحمل التطبيق أو موقع المراقب أي خسائر ناتجة عن:
-• الاعتماد على أسعار أو بيانات غير محدثة.
-• توقف الخدمة أو حدوث أعطال تقنية أو انقطاع من مزود البيانات.
-• سوء استخدام التطبيق من قبل المستخدم.
+6. القانون المطبق وحل النزاعات:
+• تخضع هذه الشروط وتفسر وفقاً لقوانين دولة بيليز حيث تقع الشركة المالكة Almurakib LLC، وتختص محاكمها بالفصل في أي نزاع ينشأ عنها.
 
-7. إنهاء الاستخدام
-يحق لنا إنهاء أو تعليق وصول المستخدم للتطبيق في حال مخالفة الشروط أو إساءة استخدام الخدمة.
-
-8. القانون المُطبق
-تخضع هذه الشروط للقوانين واللوائح المعمول بها لدى الجهة المالكة، وأي نزاعات تُحل وفق الإجراءات القانونية المعتمدة.
-
-باستخدامك للتطبيق، فإنك تؤكد موافقتك على هذه الشروط والأحكام.
+باستمرارك في استخدام التطبيق، فإنك تؤكد التزامك الكامل بكافة الشروط والأحكام المذكورة أعلاه.
 ''';
 
   @override
   Widget build(BuildContext context) {
-    // ✅ نفس موضع الهيدنج زي باقي الصفحات
-    const padding = EdgeInsets.fromLTRB(20, 16, 20, 24);
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FC),
-      // ✅ شيلنا AppBar عشان ما يغيّرش موضع الهيدنج بين الصفحات
+      backgroundColor: AppColors.background,
       body: SafeArea(
+        top: false,
         child: FadeAnimation(
           child: ListView(
-            padding: padding,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             physics: const BouncingScrollPhysics(),
             children: [
-              // ✅ هيدنج موحد (نفس الحجم/التصميم/الموضع)
-              const _UnifiedHeader(title: 'الاتصال بنا'),
-
-              const SizedBox(height: 24),
+              const _UnifiedHeader(title: "التواصل والدعم"),
+              const SizedBox(height: 18),
 
               SlideAnimation(child: _buildCompanyCard()),
               const SizedBox(height: 32),
@@ -157,19 +138,17 @@ class ContactScreen extends StatelessWidget {
                 delay: const Duration(milliseconds: 200),
                 child: _buildWhatsAppButton(),
               ),
-
-              // ✅ زر تيليجرام تحت الواتساب
               const SizedBox(height: 12),
+
               SlideAnimation(
-                delay: const Duration(milliseconds: 230),
+                delay: const Duration(milliseconds: 225),
                 child: _buildTelegramButton(),
               ),
-
               const SizedBox(height: 32),
 
               const SlideAnimation(
                 delay: Duration(milliseconds: 250),
-                child: _UnifiedSectionTitle(title: "المعلومات القانونية"),
+                child: _UnifiedSectionTitle(title: "معلومات قانونية"),
               ),
               const SizedBox(height: 16),
 
@@ -191,11 +170,12 @@ class ContactScreen extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -209,14 +189,14 @@ class ContactScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withOpacity(0.1),
+                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.business_rounded,
+                child: Icon(Icons.business_rounded,
                     color: AppColors.primaryBlue, size: 24),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'شركة وموقع المراقب',
                   style: TextStyle(
@@ -236,12 +216,12 @@ class ContactScreen extends StatelessWidget {
               fontFamily: 'Tajawal',
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary.withOpacity(0.8),
+              color: AppColors.textPrimary.withValues(alpha: 0.8),
               height: 1.5,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'تطبيق "مراقب الأسهم المصرية" هو أحد منتجات منصة المراقب لتسهيل متابعة السوق المصري بشكل مبسّط وواضح.',
             style: TextStyle(
               fontFamily: 'Tajawal',
@@ -256,7 +236,7 @@ class ContactScreen extends StatelessWidget {
   }
 
   Widget _buildContactInfo() {
-    final items = <_ContactItem>[
+    final items = [
       _ContactItem(
         icon: Icons.language_rounded,
         title: 'الموقع الإلكتروني',
@@ -269,25 +249,25 @@ class ContactScreen extends StatelessWidget {
         title: 'البريد الإلكتروني',
         value: _email,
         ltr: true,
-        onTap: () => _launchUrl(Uri(scheme: 'mailto', path: _email)),
+        onTap: () => _launchUrl(Uri.parse('mailto:$_email')),
       ),
       _ContactItem(
-        icon: Icons.phone_android_rounded,
+        icon: Icons.phone_outlined,
         title: 'رقم الهاتف',
         value: _phone,
         ltr: true,
-        onTap: () => _launchUrl(Uri(scheme: 'tel', path: _phone)),
+        onTap: () => _launchUrl(Uri.parse('tel:$_phone')),
       ),
     ];
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -295,13 +275,12 @@ class ContactScreen extends StatelessWidget {
       ),
       child: Column(
         children: items.asMap().entries.map((entry) {
-          final index = entry.key;
+          final isLast = entry.key == items.length - 1;
           final item = entry.value;
-          final isLast = index == items.length - 1;
-          return _buildListTile(
+          return _buildTile(
+            icon: item.icon,
             title: item.title,
             subtitle: item.value,
-            icon: item.icon,
             onTap: item.onTap,
             showDivider: !isLast,
             ltr: item.ltr,
@@ -312,26 +291,44 @@ class ContactScreen extends StatelessWidget {
   }
 
   Widget _buildWhatsAppButton() {
-    final waUri = Uri.parse('https://wa.me/$_whatsAppNumber');
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: 56,
-      child: ElevatedButton.icon(
-        onPressed: () => _launchUrl(waUri),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF25D366),
-          foregroundColor: Colors.white,
-          elevation: 4,
-          shadowColor: const Color(0xFF25D366).withOpacity(0.4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
-        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 22),
-        label: const Text(
-          'تواصل معنا عبر واتساب',
-          style: TextStyle(
-            fontFamily: 'Tajawal',
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+      height: 52,
+      decoration: BoxDecoration(
+        color: const Color(0xFF25D366),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF25D366).withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            final uri = Uri.parse('https://wa.me/$_whatsAppNumber');
+            _launchUrl(uri);
+          },
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.chat_bubble_outline_rounded,
+                  color: Colors.white, size: 22),
+              SizedBox(width: 10),
+              Text(
+                'تواصل معنا عبر واتساب',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -339,26 +336,43 @@ class ContactScreen extends StatelessWidget {
   }
 
   Widget _buildTelegramButton() {
-    final tgUri = Uri.parse(_telegramUrl);
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: 56,
-      child: ElevatedButton.icon(
-        onPressed: () => _launchUrl(tgUri),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0088CC),
-          foregroundColor: Colors.white,
-          elevation: 4,
-          shadowColor: const Color(0xFF0088CC).withOpacity(0.35),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
-        icon: const Icon(Icons.send_rounded, size: 22),
-        label: const Text(
-          'تواصل معنا عبر تيليجرام',
-          style: TextStyle(
-            fontFamily: 'Tajawal',
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+      height: 52,
+      decoration: BoxDecoration(
+        color: const Color(0xFF229ED9),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF229ED9).withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            final uri = Uri.parse(_telegramUrl);
+            _launchUrl(uri);
+          },
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.send_rounded, color: Colors.white, size: 22),
+              SizedBox(width: 10),
+              Text(
+                'انضم لقناتنا على تيليجرام',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -366,59 +380,62 @@ class ContactScreen extends StatelessWidget {
   }
 
   Widget _buildLegalSection(BuildContext context) {
-    final items = [
-      {
-        'title': 'إخلاء المسؤولية',
-        'icon': Icons.warning_amber_rounded,
-        'content': _disclaimerText
-      },
-      {
-        'title': 'سياسة الخصوصية',
-        'icon': Icons.privacy_tip_outlined,
-        'content': _privacyPolicyText
-      },
-      {'title': 'الشروط والأحكام', 'icon': Icons.gavel_rounded, 'content': _termsText},
-    ];
-
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
-        children: items.asMap().entries.map((entry) {
-          final index = entry.key;
-          final item = entry.value;
-          final isLast = index == items.length - 1;
-          return _buildListTile(
-            title: item['title'] as String,
-            icon: item['icon'] as IconData,
+        children: [
+          _buildTile(
+            icon: Icons.shield_outlined,
+            title: 'سياسة الخصوصية',
             onTap: () => _showPolicySheet(
               context: context,
-              title: item['title'] as String,
-              content: item['content'] as String,
+              title: 'سياسة الخصوصية',
+              content: _privacyPolicyText,
             ),
-            showDivider: !isLast,
-          );
-        }).toList(),
+            showDivider: true,
+          ),
+          _buildTile(
+            icon: Icons.description_outlined,
+            title: 'شروط الاستخدام',
+            onTap: () => _showPolicySheet(
+              context: context,
+              title: 'شروط الاستخدام',
+              content: _termsText,
+            ),
+            showDivider: true,
+          ),
+          _buildTile(
+            icon: Icons.info_outline_rounded,
+            title: 'إخلاء المسؤولية',
+            onTap: () => _showPolicySheet(
+              context: context,
+              title: 'إخلاء المسؤولية',
+              content: _disclaimerText,
+            ),
+            showDivider: false,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildListTile({
-    required String title,
+  Widget _buildTile({
     required IconData icon,
-    required VoidCallback onTap,
+    required String title,
     String? subtitle,
-    bool showDivider = true,
+    required VoidCallback onTap,
+    required bool showDivider,
     bool ltr = false,
   }) {
     return Column(
@@ -435,7 +452,7 @@ class ContactScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryBlue.withOpacity(0.08),
+                      color: AppColors.primaryBlue.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(icon, size: 20, color: AppColors.primaryBlue),
@@ -447,7 +464,7 @@ class ContactScreen extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Tajawal',
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -459,7 +476,7 @@ class ContactScreen extends StatelessWidget {
                           Text(
                             subtitle,
                             textDirection: ltr ? TextDirection.ltr : TextDirection.rtl,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'Tajawal',
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -478,13 +495,12 @@ class ContactScreen extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Divider(
-            height: 1,
-            thickness: 1,
-            indent: 60,
-            endIndent: 20,
-            color: Color(0xFFF5F5F5),
-          ),
+          Divider(
+              height: 1,
+              thickness: 1,
+              indent: 60,
+              endIndent: 20,
+              color: AppColors.border),
       ],
     );
   }
@@ -501,9 +517,10 @@ class ContactScreen extends StatelessWidget {
       builder: (ctx) {
         return Container(
           height: MediaQuery.of(context).size.height * 0.75,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             children: [
@@ -512,7 +529,7 @@ class ContactScreen extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -520,11 +537,11 @@ class ContactScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                 child: Row(
                   children: [
-                    const Icon(Icons.article_rounded, color: AppColors.primaryBlue),
+                    Icon(Icons.article_rounded, color: AppColors.primaryBlue),
                     const SizedBox(width: 10),
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
@@ -534,19 +551,19 @@ class ContactScreen extends StatelessWidget {
                     const Spacer(),
                     IconButton(
                       onPressed: () => Navigator.pop(ctx),
-                      icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                      icon: Icon(Icons.close_rounded, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
               ),
-              const Divider(height: 1),
+              Divider(height: 1, color: AppColors.border),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   physics: const BouncingScrollPhysics(),
                   child: Text(
                     content,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Tajawal',
                       fontSize: 14,
                       height: 1.8,
@@ -592,7 +609,7 @@ class _UnifiedHeader extends StatelessWidget {
           style: AppTextStyles.headingSmall.copyWith(
             fontWeight: FontWeight.w900,
             fontSize: 20,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
         ),
       ],
@@ -623,7 +640,7 @@ class _UnifiedSectionTitle extends StatelessWidget {
           style: AppTextStyles.headingSmall.copyWith(
             fontWeight: FontWeight.w900,
             fontSize: 20,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
         ),
       ],

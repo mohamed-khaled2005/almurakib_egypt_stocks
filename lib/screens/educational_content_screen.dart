@@ -114,14 +114,14 @@ class _EmptyEducationalState extends StatelessWidget {
           ),
         ],
       ),
-      child: const Column(
+      child: Column(
         children: <Widget>[
-          Icon(
+          const Icon(
             Icons.menu_book_outlined,
             color: AppColors.primaryBlue,
             size: 34,
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             _kNoEducationContent,
             textAlign: TextAlign.center,
@@ -264,7 +264,7 @@ class _LearningModuleCard extends StatelessWidget {
                     article.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Tajawal',
                       fontSize: 17,
                       fontWeight: FontWeight.w900,
@@ -329,10 +329,10 @@ class _EducationalArticleDetailsScreenState
     return Scaffold(
       backgroundColor: AppColors.scaffold,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.cardDark,
         surfaceTintColor: Colors.transparent,
         foregroundColor: AppColors.textPrimary,
-        titleTextStyle: const TextStyle(
+        titleTextStyle: TextStyle(
           fontFamily: 'Tajawal',
           fontSize: 20,
           fontWeight: FontWeight.w900,
@@ -345,7 +345,7 @@ class _EducationalArticleDetailsScreenState
               child: CircularProgressIndicator(color: AppColors.primaryBlue),
             )
           : _article == null
-              ? const Center(
+              ? Center(
                   child: Text(
                     _kLoadContentError,
                     style: TextStyle(
@@ -452,7 +452,7 @@ class _EducationalArticleDetailsScreenState
   }) {
     final cleaned = _sanitizeBodyText(body);
     if (cleaned.isEmpty) {
-      return const <Widget>[
+      return <Widget>[
         Text(
           _kNoBodyText,
           style: TextStyle(
@@ -516,7 +516,7 @@ class _EducationalArticleDetailsScreenState
             child: Text(
               text,
               textAlign: TextAlign.start,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Tajawal',
                 fontSize: 15.2,
                 color: AppColors.textPrimary,
@@ -684,7 +684,7 @@ class _DetailsHero extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               article.title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Tajawal',
                 fontSize: 24,
                 fontWeight: FontWeight.w900,

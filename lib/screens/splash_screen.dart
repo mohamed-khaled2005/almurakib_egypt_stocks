@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../animations/scale_animation.dart';
 import '../core/services/favorites_service.dart';
 import '../core/utils/constants.dart';
 import '../providers/app_manager_provider.dart';
 import 'app_shell_screen.dart';
-import 'onboarding_screen.dart';
 
 Color _a(Color c, double opacity) =>
     c.withAlpha((opacity.clamp(0.0, 1.0) * 255).round());
@@ -53,17 +51,13 @@ class _SplashScreenState extends State<SplashScreen>
     await FavoritesService.init();
     await _waitForAppManager();
 
-    final prefs = await SharedPreferences.getInstance();
-    final completed = prefs.getBool('onboarding_completed') ?? false;
-
     await Future<void>.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
 
     Navigator.pushReplacement(
       context,
       MaterialPageRoute<void>(
-        builder: (_) =>
-            completed ? const AppShellScreen() : const OnboardingScreen(),
+        builder: (_) => const AppShellScreen(),
       ),
     );
   }

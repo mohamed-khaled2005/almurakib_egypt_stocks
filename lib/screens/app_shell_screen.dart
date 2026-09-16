@@ -86,6 +86,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
   int? _presentedPopupAdId;
   int? _pendingAuthTabIndex;
   int _lastNonAccountTabIndex = 0;
+  String? _trackedMenuCtaImpressionKey;
 
   int get _homeTabIndex => 0;
   int get _marketTodayTabIndex => 1;
@@ -482,7 +483,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
                                   onPressed: closePopup,
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.textSecondary,
-                                    side: const BorderSide(
+                                    side: BorderSide(
                                       color: AppColors.border,
                                     ),
                                     shape: RoundedRectangleBorder(
@@ -694,7 +695,6 @@ class _AppShellScreenState extends State<AppShellScreen> {
                 compact: compact,
               ),
             ),
-            const SizedBox(height: 10),
             _buildManagedTradingAccountButton(
               compact: compact,
               menuCta: manager.menuCta,
@@ -736,7 +736,9 @@ class _AppShellScreenState extends State<AppShellScreen> {
               : null,
           color: isSelected
               ? null
-              : (isSubItem ? const Color(0xFFFDF6F7) : Colors.transparent),
+              : (isSubItem
+                  ? const Color(0xFFFDF6F7)
+                  : Colors.transparent),
           borderRadius: borderRadius,
           border: Border.all(
             color: isSelected
@@ -948,12 +950,26 @@ class _AppShellScreenState extends State<AppShellScreen> {
     );
   }
 
+
   Widget _buildManagedTradingAccountButton({
     required bool compact,
     required ManagedMenuCta? menuCta,
   }) {
     if (menuCta == null || !menuCta.isUsable) {
       return const SizedBox.shrink();
+    }
+
+    final impressionKey = '${menuCta.label}_${menuCta.url}';
+    if (_trackedMenuCtaImpressionKey != impressionKey) {
+      _trackedMenuCtaImpressionKey = impressionKey;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<AppManagerProvider>().trackMenuCta(
+              eventType: 'impression',
+              label: menuCta.label,
+              url: menuCta.url,
+            );
+      });
     }
 
     final borderRadius = BorderRadius.circular(compact ? 14 : 16);
@@ -977,7 +993,14 @@ class _AppShellScreenState extends State<AppShellScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: borderRadius,
-          onTap: () => _launchExternalLink(menuCta.url),
+          onTap: () {
+            context.read<AppManagerProvider>().trackMenuCta(
+                  eventType: 'click',
+                  label: menuCta.label,
+                  url: menuCta.url,
+                );
+            _launchExternalLink(menuCta.url);
+          },
           child: Padding(
             padding: EdgeInsets.symmetric(
               horizontal: compact ? 14 : 16,
@@ -1233,7 +1256,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
-          border: const Border(
+          border: Border(
             bottom: BorderSide(color: AppColors.border),
           ),
           boxShadow: <BoxShadow>[
@@ -1354,17 +1377,17 @@ class _HeaderContent extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 filterQuality: FilterQuality.high,
                 errorBuilder: (_, __, ___) {
-                  return const Row(
+                  return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Icon(
+                      const Icon(
                         Icons.assessment_rounded,
                         color: AppColors.primaryBlue,
                         size: 24,
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
-                        'ظ…ط±ط§ظ‚ط¨ ط§ظ„ط£ط³ظ‡ظ…',
+                        'مراقب الأسهم',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1529,15 +1552,15 @@ class _HeaderContent extends StatelessWidget {
                                 alignment: Alignment.centerRight,
                                 filterQuality: FilterQuality.high,
                                 errorBuilder: (_, __, ___) {
-                                  return const Row(
+                                  return Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: <Widget>[
-                                      Icon(
+                                      const Icon(
                                         Icons.assessment_rounded,
                                         color: AppColors.primaryBlue,
                                         size: 24,
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Text(
                                         'مراقب الأسهم',
                                         maxLines: 1,
@@ -1958,7 +1981,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
                     color: AppColors.error,
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'تعذر تحميل قائمة الأسهم للبحث',
                     style: AppTextStyles.bodyLarge,
                     textAlign: TextAlign.center,
@@ -1996,7 +2019,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  const Icon(
+                  Icon(
                     Icons.search_rounded,
                     size: 64,
                     color: AppColors.border,
@@ -2022,7 +2045,7 @@ class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  const Icon(
+                  Icon(
                     Icons.search_off_rounded,
                     size: 64,
                     color: AppColors.border,

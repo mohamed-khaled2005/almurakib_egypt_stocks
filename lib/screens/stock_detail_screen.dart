@@ -775,7 +775,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
               )
             : Text(
                 _fmtMoney(stock.price),
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Tajawal',
                   fontSize: 48,
                   fontWeight: FontWeight.w900,
@@ -1042,7 +1042,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
       ),
       child: Text(
         '${_fmtMoney(c.close)}  |  ${_tooltipFmt.format(c.time)}',
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'Tajawal',
           fontSize: 11,
           fontWeight: FontWeight.w900,
@@ -1062,7 +1062,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
       ),
       child: Text(
         'أدنى: ${_fmtMoney(minP)}  |  أعلى: ${_fmtMoney(maxP)}',
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'Tajawal',
           fontSize: 11,
           fontWeight: FontWeight.w900,
@@ -1188,7 +1188,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                   space: 8,
                   child: Text(
                     _formatAxisPrice(value),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Tajawal',
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -1222,7 +1222,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                   child: Text(
                     label,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Tajawal',
                       fontSize: 9.6,
                       fontWeight: FontWeight.w900,
@@ -1480,7 +1480,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                   const SizedBox(width: 8),
                   Text(
                     item['label'] as String,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Tajawal',
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -1521,7 +1521,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
           FadeAnimation(
               child: TechnicalIndicatorsWidget(indicators: _indicators!))
         else
-          const Center(
+          Center(
               child: Text("لا توجد مؤشرات متاحة حالياً",
                   style: AppTextStyles.bodySmall)),
       ],

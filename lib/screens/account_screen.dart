@@ -307,11 +307,11 @@ class _AccountScreenState extends State<AccountScreen> {
       fillColor: AppColors.background,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -545,9 +545,9 @@ class _AccountScreenState extends State<AccountScreen> {
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedTradingStatus,
-                      dropdownColor: Colors.white,
+                      dropdownColor: AppColors.cardDark,
                       decoration: _fieldDecoration(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontFamily: 'Tajawal',
                         fontWeight: FontWeight.w700,

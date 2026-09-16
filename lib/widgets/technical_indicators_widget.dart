@@ -63,8 +63,8 @@ class TechnicalIndicatorsWidget extends StatelessWidget {
             ],
           ),
           child: indicators.indicators.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(18),
+              ? Padding(
+                  padding: const EdgeInsets.all(18),
                   child: Text('لا توجد مؤشرات متاحة حالياً', style: AppTextStyles.bodySmall),
                 )
               : Column(
@@ -92,8 +92,8 @@ class TechnicalIndicatorsWidget extends StatelessWidget {
   }
 
   Widget _buildHeaderRow() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
           Expanded(
@@ -291,7 +291,7 @@ class TechnicalIndicatorsWidget extends StatelessWidget {
                   _translateIndicatorName(name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Tajawal',
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -304,7 +304,7 @@ class TechnicalIndicatorsWidget extends StatelessWidget {
                 child: Text(
                   _formatValue(value),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Tajawal',
                     fontSize: 14,
                     fontWeight: FontWeight.w700,

@@ -343,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
           height: 34,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white,
+            color: AppColors.isDark ? AppColors.cardLight : Colors.white,
             border: Border.all(color: AppColors.border),
             boxShadow: <BoxShadow>[
               BoxShadow(
@@ -353,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          child: const Icon(
+          child: Icon(
             Icons.refresh_rounded,
             size: 16,
             color: AppColors.textSecondary,

@@ -1,21 +1,21 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../../utils/safe_error_message.dart';
 
 class ApiClient {
   static Future<Map<String, dynamic>> get(String url) async {
     try {
-      print('🔄 GET: $url');
+      print('🔄 GET: ${SafeErrorMessage.redactedForLog(url)}');
 
       final response = await http
           .get(Uri.parse(url), headers: {'Accept': 'application/json'})
           .timeout(
             const Duration(seconds: 30),
-            onTimeout: () => throw Exception('انتهت مهلة الاتصال بالخادم'),
+            onTimeout: () => throw Exception(SafeErrorMessage.serviceUpdating),
           );
 
       print('📡 Status: ${response.statusCode}');
 
-      // نحاول نفك JSON حتى لو statusCode != 200 عشان نطلع msg
       Map<String, dynamic>? decoded;
       try {
         final dynamic tmp = json.decode(response.body);
@@ -26,23 +26,34 @@ class ApiClient {
 
       if (response.statusCode != 200) {
         final msg = decoded?['msg']?.toString();
-        throw Exception(msg ?? 'HTTP Error: ${response.statusCode}');
+        throw Exception(
+          msg != null
+              ? SafeErrorMessage.sanitizeText(msg, fallback: SafeErrorMessage.serviceUpdating)
+              : SafeErrorMessage.serviceUpdating,
+        );
       }
 
       if (decoded == null) {
-        throw Exception('صيغة رد غير متوقعة من السيرفر');
+        throw Exception(SafeErrorMessage.serviceUpdating);
       }
 
       final status = decoded['status'];
       if (status == false) {
-        final msg = decoded['msg']?.toString() ?? 'فشل الطلب';
-        throw Exception(msg);
+        final msg = decoded['msg']?.toString();
+        throw Exception(
+          msg != null
+              ? SafeErrorMessage.sanitizeText(msg, fallback: SafeErrorMessage.serviceUpdating)
+              : SafeErrorMessage.serviceUpdating,
+        );
       }
 
       return decoded;
     } catch (e) {
-      print('❌ ApiClient error: $e');
-      rethrow;
+      print('❌ ApiClient error: ${SafeErrorMessage.redactedForLog(e)}');
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(SafeErrorMessage.serviceUpdating);
     }
   }
 }

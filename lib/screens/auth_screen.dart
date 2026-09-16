@@ -280,7 +280,7 @@ class _AuthScreenState extends State<AuthScreen> {
             backgroundColor: Colors.white.withValues(alpha: 0.86),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
-              side: const BorderSide(color: AppColors.border),
+              side: BorderSide(color: AppColors.border),
             ),
           ),
           icon: const Icon(Icons.home_rounded, size: 18),
@@ -310,7 +310,7 @@ class _AuthScreenState extends State<AuthScreen> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.border),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back_ios_new_rounded,
               color: AppColors.textPrimary,
               size: 18,
@@ -453,7 +453,7 @@ class _AuthScreenState extends State<AuthScreen> {
               TextFormField(
                 controller: _fullName,
                 textInputAction: TextInputAction.next,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
                   fontFamily: 'Tajawal',
                 ),
@@ -487,7 +487,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 showLabel: false,
                 label: 'الدولة',
                 hintText: 'ابحث واختر الدولة',
-                sheetBackgroundColor: Colors.white,
+                sheetBackgroundColor: AppColors.cardDark,
                 accentColor: _authAccent,
                 decoration: _fieldDecoration(
                   label: 'الدولة',
@@ -511,7 +511,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 controller: _phone,
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
                   fontFamily: 'Tajawal',
                 ),
@@ -529,7 +529,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     label: kTradingStatusQuestionLabel,
                     icon: Icons.query_stats_rounded,
                   ),
-                  dropdownColor: Colors.white,
+                  dropdownColor: AppColors.cardDark,
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
@@ -561,7 +561,7 @@ class _AuthScreenState extends State<AuthScreen> {
               controller: _email,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textPrimary,
                 fontFamily: 'Tajawal',
               ),
@@ -586,7 +586,7 @@ class _AuthScreenState extends State<AuthScreen> {
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _submitEmailAuth(),
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textPrimary,
                 fontFamily: 'Tajawal',
               ),
@@ -717,7 +717,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: AppColors.border),
+      borderSide: BorderSide(color: AppColors.border),
     );
 
     return InputDecoration(
@@ -871,8 +871,8 @@ class _AuthScreenState extends State<AuthScreen> {
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
-          backgroundColor: Colors.white,
-          side: const BorderSide(color: AppColors.border),
+          backgroundColor: AppColors.cardDark,
+          side: BorderSide(color: AppColors.border),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),

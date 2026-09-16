@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../core/services/favorites_service.dart';
 import '../data/country_options.dart';
 import '../models/app_preferences_model.dart';
 import '../models/educational_article_model.dart';
@@ -70,6 +71,10 @@ class AppManagerProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated =>
       _token != null && _token!.isNotEmpty && _user != null;
+  bool get canUseGoogleSignIn =>
+      kIsWeb || defaultTargetPlatform != TargetPlatform.iOS;
+  bool get canUseAppleSignIn =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
   String? get token => _token;
   ManagedAppUser? get user => _user;
   AppPreferencesModel get preferences => _preferences;
@@ -163,6 +168,8 @@ class AppManagerProvider with ChangeNotifier {
         watchedSymbols: const <String>[],
         settings: null,
       );
+
+      FavoritesService.bindSyncHandler((favorites) => syncFavoriteStocks(favorites));
 
       if (_token != null && _token!.isNotEmpty) {
         try {
@@ -279,11 +286,20 @@ class AppManagerProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> requestPasswordReset(String email) async {
+  Future<bool> requestPasswordReset(
+    String identifier, {
+    String? countryCode,
+  }) async {
     _setBusy(true);
     _errorMessage = null;
     try {
-      await _api.requestPasswordReset(email: email.trim());
+      final trimmed = identifier.trim();
+      final isEmail = trimmed.contains('@');
+      await _api.requestPasswordReset(
+        email: isEmail ? trimmed : null,
+        phone: !isEmail ? trimmed : null,
+        countryCode: countryCode ?? _resolveAudienceCountryCode(),
+      );
       return true;
     } catch (error) {
       _errorMessage = SafeErrorMessage.forUser(error);
@@ -295,14 +311,19 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<String?> verifyPasswordResetCode({
-    required String email,
+    required String identifier,
     required String code,
+    String? countryCode,
   }) async {
     _setBusy(true);
     _errorMessage = null;
     try {
+      final trimmed = identifier.trim();
+      final isEmail = trimmed.contains('@');
       return await _api.verifyPasswordResetCode(
-        email: email.trim(),
+        email: isEmail ? trimmed : null,
+        phone: !isEmail ? trimmed : null,
+        countryCode: countryCode ?? _resolveAudienceCountryCode(),
         code: code.trim(),
       );
     } catch (error) {
@@ -315,15 +336,20 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<bool> resetPassword({
-    required String email,
+    required String identifier,
     required String resetToken,
     required String password,
+    String? countryCode,
   }) async {
     _setBusy(true);
     _errorMessage = null;
     try {
+      final trimmed = identifier.trim();
+      final isEmail = trimmed.contains('@');
       await _api.resetPassword(
-        email: email.trim(),
+        email: isEmail ? trimmed : null,
+        phone: !isEmail ? trimmed : null,
+        countryCode: countryCode ?? _resolveAudienceCountryCode(),
         resetToken: resetToken.trim(),
         password: password,
       );
@@ -338,6 +364,12 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<bool> loginWithGoogle() async {
+    if (!canUseGoogleSignIn) {
+      _errorMessage = 'تسجيل Google غير متاح على iOS.';
+      notifyListeners();
+      return false;
+    }
+
     _setBusy(true);
     _errorMessage = null;
 
@@ -374,7 +406,7 @@ class AppManagerProvider with ChangeNotifier {
       await _applyAuthResult(result, eventName: 'user_login_google');
       return true;
     } catch (error) {
-      _errorMessage = error.toString();
+      _errorMessage = _friendlyGoogleSignInError(error);
       notifyListeners();
       return false;
     } finally {
@@ -383,7 +415,7 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<bool> loginWithApple() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+    if (!canUseAppleSignIn) {
       _errorMessage = 'تسجيل Apple متاح على iPhone وiPad فقط.';
       notifyListeners();
       return false;
@@ -673,6 +705,7 @@ class AppManagerProvider with ChangeNotifier {
   Future<void> dismissPopupAd(ManualAdModel ad) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_popupDismissKey(ad.id), true);
+    await trackManualAd(ad: ad, eventType: 'dismiss');
 
     if (_remoteUiConfig.popupAd?.id == ad.id) {
       _remoteUiConfig = _remoteUiConfig.copyWith(clearPopupAd: true);
@@ -791,6 +824,67 @@ class AppManagerProvider with ChangeNotifier {
     }
   }
 
+  Future<void> trackManualAd({
+    required ManualAdModel ad,
+    required String eventType,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      await _api.trackManualAd(
+        adId: ad.id,
+        eventType: eventType,
+        platform: _platformName(),
+        sessionUid: _activeSessionUid,
+        deviceId: _deviceId,
+        placement: ad.placement,
+        metadata: <String, dynamic>{
+          'title': ad.title,
+          'target_url': ad.targetUrl,
+          if (metadata != null) ...metadata,
+        },
+      );
+    } catch (_) {
+      // Ad analytics should never block display/click flows.
+    }
+  }
+
+  Future<void> trackMenuCta({
+    required String eventType,
+    String? label,
+    String? url,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      await _api.trackMenuCta(
+        eventType: eventType,
+        platform: _platformName(),
+        sessionUid: _activeSessionUid,
+        deviceId: _deviceId,
+        label: label ?? _remoteUiConfig.menuCta?.label,
+        url: url ?? _remoteUiConfig.menuCta?.url,
+        metadata: metadata,
+      );
+    } catch (_) {
+      // Menu CTA analytics fire-and-forget.
+    }
+  }
+
+  Future<void> syncFavoriteStocks(Iterable<String> symbols) async {
+    final normalized = _normalizeFavoriteItems(symbols.toList());
+    _preferences = AppPreferencesModel(
+      selectedCurrency: _preferences.selectedCurrency,
+      favoriteItems: normalized,
+      watchedSymbols: _preferences.watchedSymbols,
+      settings: _preferences.settings,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_favoriteItemsKey, normalized);
+    notifyListeners();
+    if (isAuthenticated) {
+      await _pushPreferencesToServer();
+    }
+  }
+
   Future<void> _applyAuthResult(
     AuthResult result, {
     required String eventName,
@@ -819,15 +913,30 @@ class AppManagerProvider with ChangeNotifier {
 
     try {
       final remote = await _api.getPreferences(token: _token!);
-      _preferences = AppPreferencesModel(
-        selectedCurrency:
-            remote.selectedCurrency ?? _preferences.selectedCurrency,
-        favoriteItems: remote.favoriteItems.isEmpty
-            ? _preferences.favoriteItems
-            : _normalizeFavoriteItems(remote.favoriteItems),
-        watchedSymbols: remote.watchedSymbols,
-        settings: remote.settings,
-      );
+      if (remote.favoriteItems.isNotEmpty) {
+        final normalized = _normalizeFavoriteItems(remote.favoriteItems);
+        _preferences = AppPreferencesModel(
+          selectedCurrency:
+              remote.selectedCurrency ?? _preferences.selectedCurrency,
+          favoriteItems: normalized,
+          watchedSymbols: remote.watchedSymbols,
+          settings: remote.settings,
+        );
+        await FavoritesService.replaceFavorites(normalized, syncRemote: false);
+      } else {
+        final localFavorites = await FavoritesService.getFavorites();
+        if (localFavorites.isNotEmpty) {
+          final normalized = _normalizeFavoriteItems(localFavorites);
+          _preferences = AppPreferencesModel(
+            selectedCurrency:
+                remote.selectedCurrency ?? _preferences.selectedCurrency,
+            favoriteItems: normalized,
+            watchedSymbols: remote.watchedSymbols,
+            settings: remote.settings,
+          );
+          await _pushPreferencesToServer();
+        }
+      }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList(_favoriteItemsKey, _preferences.favoriteItems);
@@ -1011,6 +1120,20 @@ class AppManagerProvider with ChangeNotifier {
     final meaningful =
         value.replaceAll(RegExp(r'[\p{P}\p{S}\s]+', unicode: true), '');
     return meaningful.length >= 2;
+  }
+
+  String _friendlyGoogleSignInError(Object error) {
+    final raw = error.toString();
+    final normalized = raw.toLowerCase();
+
+    if (normalized.contains('apiexception: 10') ||
+        normalized.contains('sign_in_failed')) {
+      return 'فشل تسجيل الدخول عبر Google لأن إعداد OAuth لهذا التطبيق غير مكتمل أو غير مطابق. '
+          'تأكد من أن ملف google-services.json الخاص بالإمارات يحتوي OAuth clients، '
+          'وأن SHA-1 وSHA-256 الصحيحين مضافتان في Firebase.';
+    }
+
+    return raw;
   }
 
   String _platformName() {

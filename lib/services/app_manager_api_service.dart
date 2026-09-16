@@ -307,31 +307,55 @@ class AppManagerApiService {
     );
   }
 
-  Future<void> requestPasswordReset({required String email}) async {
+  Future<void> requestPasswordReset({
+    String? email,
+    String? phone,
+    String? countryCode,
+  }) async {
+    final body = <String, dynamic>{
+      'target_app_slug': AppManagerConfig.appSlug,
+    };
+    if (email != null && email.trim().isNotEmpty) {
+      body['email'] = email.trim();
+    }
+    if (phone != null && phone.trim().isNotEmpty) {
+      body['phone'] = phone.trim();
+    }
+    if (countryCode != null && countryCode.trim().isNotEmpty) {
+      body['country_code'] = countryCode.trim();
+    }
     await _request(
       method: 'POST',
       path: '/auth/password/forgot',
       retryCount: 0,
-      body: <String, dynamic>{
-        'email': email.trim(),
-        'target_app_slug': AppManagerConfig.appSlug,
-      },
+      body: body,
     );
   }
 
   Future<String> verifyPasswordResetCode({
-    required String email,
+    String? email,
+    String? phone,
+    String? countryCode,
     required String code,
   }) async {
+    final body = <String, dynamic>{
+      'code': code.trim(),
+      'target_app_slug': AppManagerConfig.appSlug,
+    };
+    if (email != null && email.trim().isNotEmpty) {
+      body['email'] = email.trim();
+    }
+    if (phone != null && phone.trim().isNotEmpty) {
+      body['phone'] = phone.trim();
+    }
+    if (countryCode != null && countryCode.trim().isNotEmpty) {
+      body['country_code'] = countryCode.trim();
+    }
     final data = await _request(
       method: 'POST',
       path: '/auth/password/verify',
       retryCount: 0,
-      body: <String, dynamic>{
-        'email': email.trim(),
-        'code': code.trim(),
-        'target_app_slug': AppManagerConfig.appSlug,
-      },
+      body: body,
     );
 
     final resetToken = (data['reset_token'] ?? '').toString().trim();
@@ -344,20 +368,32 @@ class AppManagerApiService {
   }
 
   Future<void> resetPassword({
-    required String email,
+    String? email,
+    String? phone,
+    String? countryCode,
     required String resetToken,
     required String password,
   }) async {
+    final body = <String, dynamic>{
+      'reset_token': resetToken.trim(),
+      'password': password,
+      'password_confirmation': password,
+      'target_app_slug': AppManagerConfig.appSlug,
+    };
+    if (email != null && email.trim().isNotEmpty) {
+      body['email'] = email.trim();
+    }
+    if (phone != null && phone.trim().isNotEmpty) {
+      body['phone'] = phone.trim();
+    }
+    if (countryCode != null && countryCode.trim().isNotEmpty) {
+      body['country_code'] = countryCode.trim();
+    }
     await _request(
       method: 'POST',
       path: '/auth/password/reset',
       retryCount: 0,
-      body: <String, dynamic>{
-        'email': email.trim(),
-        'reset_token': resetToken,
-        'password': password,
-        'password_confirmation': password,
-      },
+      body: body,
     );
   }
 
@@ -385,7 +421,8 @@ class AppManagerApiService {
     }
 
     if (normalizedProvider != 'google' && !hasIdToken) {
-      throw const AppManagerApiException('ID token is required for this login.');
+      throw const AppManagerApiException(
+          'ID token is required for this login.');
     }
 
     final data = await _request(
@@ -576,6 +613,55 @@ class AppManagerApiService {
         'device_id': deviceId,
         'duration_ms': durationMs,
         'value': value,
+        'metadata': metadata,
+      },
+    );
+  }
+
+  Future<void> trackManualAd({
+    required int adId,
+    required String eventType,
+    required String platform,
+    String? sessionUid,
+    String? deviceId,
+    String? placement,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _request(
+      method: 'POST',
+      path: '/manual-ads/$adId/track',
+      body: <String, dynamic>{
+        'event_type': eventType,
+        'app_slug': AppManagerConfig.appSlug,
+        'platform': platform,
+        'session_uid': sessionUid,
+        'device_id': deviceId,
+        'placement': placement,
+        'metadata': metadata,
+      },
+    );
+  }
+
+  Future<void> trackMenuCta({
+    required String eventType,
+    required String platform,
+    String? sessionUid,
+    String? deviceId,
+    String? label,
+    String? url,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _request(
+      method: 'POST',
+      path: '/menu-cta/track',
+      body: <String, dynamic>{
+        'event_type': eventType,
+        'app_slug': AppManagerConfig.appSlug,
+        'platform': platform,
+        'session_uid': sessionUid,
+        'device_id': deviceId,
+        'label': label,
+        'url': url,
         'metadata': metadata,
       },
     );
