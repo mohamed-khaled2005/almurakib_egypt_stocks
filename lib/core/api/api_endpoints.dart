@@ -150,4 +150,51 @@ class ApiEndpoints {
   static String performance({required String symbol}) {
     return _build('performance', {'symbol': symbol});
   }
+
+  // ===================================================================
+  // ✅ Direct FCS Endpoints (Dividends, Forecast, Profile, Financials)
+  // ===================================================================
+
+  static String dividend({required String symbol}) {
+    final clean = symbol.trim();
+    return '${ApiKeys.fcsBaseUrl}/stock/dividend?symbol=$clean&access_key=${ApiKeys.fcsApiKey}';
+  }
+
+  static String forecast({required String symbol}) {
+    final clean = symbol.trim();
+    return '${ApiKeys.fcsBaseUrl}/stock/forecast?symbol=$clean&access_key=${ApiKeys.fcsApiKey}';
+  }
+
+  static String profile({required String symbol}) {
+    final clean = symbol.trim();
+    return '${ApiKeys.fcsBaseUrl}/stock/profile?symbol=$clean&access_key=${ApiKeys.fcsApiKey}';
+  }
+
+  static String statistics({required String symbol}) {
+    final clean = symbol.trim();
+    return '${ApiKeys.fcsBaseUrl}/stock/statistics?symbol=$clean&access_key=${ApiKeys.fcsApiKey}';
+  }
+
+  static String balanceSheet({required String symbol}) {
+    final clean = symbol.trim();
+    return '${ApiKeys.fcsBaseUrl}/stock/balance_sheet?symbol=$clean&access_key=${ApiKeys.fcsApiKey}';
+  }
+
+  static String incomeStatements({required String symbol}) {
+    final clean = symbol.trim();
+    return '${ApiKeys.fcsBaseUrl}/stock/income_statements?symbol=$clean&access_key=${ApiKeys.fcsApiKey}';
+  }
+
+  static String cashFlow({required String symbol}) {
+    final clean = symbol.trim();
+    return '${ApiKeys.fcsBaseUrl}/stock/cash_flow?symbol=$clean&access_key=${ApiKeys.fcsApiKey}';
+  }
+
+  static String currencyConverter({
+    required String from,
+    required String to,
+    required double amount,
+  }) {
+    return '${ApiKeys.fcsBaseUrl}/forex/converter?pair1=${from.trim().toUpperCase()}&pair2=${to.trim().toUpperCase()}&amount=$amount&access_key=${ApiKeys.fcsApiKey}';
+  }
 }

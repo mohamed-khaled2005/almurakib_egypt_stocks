@@ -89,6 +89,9 @@ class AppColors {
   static const Color darkGold = darkAccentGold;
   static const Color lightGold = lightAccentGold;
   static Color get accent => primaryBlue;
+  static Color get primary => primaryBlue;
+  static Color get surface => Colors.white;
+  static Color get card => cardDark;
 
   // ==========================================================
   // ✅ إضافات مفيدة للسوق: ألوان الربح/الخسارة

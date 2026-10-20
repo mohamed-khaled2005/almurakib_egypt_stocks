@@ -7,6 +7,7 @@ import '../core/models/stock_model.dart';
 import '../core/services/stock_service.dart';
 import '../core/services/favorites_service.dart';
 import '../core/services/translation_service.dart';
+import '../core/services/live_socket_service.dart';
 import '../core/utils/constants.dart';
 import '../core/utils/formatters.dart';
 
@@ -14,7 +15,11 @@ import '../animations/fade_animation.dart';
 import '../animations/slide_animation.dart';
 import '../widgets/top_stock_card.dart';
 import '../widgets/stock_list_item.dart';
+import '../widgets/market_status_header.dart';
 import 'stock_detail_screen.dart';
+import 'stock_comparison_screen.dart';
+import 'currency_converter_screen.dart';
+import 'price_alerts_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateToTab;
@@ -56,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
   VoidCallback? _favListener;
   Timer? _favDebounce;
   bool _loadingFavsOnly = false;
+  StreamSubscription<LiveQuoteUpdate>? _socketSub;
 
   @override
   void initState() {
@@ -69,16 +75,53 @@ class _HomeScreenState extends State<HomeScreen> {
     };
     FavoritesService.favoritesNotifier.addListener(_favListener!);
 
+    _socketSub = LiveSocketService.instance.priceStream.listen(_onLiveQuote);
+
     _loadData();
   }
 
   @override
   void dispose() {
+    _socketSub?.cancel();
     _favDebounce?.cancel();
     if (_favListener != null) {
       FavoritesService.favoritesNotifier.removeListener(_favListener!);
     }
     super.dispose();
+  }
+
+  void _onLiveQuote(LiveQuoteUpdate update) {
+    if (!mounted) return;
+    bool changed = false;
+
+    if (_topGainer != null &&
+        (_topGainer!.symbol == update.symbol ||
+            _topGainer!.id == update.symbol ||
+            _topGainer!.symbol.endsWith(':${update.symbol}'))) {
+      _topGainer = _topGainer!.applyLiveUpdate(update);
+      changed = true;
+    }
+
+    if (_topLoser != null &&
+        (_topLoser!.symbol == update.symbol ||
+            _topLoser!.id == update.symbol ||
+            _topLoser!.symbol.endsWith(':${update.symbol}'))) {
+      _topLoser = _topLoser!.applyLiveUpdate(update);
+      changed = true;
+    }
+
+    for (int i = 0; i < _favoriteStocks.length; i++) {
+      if (_favoriteStocks[i].symbol == update.symbol ||
+          _favoriteStocks[i].id == update.symbol ||
+          _favoriteStocks[i].symbol.endsWith(':${update.symbol}')) {
+        _favoriteStocks[i] = _favoriteStocks[i].applyLiveUpdate(update);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      setState(() {});
+    }
   }
 
   Future<void> _refreshFavoritesOnly(Set<String> symbols) async {
@@ -459,6 +502,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             date: currentDate,
                             isMarketOpen: _isMarketOpen(),
                           ),
+                          const SizedBox(height: 12),
+                          const MarketStatusHeader(),
+                          const SizedBox(height: 12),
+                          _buildQuickToolsGrid(),
                           const SizedBox(height: 14),
                           if (!_translationsAvailable) _buildTranslationAlert(),
                           if (_marketIndices.isNotEmpty) ...[
@@ -892,10 +939,147 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildQuickToolsGrid() {
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickToolCard(
+            title: 'مقارنة سهمين',
+            subtitle: 'تحليل مقارن',
+            icon: Icons.compare_arrows_rounded,
+            color: AppColors.primaryBlue,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const StockComparisonScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _QuickToolCard(
+            title: 'محول العملات',
+            subtitle: 'أسعار الصرف',
+            icon: Icons.currency_exchange_rounded,
+            color: const Color(0xFF16A34A),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CurrencyConverterScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _QuickToolCard(
+            title: 'تنبيهات الأسعار',
+            subtitle: 'إشعارات حية',
+            icon: Icons.notifications_active_outlined,
+            color: const Color(0xFFD97706),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PriceAlertsScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   void _openStockDetail(StockModel stock) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => StockDetailScreen(stock: stock)),
     ).then((_) => _loadData());
+  }
+}
+
+class _QuickToolCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickToolCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.18)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

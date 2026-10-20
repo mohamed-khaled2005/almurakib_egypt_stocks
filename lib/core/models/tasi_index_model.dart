@@ -24,7 +24,7 @@ class TasiIndexModel {
     }
 
     final firstAny = resp.first;
-    final first = firstAny is Map ? Map<String, dynamic>.from(firstAny as Map) : <String, dynamic>{};
+    final first = firstAny is Map ? Map<String, dynamic>.from(firstAny) : <String, dynamic>{};
 
     final active = (first['active'] is Map) ? Map<String, dynamic>.from(first['active'] as Map) : <String, dynamic>{};
 

@@ -12,6 +12,7 @@ import '../data/country_options.dart';
 import '../models/app_preferences_model.dart';
 import '../models/educational_article_model.dart';
 import '../models/managed_app_user.dart';
+import '../core/api/api_keys.dart';
 import '../models/manual_ad_model.dart';
 import '../models/remote_ui_config_model.dart';
 import '../services/app_manager_api_service.dart';
@@ -85,6 +86,10 @@ class AppManagerProvider with ChangeNotifier {
   ManagedMenuCta? get menuCta => _remoteUiConfig.menuCta;
   List<SocialLinkModel> get socialLinks => _remoteUiConfig.socialLinks;
   ManualAdModel? get popupAd => _remoteUiConfig.popupAd;
+  ManagedMarketConfig get marketConfig => _remoteUiConfig.market;
+  bool get isMarketClosedByManager => !_remoteUiConfig.market.isOpen;
+  String get marketClosedMessage => _remoteUiConfig.market.message;
+  AppUpdateConfig get appUpdate => _remoteUiConfig.appUpdate;
   List<EducationalArticleSummary> get articles => _articles;
   String get suggestedCountryCode => _resolveAudienceCountryCode();
   int get appLaunchCount => _appLaunchCount;
@@ -624,6 +629,18 @@ class AppManagerProvider with ChangeNotifier {
         popupAd: filteredPopupAd,
         clearPopupAd: filteredPopupAd == null,
       );
+
+      // Configure dynamic keys if provided by manager
+      if (_remoteUiConfig.fcsApiKey != null && _remoteUiConfig.fcsApiKey!.isNotEmpty) {
+        ApiKeys.setFcsApiKey(_remoteUiConfig.fcsApiKey);
+      }
+      if (_remoteUiConfig.liveSocketKey != null && _remoteUiConfig.liveSocketKey!.isNotEmpty) {
+        ApiKeys.setLiveSocketKey(_remoteUiConfig.liveSocketKey);
+      }
+      if (_remoteUiConfig.translationUrl != null && _remoteUiConfig.translationUrl!.isNotEmpty) {
+        ApiKeys.setTranslationUrl(_remoteUiConfig.translationUrl);
+      }
+
       notifyListeners();
       await FacebookSdkService.instance.configure(_remoteUiConfig.facebookSdk);
     } catch (_) {

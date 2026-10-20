@@ -141,22 +141,58 @@ class StockListItem extends StatelessWidget {
                         height: 1.15,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Flexible(
-                          child: Text(
-                            stock.symbol,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
+                        Text(
+                          stock.symbol,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        if (stock.isReit)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.teal.withOpacity(0.3)),
+                            ),
+                            child: const Text(
+                              'ريت',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal,
+                              ),
+                            ),
+                          ),
+                        if (stock.isEtf)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                            ),
+                            child: const Text(
+                              'ETF',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple,
+                              ),
+                            ),
+                          ),
                         Container(
                           width: 4,
                           height: 4,
@@ -165,7 +201,6 @@ class StockListItem extends StatelessWidget {
                             shape: BoxShape.circle,
                           ),
                         ),
-                        const SizedBox(width: 6),
                         Text(
                           isGain ? 'مرتفع' : 'منخفض',
                           style: TextStyle(
@@ -177,6 +212,18 @@ class StockListItem extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (stock.hasSpread) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'طلب: ${stock.bid!.toStringAsFixed(2)} | عرض: ${stock.ask!.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 10,
+                          color: AppColors.textSecondary.withOpacity(0.85),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -9,9 +10,13 @@ import '../core/api/api_endpoints.dart';
 
 import '../core/models/stock_model.dart';
 import '../core/models/stock_indicator_model.dart';
+import '../core/models/dividend_model.dart';
+import '../core/models/stock_forecast_model.dart';
+import '../core/models/financial_data_model.dart';
 import '../core/services/stock_service.dart';
 import '../core/services/favorites_service.dart';
 import '../core/services/last_update_service.dart';
+import '../core/services/live_socket_service.dart';
 import '../core/utils/formatters.dart';
 import '../core/utils/constants.dart';
 import '../providers/app_manager_provider.dart';
@@ -19,6 +24,9 @@ import '../providers/app_manager_provider.dart';
 import '../animations/fade_animation.dart';
 import '../animations/slide_animation.dart';
 import 'auth_screen.dart';
+import 'interactive_chart_screen.dart';
+import 'price_alerts_screen.dart';
+import 'stock_comparison_screen.dart';
 import '../widgets/technical_indicators_widget.dart';
 import '../widgets/stock_performance_tab.dart';
 
@@ -65,6 +73,16 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     with SingleTickerProviderStateMixin {
   StockModel? _stock;
   StockIndicatorModel? _indicators;
+  DividendData? _dividendData;
+  bool _loadingDividends = true;
+
+  StockForecast? _forecastData;
+  bool _loadingForecast = true;
+
+  FinancialsData? _financialsData;
+  bool _loadingFinancials = true;
+
+  StreamSubscription? _livePriceSubscription;
 
   List<_Candle> _yearCandles = [];
   List<_Candle> _visibleCandles = [];
@@ -117,7 +135,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
   void initState() {
     super.initState();
 
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
 
     _stock = widget.stock;
     _checkAccessAndLoad();
@@ -154,6 +172,67 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     _loadStockFresh();
     _loadIndicators();
     _loadYearHistoryOnce();
+    _loadDividends();
+    _loadForecast();
+    _loadFinancials();
+    _subscribeLiveSocket();
+  }
+
+  void _subscribeLiveSocket() {
+    final sym = widget.stock.symbol;
+    LiveSocketService.instance.subscribe(sym);
+    _livePriceSubscription =
+        LiveSocketService.instance.streamFor(sym).listen((update) {
+      if (!mounted) return;
+      setState(() {
+        _stock = (_stock ?? widget.stock).applyLiveUpdate(update);
+      });
+    });
+  }
+
+  Future<void> _loadDividends() async {
+    setState(() => _loadingDividends = true);
+    try {
+      final res = await StockService.getDividends(widget.stock.symbol);
+      if (mounted) {
+        setState(() {
+          _dividendData = res;
+          _loadingDividends = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingDividends = false);
+    }
+  }
+
+  Future<void> _loadForecast() async {
+    setState(() => _loadingForecast = true);
+    try {
+      final res = await StockService.getForecast(widget.stock.symbol);
+      if (mounted) {
+        setState(() {
+          _forecastData = res;
+          _loadingForecast = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingForecast = false);
+    }
+  }
+
+  Future<void> _loadFinancials() async {
+    setState(() => _loadingFinancials = true);
+    try {
+      final res = await StockService.getFinancials(widget.stock.symbol);
+      if (mounted) {
+        setState(() {
+          _financialsData = res;
+          _loadingFinancials = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingFinancials = false);
+    }
   }
 
   StockModel get _safeStock => _stock ?? widget.stock;
@@ -740,7 +819,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
 
           const SizedBox(height: 12),
           SlideAnimation(child: _buildHeroPriceSection(changeColor)),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           SlideAnimation(
               delay: const Duration(milliseconds: 100), child: _buildTabs()),
           const SizedBox(height: 8),
@@ -754,10 +833,48 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                 _buildChartTab(changeColor),
                 StockPerformanceTab(stock: stock),
                 _buildIndicatorsTab(),
+                _buildDividendsTab(),
+                _buildFinancialsTab(),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 11.5,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -784,7 +901,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                   letterSpacing: -1,
                 ),
               ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
@@ -829,14 +946,173 @@ class _StockDetailScreenState extends State<StockDetailScreen>
             ],
           ),
         ),
+
+        // Bid / Ask Spread from Socket
+        if (stock.hasSpread) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'طلب: ${_fmtMoney(stock.bid!)} | عرض: ${_fmtMoney(stock.ask!)} • الفارق: ${_moneyFmt.format(stock.spread!)} ج.م',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 10),
+        // Action Chips: Interactive Chart, Price Alerts, Compare
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildActionChip(
+              icon: Icons.candlestick_chart_rounded,
+              label: 'الشارت التفاعلي',
+              color: AppColors.primaryBlue,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InteractiveChartScreen(stock: stock),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildActionChip(
+              icon: Icons.add_alert_rounded,
+              label: 'تنبيه سعر',
+              color: Colors.amber.shade800,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PriceAlertsScreen(preselectedStock: stock),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildActionChip(
+              icon: Icons.compare_arrows_rounded,
+              label: 'مقارنة',
+              color: Colors.teal,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => StockComparisonScreen(initialStockA: stock),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+
+        // Analyst Forecast snippet if available
+        if (!_loadingForecast && _forecastData != null && _forecastData!.hasForecast) ...[
+          const SizedBox(height: 8),
+          _buildAnalystForecastSection(),
+        ],
       ],
+    );
+  }
+
+  Widget _buildAnalystForecastSection() {
+    final f = _forecastData;
+    if (f == null || !f.hasForecast) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.primaryBlue.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primaryBlue.withOpacity(0.15)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.query_stats_rounded, size: 16, color: AppColors.primaryBlue),
+                  SizedBox(width: 6),
+                  Text(
+                    'توقعات المحللين للأسعار المستهدفة',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryBlue,
+                    ),
+                  ),
+                ],
+              ),
+              if (f.avgTarget != null)
+                Text(
+                  'المتوسط: ${f.avgTarget!.toStringAsFixed(1)} ج.م',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'الأدنى: ${f.lowTarget != null ? f.lowTarget!.toStringAsFixed(1) : "-"} ج.م',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (f.medianTarget != null)
+                Text(
+                  'الوسيط: ${f.medianTarget!.toStringAsFixed(1)} ج.م',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              Text(
+                'الأعلى: ${f.highTarget != null ? f.highTarget!.toStringAsFixed(1) : "-"} ج.م',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 11,
+                  color: AppColors.gain,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildTabs() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      height: 56,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      height: 52,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -851,11 +1127,12 @@ class _StockDetailScreenState extends State<StockDetailScreen>
       ),
       child: TabBar(
         controller: _tabController,
+        isScrollable: true,
+        tabAlignment: TabAlignment.center,
         labelColor: Colors.white,
         unselectedLabelColor: AppColors.textSecondary,
-        indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
-        labelPadding: EdgeInsets.zero,
+        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
         indicatorPadding: EdgeInsets.zero,
         indicator: BoxDecoration(
           color: AppColors.primaryBlue,
@@ -870,18 +1147,20 @@ class _StockDetailScreenState extends State<StockDetailScreen>
         ),
         labelStyle: const TextStyle(
           fontFamily: 'Tajawal',
-          fontSize: 13.5,
+          fontSize: 13,
           fontWeight: FontWeight.w900,
         ),
         unselectedLabelStyle: const TextStyle(
           fontFamily: 'Tajawal',
-          fontSize: 13.0,
+          fontSize: 12.5,
           fontWeight: FontWeight.w800,
         ),
         tabs: const [
-          Tab(child: _TabLabel('تحليل الأداء')),
+          Tab(child: _TabLabel('الرسم البياني')),
           Tab(child: _TabLabel('أداء السهم')),
           Tab(child: _TabLabel('المؤشرات الفنية')),
+          Tab(child: _TabLabel('توزيعات الأرباح')),
+          Tab(child: _TabLabel('البيانات والنسب')),
         ],
       ),
     );
@@ -1528,8 +1807,347 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     );
   }
 
+  Widget _buildDividendsTab() {
+    if (_loadingDividends) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryBlue),
+      );
+    }
+
+    final data = _dividendData;
+    if (data == null || (!data.hasPayouts && data.currentYield == null && data.payoutRatio == null)) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.savings_outlined, size: 54, color: AppColors.textSecondary.withOpacity(0.4)),
+              const SizedBox(height: 14),
+              Text(
+                'لا توجد توزيعات أرباح معلنة لهذا السهم حالياً',
+                style: TextStyle(fontFamily: 'Tajawal', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'يتم تحديث سجل التوزيعات فور إعلان مجلس إدارة الشركة عن أي توزيعات نقدية.',
+                style: TextStyle(fontFamily: 'Tajawal', fontSize: 13, color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      physics: const BouncingScrollPhysics(),
+      children: [
+        // Summary Cards Grid
+        Row(
+          children: [
+            Expanded(
+              child: _buildDividendMetricCard(
+                title: 'عائد التوزيع',
+                value: data.currentYield != null ? '${data.currentYield!.toStringAsFixed(2)}%' : 'غير متوفر',
+                icon: Icons.percent_rounded,
+                color: AppColors.gain,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildDividendMetricCard(
+                title: 'نسبة التوزيع',
+                value: data.payoutRatio != null ? '${data.payoutRatio!.toStringAsFixed(1)}%' : 'غير متوفر',
+                icon: Icons.pie_chart_outline_rounded,
+                color: AppColors.primaryBlue,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildDividendMetricCard(
+                title: 'حصة السهم (DPS)',
+                value: data.dps != null ? '${data.dps!.toStringAsFixed(2)} ج.م' : 'غير متوفر',
+                icon: Icons.payments_outlined,
+                color: Colors.amber.shade800,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+        Text(
+          'سجل التوزيعات التاريخية والنقدية',
+          style: TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        if (data.payouts.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                'لا توجد سجلات توزيعات سابقة مسجلة.',
+                style: TextStyle(fontFamily: 'Tajawal', fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                Container(
+                  color: AppColors.primaryBlue.withOpacity(0.06),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: const Row(
+                    children: [
+                      Expanded(flex: 3, child: Text('تاريخ الاستحقاق', style: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryBlue))),
+                      Expanded(flex: 3, child: Text('تاريخ الدفع', style: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryBlue))),
+                      Expanded(flex: 2, child: Text('القيمة', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryBlue))),
+                      Expanded(flex: 2, child: Text('الدورية', textAlign: TextAlign.end, style: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryBlue))),
+                    ],
+                  ),
+                ),
+                ...data.payouts.map((p) {
+                  final exStr = p.exDate != null ? DateFormat('yyyy/MM/dd').format(p.exDate!) : '-';
+                  final payStr = p.paymentDate != null ? DateFormat('yyyy/MM/dd').format(p.paymentDate!) : '-';
+                  final typeAr = p.type == 'annual' ? 'سنوي' : (p.type == 'interim' ? 'مرحلي' : p.type);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.1))),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(flex: 3, child: Text(exStr, style: TextStyle(fontFamily: 'Tajawal', fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
+                        Expanded(flex: 3, child: Text(payStr, style: TextStyle(fontFamily: 'Tajawal', fontSize: 12, color: AppColors.textSecondary))),
+                        Expanded(flex: 2, child: Text('${p.amount.toStringAsFixed(2)} ج.م', textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Tajawal', fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.gain))),
+                        Expanded(flex: 2, child: Text(typeAr, textAlign: TextAlign.end, style: TextStyle(fontFamily: 'Tajawal', fontSize: 12, color: AppColors.textSecondary))),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDividendMetricCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 8),
+          Text(title, style: TextStyle(fontFamily: 'Tajawal', fontSize: 11, color: AppColors.textSecondary)),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinancialsTab() {
+    if (_loadingFinancials) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryBlue),
+      );
+    }
+
+    final data = _financialsData;
+    if (data == null || data.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.assessment_outlined, size: 54, color: AppColors.textSecondary.withOpacity(0.4)),
+              const SizedBox(height: 14),
+              Text(
+                'البيانات المالية غير متوفرة لهذا السهم حالياً',
+                style: TextStyle(fontFamily: 'Tajawal', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      physics: const BouncingScrollPhysics(),
+      children: [
+        if (data.ratios.isNotEmpty) ...[
+          _buildFinancialSectionCard(
+            title: 'المؤشرات والنسب المالية',
+            icon: Icons.pie_chart_rounded,
+            items: data.ratios,
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (data.balanceSheet.isNotEmpty) ...[
+          _buildFinancialSectionCard(
+            title: 'الميزانية العمومية',
+            icon: Icons.account_balance_wallet_rounded,
+            items: data.balanceSheet,
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (data.incomeStatement.isNotEmpty) ...[
+          _buildFinancialSectionCard(
+            title: 'قائمة الدخل',
+            icon: Icons.receipt_long_rounded,
+            items: data.incomeStatement,
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (data.cashFlow.isNotEmpty) ...[
+          _buildFinancialSectionCard(
+            title: 'قائمة التدفقات النقدية',
+            icon: Icons.swap_vertical_circle_rounded,
+            items: data.cashFlow,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFinancialSectionCard({
+    required String title,
+    required IconData icon,
+    required List<FinancialMetricItem> items,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Icon(icon, color: AppColors.primaryBlue, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ...items.take(8).map((metric) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.08))),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      metric.name,
+                      style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    metric.displayValue,
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _livePriceSubscription?.cancel();
+    LiveSocketService.instance.unsubscribe(widget.stock.symbol);
     _setLockParentGestures(false);
     _tabController.dispose();
     super.dispose();

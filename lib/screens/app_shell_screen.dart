@@ -20,16 +20,23 @@ import '../widgets/manual_ad_banner.dart';
 import 'about_screen.dart';
 import 'account_screen.dart';
 import 'all_stocks_screen.dart';
+import 'app_maintenance_screen.dart';
 import 'auth_screen.dart';
 import 'contact_screen.dart';
+import 'currency_converter_screen.dart';
 import 'educational_content_screen.dart';
 import 'favorites_screen.dart';
 import 'home_screen.dart';
 import 'market_today_screen.dart';
 import 'market_indices_screen.dart';
 import 'our_apps_screen.dart';
+import 'price_alerts_screen.dart';
 import 'profile_completion_screen.dart';
+import 'stock_comparison_screen.dart';
 import 'stock_detail_screen.dart';
+import '../core/services/live_socket_service.dart';
+import '../core/services/price_alerts_service.dart';
+import '../widgets/app_update_dialog.dart';
 
 const String _almurakibWebsiteUrl = 'https://almurakib.com';
 const Color _shellTop = Color(0xFFFFFFFF);
@@ -80,6 +87,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
   bool _popupDialogActive = false;
   bool _isStocksExpanded = true;
   bool _isAboutExpanded = false;
+  bool _isToolsExpanded = false;
   late final bool _hideOurAppsTab;
   late final List<Widget?> _pageCache;
   final Set<int> _loadedPageIndices = <int>{0};
@@ -109,6 +117,8 @@ class _AppShellScreenState extends State<AppShellScreen> {
 
     FavoritesService.init();
     TranslationService.getTranslations(forceRefresh: true);
+    LiveSocketService.instance.init();
+    PriceAlertsService.instance.init();
     AppLifecycleSignals.resumeTick.addListener(_onResumeSignal);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -681,6 +691,13 @@ class _AppShellScreenState extends State<AppShellScreen> {
               ),
             ),
             Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _buildToolsAccordion(
+                closeOnSelect: closeOnSelect,
+                compact: compact,
+              ),
+            ),
+            Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: _buildSideNavTile(
                 item: _educationNavItem,
@@ -815,6 +832,188 @@ class _AppShellScreenState extends State<AppShellScreen> {
           _isStocksExpanded = !_isStocksExpanded;
         });
       },
+    );
+  }
+
+  Widget _buildToolsAccordion({
+    required bool closeOnSelect,
+    required bool compact,
+  }) {
+    final borderRadius = BorderRadius.circular(compact ? 12 : 14);
+    return AnimatedContainer(
+      duration: AppAnimations.buttonAnimation,
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: borderRadius,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          children: <Widget>[
+            InkWell(
+              borderRadius: borderRadius,
+              onTap: () {
+                setState(() {
+                  _isToolsExpanded = !_isToolsExpanded;
+                });
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 12 : 14,
+                  vertical: compact ? 13 : 14,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.handyman_outlined,
+                      size: compact ? 20 : 22,
+                      color: AppColors.textSecondary,
+                    ),
+                    SizedBox(width: compact ? 8 : 10),
+                    Expanded(
+                      child: Text(
+                        'أدوات السوق',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: compact ? 12.0 : 12.8,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _isToolsExpanded ? 0.5 : 0,
+                      duration: AppAnimations.buttonAnimation,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: AppAnimations.buttonAnimation,
+              alignment: Alignment.topCenter,
+              child: _isToolsExpanded
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                      child: Column(
+                        children: [
+                          _buildActionTile(
+                            title: 'مقارنة سهمين',
+                            icon: Icons.compare_arrows_rounded,
+                            compact: compact,
+                            onTap: () {
+                              if (closeOnSelect && Navigator.of(context).canPop()) {
+                                Navigator.of(context).pop();
+                              }
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const StockComparisonScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          _buildActionTile(
+                            title: 'محول العملات',
+                            icon: Icons.currency_exchange_rounded,
+                            compact: compact,
+                            onTap: () {
+                              if (closeOnSelect && Navigator.of(context).canPop()) {
+                                Navigator.of(context).pop();
+                              }
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const CurrencyConverterScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          _buildActionTile(
+                            title: 'تنبيهات الأسعار',
+                            icon: Icons.notifications_active_outlined,
+                            compact: compact,
+                            onTap: () {
+                              if (closeOnSelect && Navigator.of(context).canPop()) {
+                                Navigator.of(context).pop();
+                              }
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PriceAlertsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionTile({
+    required String title,
+    required IconData icon,
+    required bool compact,
+    required VoidCallback onTap,
+  }) {
+    final borderRadius = BorderRadius.circular(compact ? 12 : 14);
+    return SizedBox(
+      height: compact ? 42 : 46,
+      child: Material(
+        color: const Color(0xFFFDF6F7),
+        borderRadius: borderRadius,
+        child: InkWell(
+          borderRadius: borderRadius,
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsetsDirectional.fromSTEB(
+              compact ? 16 : 18,
+              0,
+              compact ? 10 : 12,
+              0,
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  icon,
+                  size: compact ? 17 : 18,
+                  color: AppColors.primaryBlue,
+                ),
+                SizedBox(width: compact ? 8 : 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      fontSize: compact ? 11.5 : 12.1,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 12,
+                  color: AppColors.textSecondary.withOpacity(0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1293,6 +1492,22 @@ class _AppShellScreenState extends State<AppShellScreen> {
   Widget build(BuildContext context) {
     final manager = context.watch<AppManagerProvider>();
     final isDesktopNav = _isDesktopNav(context);
+
+    if (manager.isMarketClosedByManager) {
+      return AppMaintenanceScreen(
+        title: 'السوق مغلق حالياً',
+        message: manager.marketClosedMessage,
+        onRetry: () => manager.refreshRemoteUiConfig(),
+      );
+    }
+
+    if (manager.appUpdate.updateAvailable) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          AppUpdateDialog.showIfAvailable(context, manager.appUpdate);
+        }
+      });
+    }
 
     if (manager.initialized && manager.requiresProfileCompletion) {
       _scheduleMandatoryProfileCompletion(manager);

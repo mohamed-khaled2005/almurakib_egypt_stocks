@@ -1,15 +1,21 @@
 // lib/screens/all_stocks_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/models/stock_model.dart';
 import '../core/services/stock_service.dart';
 import '../core/services/favorites_service.dart';
+import '../core/services/live_socket_service.dart';
 import '../core/utils/constants.dart';
 import '../core/utils/formatters.dart';
 import '../animations/fade_animation.dart';
 import '../animations/slide_animation.dart';
+import '../widgets/market_status_header.dart';
 import 'stock_detail_screen.dart';
+import 'stock_comparison_screen.dart';
+import 'currency_converter_screen.dart';
+import 'price_alerts_screen.dart';
 
 // --- Enums ---
 enum StockSortType {
@@ -28,6 +34,12 @@ enum StockFilterType {
   favorites,
 }
 
+enum AssetCategory {
+  stocks,
+  reits,
+  etfs,
+}
+
 class AllStocksScreen extends StatefulWidget {
   const AllStocksScreen({super.key});
 
@@ -44,6 +56,7 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
   // --- UI / State ---
   bool _loading = true;
   String? _error;
+  AssetCategory _selectedCategory = AssetCategory.stocks;
 
   // Pagination
   final ScrollController _scrollController = ScrollController();
@@ -59,6 +72,7 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
   StockFilterType _filterType = StockFilterType.all;
 
   final Map<String, String> _searchIndexCache = {};
+  StreamSubscription<LiveQuoteUpdate>? _socketSub;
 
   // --- Lifecycle ---
   @override
@@ -66,17 +80,44 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
+    _socketSub = LiveSocketService.instance.priceStream.listen(_onLiveQuote);
     _loadInitial();
   }
 
   @override
   void dispose() {
+    _socketSub?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
 
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onLiveQuote(LiveQuoteUpdate update) {
+    if (!mounted) return;
+    bool anyUpdated = false;
+
+    for (int i = 0; i < _allStocks.length; i++) {
+      if (_allStocks[i].symbol == update.symbol ||
+          _allStocks[i].id == update.symbol ||
+          _allStocks[i].symbol.endsWith(':${update.symbol}')) {
+        _allStocks[i] = _allStocks[i].applyLiveUpdate(update);
+        anyUpdated = true;
+      }
+    }
+
+    if (anyUpdated) {
+      for (int i = 0; i < _filteredStocks.length; i++) {
+        if (_filteredStocks[i].symbol == update.symbol ||
+            _filteredStocks[i].id == update.symbol ||
+            _filteredStocks[i].symbol.endsWith(':${update.symbol}')) {
+          _filteredStocks[i] = _filteredStocks[i].applyLiveUpdate(update);
+        }
+      }
+      setState(() {});
+    }
   }
 
   // --- Pagination Logic ---
@@ -89,6 +130,14 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
     }
   }
 
+  void _selectCategory(AssetCategory category) {
+    if (_selectedCategory == category) return;
+    setState(() {
+      _selectedCategory = category;
+    });
+    _loadInitial();
+  }
+
   Future<void> _loadInitial() async {
     setState(() {
       _loading = true;
@@ -98,8 +147,21 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
     });
 
     try {
+      Future<List<StockModel>> dataFuture;
+      switch (_selectedCategory) {
+        case AssetCategory.stocks:
+          dataFuture = StockService.getStocksList(perPage: _perPage, page: 1, forceRefresh: true);
+          break;
+        case AssetCategory.reits:
+          dataFuture = StockService.getAssetsByCategory('reits');
+          break;
+        case AssetCategory.etfs:
+          dataFuture = StockService.getAssetsByCategory('etfs');
+          break;
+      }
+
       final results = await Future.wait([
-        StockService.getStocksList(perPage: _perPage, page: 1),
+        dataFuture,
         FavoritesService.getFavorites(),
       ]);
 
@@ -111,7 +173,7 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
 
       _favoriteSymbols = (results[1] as List<String>).toSet();
 
-      _hasMore = _allStocks.length >= _perPage;
+      _hasMore = _selectedCategory == AssetCategory.stocks && _allStocks.length >= _perPage;
       _searchIndexCache.clear();
 
       setState(() {
@@ -122,14 +184,14 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'تعذر تحميل بيانات الأسهم';
+        _error = 'تعذر تحميل البيانات';
         _loading = false;
       });
     }
   }
 
   Future<void> _loadMore() async {
-    if (!_hasMore || _isLoadingMore) return;
+    if (!_hasMore || _isLoadingMore || _selectedCategory != AssetCategory.stocks) return;
 
     setState(() => _isLoadingMore = true);
 
@@ -349,10 +411,21 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
     );
   }
 
+  String _categoryTitle() {
+    switch (_selectedCategory) {
+      case AssetCategory.stocks:
+        return 'جميع الأسهم';
+      case AssetCategory.reits:
+        return 'صناديق ريت العقارية';
+      case AssetCategory.etfs:
+        return 'صناديق المؤشرات ETF';
+    }
+  }
+
   Widget _buildTopControlPanel() {
     return SlideAnimation(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius:
@@ -368,16 +441,112 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Market Status
+            const MarketStatusHeader(),
+            const SizedBox(height: 12),
+
+            // Quick Action Shortcuts
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickActionButton(
+                    icon: Icons.compare_arrows_rounded,
+                    label: 'مقارنة سهمين',
+                    color: AppColors.primaryBlue,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const StockComparisonScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickActionButton(
+                    icon: Icons.currency_exchange_rounded,
+                    label: 'محول العملات',
+                    color: const Color(0xFF16A34A),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CurrencyConverterScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickActionButton(
+                    icon: Icons.notifications_active_outlined,
+                    label: 'تنبيهات الأسعار',
+                    color: const Color(0xFFD97706),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PriceAlertsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Asset Category Selector (الأسهم | صناديق ريت | صناديق المؤشرات)
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _CategoryPill(
+                      title: 'الأسهم',
+                      icon: Icons.show_chart_rounded,
+                      isSelected: _selectedCategory == AssetCategory.stocks,
+                      onTap: () => _selectCategory(AssetCategory.stocks),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: _CategoryPill(
+                      title: 'صناديق ريت',
+                      icon: Icons.apartment_rounded,
+                      isSelected: _selectedCategory == AssetCategory.reits,
+                      onTap: () => _selectCategory(AssetCategory.reits),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: _CategoryPill(
+                      title: 'صناديق المؤشرات',
+                      icon: Icons.pie_chart_outline_rounded,
+                      isSelected: _selectedCategory == AssetCategory.etfs,
+                      onTap: () => _selectCategory(AssetCategory.etfs),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              // ✅ ده أهم تعديل: نخلي المحاذاة من فوق عشان الهيدنج مايتوسّطش مع زر الريفريش
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeadingRow('جميع الأسهم'),
+                _buildHeadingRow(_categoryTitle()),
                 Row(
                   children: [
                     Padding(
-                      // خفيف جدًا عشان النص والزر يركبوا بشكل لطيف مع top-alignment
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         _error != null ? '' : '${_filteredStocks.length} شركة',
@@ -410,7 +579,7 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _SearchField(
               controller: _searchController,
               onClear: () {
@@ -834,6 +1003,118 @@ class _SortButton extends StatelessWidget {
   }
 }
 
+class _QuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.18)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryPill extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _CategoryPill({
+    required this.title,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryBlue : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primaryBlue.withOpacity(0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? Colors.white : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StockCard extends StatelessWidget {
   final StockModel stock;
   final bool isFavorite;
@@ -964,103 +1245,217 @@ class _StockCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
               children: [
-                // Logo
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: _logoWidget(),
-                ),
-                const SizedBox(width: 12),
-
-                // Name
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        stock.displayName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        softWrap: true,
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          fontWeight: FontWeight.bold,
-                          height: 1.15,
-                        ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Logo
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBlue.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _secondaryLabel(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary.withOpacity(0.8),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                      clipBehavior: Clip.antiAlias,
+                      child: _logoWidget(),
+                    ),
+                    const SizedBox(width: 12),
 
-                const SizedBox(width: 10),
-
-                // Price Column
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: priceColMaxW),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        _fmtEgp(stock.price),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodyLarge
-                            .copyWith(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '$sign${stock.changePercent.toStringAsFixed(2)}%',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'Tajawal',
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: color,
+                    // Name & Badges
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            stock.displayName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: true,
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              fontWeight: FontWeight.bold,
+                              height: 1.15,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _secondaryLabel(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.textSecondary.withOpacity(0.8),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              if (stock.isReit) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0D9488).withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'ريت',
+                                    style: TextStyle(
+                                      fontFamily: 'Tajawal',
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0D9488),
+                                    ),
+                                  ),
+                                ),
+                              ] else if (stock.isEtf) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF7C3AED).withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'ETF',
+                                    style: TextStyle(
+                                      fontFamily: 'Tajawal',
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF7C3AED),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+
+                    const SizedBox(width: 10),
+
+                    // Price Column
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: priceColMaxW),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _fmtEgp(stock.price),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodyLarge
+                                .copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$sign${stock.changePercent.toStringAsFixed(2)}%',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 8),
+
+                    IconButton(
+                      onPressed: onFavoriteToggle,
+                      icon: Icon(
+                        isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                        color: isFavorite ? Colors.amber : AppColors.border,
+                        size: 26,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
                 ),
 
-                const SizedBox(width: 8),
-
-                IconButton(
-                  onPressed: onFavoriteToggle,
-                  icon: Icon(
-                    isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
-                    color: isFavorite ? Colors.amber : AppColors.border,
-                    size: 26,
+                // Bid / Ask Spreads row if available
+                if (stock.bid != null && stock.ask != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.black.withOpacity(0.04)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'شراء: ',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              stock.bid!.toStringAsFixed(2),
+                              style: const TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.gain,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'بيع: ',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              stock.ask!.toStringAsFixed(2),
+                              style: const TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.loss,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (stock.spread != null)
+                          Text(
+                            'الفارق: ${stock.spread!.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 10.5,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  visualDensity: VisualDensity.compact,
-                ),
+                ],
               ],
             ),
           ),

@@ -13,6 +13,19 @@ class StockIndicatorModel {
     required this.totalNeutral,
   });
 
+  factory StockIndicatorModel.fallback() {
+    return StockIndicatorModel(
+      indicators: const {},
+      overallSummary: 'Neutral',
+      totalBuy: 0,
+      totalSell: 0,
+      totalNeutral: 0,
+    );
+  }
+
+  IndicatorValue? get rsi => indicators['RSI14'] ?? indicators['rsi'] ?? indicators['RSI'];
+  String get summaryRecommendation => overallSummary;
+
   factory StockIndicatorModel.fromJson(Map<String, dynamic> json) {
     final resp = json['response'];
 
@@ -63,11 +76,11 @@ class StockIndicatorModel {
 
       void extract(dynamic group) {
         if (group is! Map) return;
-        final g = Map<String, dynamic>.from(group as Map);
+        final g = Map<String, dynamic>.from(group);
         for (final entry in g.entries) {
           final v = entry.value;
           if (v is Map) {
-            final m = Map<String, dynamic>.from(v as Map);
+            final m = Map<String, dynamic>.from(v);
             if (m.containsKey('v') && m.containsKey('s')) {
               final key = normKey(entry.key.toString());
               final val = _parseDouble(m['v']);
@@ -94,7 +107,7 @@ class StockIndicatorModel {
     // =========================
     // ✅ Format B: response is Map
     // =========================
-    final response = resp is Map ? Map<String, dynamic>.from(resp as Map) : <String, dynamic>{};
+    final response = resp is Map ? Map<String, dynamic>.from(resp) : <String, dynamic>{};
 
     final indicatorsData = response['indicators'] is Map
         ? Map<String, dynamic>.from(response['indicators'] as Map)
@@ -116,7 +129,7 @@ class StockIndicatorModel {
 
     indicatorsData.forEach((key, value) {
       if (value is Map) {
-        final m = Map<String, dynamic>.from(value as Map);
+        final m = Map<String, dynamic>.from(value);
         if (m.containsKey('v') && m.containsKey('s')) {
           parsedIndicators[key.toString()] = IndicatorValue(
             value: _parseDouble(m['v']),

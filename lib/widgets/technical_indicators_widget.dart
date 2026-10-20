@@ -155,7 +155,6 @@ class TechnicalIndicatorsWidget extends StatelessWidget {
         icon = Icons.arrow_circle_down_rounded;
         break;
       case _SummaryStatus.neutral:
-      default:
         summaryColor = Colors.grey;
         icon = Icons.remove_circle_outline_rounded;
         break;

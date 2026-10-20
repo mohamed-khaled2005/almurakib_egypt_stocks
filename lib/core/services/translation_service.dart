@@ -111,10 +111,7 @@ class TranslationService {
 
       final data = await ApiClient.get(ApiKeys.translationUrl);
 
-      dynamic raw = data['stocks_by_id'];
-      if (raw == null) raw = data['stocksById'];
-      if (raw == null)
-        raw = data; // fallback لِـ JSON shape فقط (مش API fallback)
+      dynamic raw = data['stocks_by_id'] ?? data['stocksById'] ?? data;
 
       if (raw is! Map) {
         isTranslationAvailable = false;

@@ -228,6 +228,42 @@ class PushNotificationService {
     );
   }
 
+  Future<void> showLocalAlert({
+    required String title,
+    required String body,
+    int? id,
+  }) async {
+    if (!_localNotificationsReady) return;
+    try {
+      final notificationId = id ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000);
+      await _localNotifications.show(
+        notificationId,
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _defaultAndroidChannel.id,
+            _defaultAndroidChannel.name,
+            channelDescription: _defaultAndroidChannel.description,
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            playSound: true,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Failed to show local notification: $e');
+      }
+    }
+  }
+
   void _printToken() {
     if (!kDebugMode) return;
 

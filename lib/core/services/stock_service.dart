@@ -6,12 +6,24 @@ import '../models/stock_model.dart';
 import '../models/tasi_index_model.dart';
 import '../models/stock_indicator_model.dart';
 import '../models/stock_performance_model.dart';
+import '../models/dividend_model.dart';
+import '../models/stock_forecast_model.dart';
+import '../models/financial_data_model.dart';
+import '../models/market_status_model.dart';
+import '../models/currency_conversion_model.dart';
 import 'translation_service.dart';
 import 'last_update_service.dart';
+import 'live_socket_service.dart';
 
 class StockService {
   static List<MarketIndexModel>? _marketIndicesCache;
   static Future<List<MarketIndexModel>>? _marketIndicesInFlight;
+  static MarketStatusModel? _cachedMarketStatus;
+  static DateTime? _lastMarketStatusFetch;
+
+  // Cached stocks list to avoid redundant API calls
+  static List<StockModel>? _stocksCache;
+  static DateTime? _lastStocksCacheFetch;
 
   static Future<TasiIndexModel> getTasiIndex() async {
     final indices = await getMarketIndices();
@@ -156,7 +168,11 @@ class StockService {
     LastUpdateService.updateFromApi(data);
 
     final stocks = _parseStocks(data);
-    return await attachArabicNames(stocks);
+    final attached = await attachArabicNames(stocks);
+
+    // Auto-subscribe to live quotes
+    LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
+    return attached;
   }
 
   static Future<List<StockModel>> getTopLosers({int limit = 10}) async {
@@ -175,7 +191,11 @@ class StockService {
     LastUpdateService.updateFromApi(data);
 
     final stocks = _parseStocks(data);
-    return await attachArabicNames(stocks);
+    final attached = await attachArabicNames(stocks);
+
+    // Auto-subscribe to live quotes
+    LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
+    return attached;
   }
 
   static Future<List<StockModel>> getBySymbols(List<String> symbols) async {
@@ -193,7 +213,10 @@ class StockService {
     LastUpdateService.updateFromApi(data);
 
     final stocks = _parseStocks(data);
-    return await attachArabicNames(stocks);
+    final attached = await attachArabicNames(stocks);
+
+    LiveSocketService.instance.subscribeBatch(symbols);
+    return attached;
   }
 
   static String _norm(String s) {
@@ -202,8 +225,19 @@ class StockService {
     return t.contains(':') ? t.split(':').last.trim() : t;
   }
 
-  static Future<List<StockModel>> getStocksList(
-      {int perPage = 500, int page = 1}) async {
+  static Future<List<StockModel>> getStocksList({
+    int perPage = 500,
+    int page = 1,
+    bool forceRefresh = false,
+  }) async {
+    final now = DateTime.now();
+    if (!forceRefresh &&
+        _stocksCache != null &&
+        _lastStocksCacheFetch != null &&
+        now.difference(_lastStocksCacheFetch!) < const Duration(minutes: 1)) {
+      return _stocksCache!;
+    }
+
     final results = await Future.wait([
       ApiClient.get(
         ApiEndpoints.latest(
@@ -227,7 +261,6 @@ class StockService {
     final latestData = results[0];
     final listData = results[1];
 
-    // ✅ حدّث آخر وقت بناءً على الاثنين
     LastUpdateService.updateFromApi(latestData);
     LastUpdateService.updateFromApi(listData);
 
@@ -274,7 +307,51 @@ class StockService {
       return s.copyWith(selfLogo: logo);
     }).toList();
 
-    return await attachArabicNames(merged);
+    final result = await attachArabicNames(merged);
+    _stocksCache = result;
+    _lastStocksCacheFetch = DateTime.now();
+
+    // Subscribe all stocks in batch
+    LiveSocketService.instance.subscribeBatch(result.map((s) => s.symbol).toList());
+
+    return result;
+  }
+
+  /// ✅ Fetch REITs, ETFs, or Stocks Category
+  static Future<List<StockModel>> getAssetsByCategory(String category) async {
+    final cat = category.toLowerCase().trim();
+    if (cat == 'reits' || cat == 'reit') {
+      final data = await ApiClient.get(
+        ApiEndpoints.latest(
+          country: ApiKeys.defaultCountry,
+          getProfile: true,
+          type: 'fund',
+          subType: 'reit',
+          perPage: 100,
+        ),
+      );
+      final stocks = _parseStocks(data);
+      final attached = await attachArabicNames(stocks);
+      LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
+      return attached;
+    } else if (cat == 'etfs' || cat == 'etf') {
+      final data = await ApiClient.get(
+        ApiEndpoints.latest(
+          country: ApiKeys.defaultCountry,
+          getProfile: true,
+          type: 'fund',
+          subType: 'etf',
+          perPage: 100,
+        ),
+      );
+      final stocks = _parseStocks(data);
+      final attached = await attachArabicNames(stocks);
+      LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
+      return attached;
+    }
+
+    // Default to stocks
+    return getStocksList();
   }
 
   static Future<StockModel> getStockDetail(String symbol) async {
@@ -293,27 +370,150 @@ class StockService {
     if (list.isEmpty) throw Exception('لم يتم العثور على بيانات السهم');
 
     final translated = await attachArabicNames([list.first]);
-    return translated.first;
+    final result = translated.first;
+
+    // Subscribe single symbol for fast streaming
+    LiveSocketService.instance.subscribe(result.symbol);
+
+    return result;
   }
 
   static Future<StockIndicatorModel> getIndicators(String symbol) async {
     final data = await ApiClient.get(ApiEndpoints.indicators(symbol: symbol));
-
     LastUpdateService.updateFromApi(data);
-
     return StockIndicatorModel.fromJson(data);
   }
 
   static Future<StockPerformanceModel> getPerformance(String symbol) async {
     final data = await ApiClient.get(ApiEndpoints.performance(symbol: symbol));
-
     LastUpdateService.updateFromApi(data);
-
     return StockPerformanceModel.fromJson(data);
   }
 
-  static Future<List<StockModel>> attachArabicNames(
-      List<StockModel> stocks) async {
+  // ===================================================================
+  // ✅ Dividends (توزيعات الأرباح)
+  // ===================================================================
+  static Future<DividendData> getDividends(String symbol) async {
+    try {
+      final url = ApiEndpoints.dividend(symbol: symbol);
+      final data = await ApiClient.get(url);
+      final resp = data['response'];
+      if (resp is Map) {
+        // May be nested under symbol
+        final stockMap = resp[symbol] ?? resp.values.firstWhere((v) => v is Map, orElse: () => null);
+        if (stockMap is Map) {
+          return DividendData.fromJson(Map<String, dynamic>.from(stockMap));
+        }
+      }
+      return DividendData(
+        ticker: symbol,
+        payouts: const [],
+        historyYield: const {},
+      );
+    } catch (_) {
+      return DividendData(
+        ticker: symbol,
+        payouts: const [],
+        historyYield: const {},
+      );
+    }
+  }
+
+  // ===================================================================
+  // ✅ Analyst Forecasts (توقعات المحللين)
+  // ===================================================================
+  static Future<StockForecast> getForecast(String symbol) async {
+    try {
+      final url = ApiEndpoints.forecast(symbol: symbol);
+      final data = await ApiClient.get(url);
+      final resp = data['response'];
+      if (resp is Map) {
+        final stockMap = resp[symbol] ?? resp.values.firstWhere((v) => v is Map, orElse: () => null);
+        if (stockMap is Map) {
+          return StockForecast.fromJson(Map<String, dynamic>.from(stockMap));
+        }
+      }
+      return StockForecast(ticker: symbol);
+    } catch (_) {
+      return StockForecast(ticker: symbol);
+    }
+  }
+
+  // ===================================================================
+  // ✅ Financial Statements & Ratios (القوائم المالية والنسب)
+  // ===================================================================
+  static Future<FinancialsData> getFinancials(String symbol) async {
+    try {
+      final futures = await Future.wait([
+        ApiClient.get(ApiEndpoints.statistics(symbol: symbol)).catchError((_) => <String, dynamic>{}),
+        ApiClient.get(ApiEndpoints.balanceSheet(symbol: symbol)).catchError((_) => <String, dynamic>{}),
+        ApiClient.get(ApiEndpoints.incomeStatements(symbol: symbol)).catchError((_) => <String, dynamic>{}),
+        ApiClient.get(ApiEndpoints.cashFlow(symbol: symbol)).catchError((_) => <String, dynamic>{}),
+      ]);
+
+      final statData = futures[0]['response'];
+      final balanceData = futures[1]['response'];
+      final incomeData = futures[2]['response'];
+      final cashData = futures[3]['response'];
+
+      return FinancialsData(
+        ticker: symbol,
+        ratios: FinancialsData.parseMetricsFromResponse(statData, subSection: 'statistics'),
+        balanceSheet: FinancialsData.parseMetricsFromResponse(balanceData, subSection: 'balance_sheet'),
+        incomeStatement: FinancialsData.parseMetricsFromResponse(incomeData, subSection: 'income_statement'),
+        cashFlow: FinancialsData.parseMetricsFromResponse(cashData, subSection: 'cash_flow'),
+      );
+    } catch (_) {
+      return FinancialsData(ticker: symbol);
+    }
+  }
+
+  // ===================================================================
+  // ✅ Market Status (حالة السوق والعد التنازلي)
+  // ===================================================================
+  static Future<MarketStatusModel> getMarketStatus({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+    if (!forceRefresh &&
+        _cachedMarketStatus != null &&
+        _lastMarketStatusFetch != null &&
+        now.difference(_lastMarketStatusFetch!) < const Duration(minutes: 3)) {
+      return _cachedMarketStatus!;
+    }
+
+    try {
+      // Use benchmark stock EGX:COMI which has full EGX market hours and session profile
+      final url = ApiEndpoints.profile(symbol: 'EGX:COMI');
+      final data = await ApiClient.get(url);
+      final resp = data['response'];
+      if (resp is Map) {
+        _cachedMarketStatus = MarketStatusModel.fromJson(Map<String, dynamic>.from(resp));
+        _lastMarketStatusFetch = DateTime.now();
+        return _cachedMarketStatus!;
+      }
+    } catch (_) {}
+
+    return _cachedMarketStatus ?? MarketStatusModel.fallback();
+  }
+
+  // ===================================================================
+  // ✅ Currency Converter (محول العملات)
+  // ===================================================================
+  static Future<CurrencyConversionResult> convertCurrency({
+    required String from,
+    required String to,
+    required double amount,
+  }) async {
+    final url = ApiEndpoints.currencyConverter(from: from, to: to, amount: amount);
+    final data = await ApiClient.get(url);
+    return CurrencyConversionResult.fromJson(
+      json: data,
+      from: from,
+      to: to,
+      amount: amount,
+    );
+  }
+
+  static Future<List<StockModel>> attachArabicNames(List<StockModel> stocks) async {
     final translations = await TranslationService.getTranslations();
     if (translations == null) return stocks;
 

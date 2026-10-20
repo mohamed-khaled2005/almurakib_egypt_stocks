@@ -128,6 +128,77 @@ class SocialLinkModel {
   }
 }
 
+class ManagedMarketConfig {
+  final String status;
+  final bool isOpen;
+  final String message;
+  final String? updatedAt;
+
+  const ManagedMarketConfig({
+    required this.status,
+    required this.isOpen,
+    required this.message,
+    this.updatedAt,
+  });
+
+  factory ManagedMarketConfig.open() {
+    return const ManagedMarketConfig(
+      status: 'open',
+      isOpen: true,
+      message: 'السوق مفتوح حالياً.',
+    );
+  }
+
+  factory ManagedMarketConfig.fromJson(Map<String, dynamic> json) {
+    final status = (json['status'] ?? 'open').toString().toLowerCase();
+    final isOpen = json['is_open'] == true || status == 'open';
+    final message = (json['message'] ?? '').toString().trim();
+
+    return ManagedMarketConfig(
+      status: status,
+      isOpen: isOpen,
+      message: message.isNotEmpty
+          ? message
+          : (isOpen ? 'السوق مفتوح حالياً.' : 'التطبيق قيد الصيانة، يرجى المحاولة بعد قليل.'),
+      updatedAt: json['updated_at']?.toString(),
+    );
+  }
+}
+
+class AppUpdateConfig {
+  final bool updateAvailable;
+  final bool forceUpdate;
+  final String? latestVersion;
+  final String? minVersion;
+  final String? title;
+  final String? message;
+  final String? storeUrl;
+
+  const AppUpdateConfig({
+    this.updateAvailable = false,
+    this.forceUpdate = false,
+    this.latestVersion,
+    this.minVersion,
+    this.title,
+    this.message,
+    this.storeUrl,
+  });
+
+  factory AppUpdateConfig.none() => const AppUpdateConfig();
+
+  factory AppUpdateConfig.fromJson(Map<String, dynamic> json) {
+    return AppUpdateConfig(
+      updateAvailable: json['update_available'] == true || json['has_update'] == true,
+      forceUpdate: json['force_update'] == true,
+      latestVersion: json['latest_version']?.toString(),
+      minVersion: json['min_version']?.toString(),
+      title: json['title']?.toString(),
+      message: json['message']?.toString(),
+      storeUrl: json['store_url']?.toString() ?? json['update_url']?.toString(),
+    );
+  }
+}
+
 class RemoteUiConfigModel {
   const RemoteUiConfigModel({
     required this.menuCta,
@@ -135,6 +206,11 @@ class RemoteUiConfigModel {
     required this.ourApps,
     required this.facebookSdk,
     required this.popupAd,
+    required this.market,
+    required this.appUpdate,
+    this.fcsApiKey,
+    this.translationUrl,
+    this.liveSocketKey,
   });
 
   final ManagedMenuCta? menuCta;
@@ -142,6 +218,11 @@ class RemoteUiConfigModel {
   final List<ManagedAppListing> ourApps;
   final FacebookSdkConfig facebookSdk;
   final ManualAdModel? popupAd;
+  final ManagedMarketConfig market;
+  final AppUpdateConfig appUpdate;
+  final String? fcsApiKey;
+  final String? translationUrl;
+  final String? liveSocketKey;
 
   factory RemoteUiConfigModel.empty() {
     return RemoteUiConfigModel(
@@ -150,6 +231,8 @@ class RemoteUiConfigModel {
       ourApps: const <ManagedAppListing>[],
       facebookSdk: FacebookSdkConfig.disabled(),
       popupAd: null,
+      market: ManagedMarketConfig.open(),
+      appUpdate: AppUpdateConfig.none(),
     );
   }
 
@@ -159,10 +242,20 @@ class RemoteUiConfigModel {
     final rawOurApps = json['our_apps'];
     final rawFacebookSdk = json['facebook_sdk'];
     final rawPopupAd = json['popup_ad'];
+    final rawMarket = json['market'];
+    final rawAppUpdate = json['app_update'] ?? json['update'];
 
     final ManagedMenuCta? menuCta = rawMenuCta is Map<String, dynamic>
         ? ManagedMenuCta.fromJson(rawMenuCta)
         : null;
+
+    final ManagedMarketConfig market = rawMarket is Map<String, dynamic>
+        ? ManagedMarketConfig.fromJson(rawMarket)
+        : ManagedMarketConfig.open();
+
+    final AppUpdateConfig appUpdate = rawAppUpdate is Map<String, dynamic>
+        ? AppUpdateConfig.fromJson(rawAppUpdate)
+        : AppUpdateConfig.none();
 
     return RemoteUiConfigModel(
       menuCta: menuCta != null && menuCta.isUsable ? menuCta : null,
@@ -195,6 +288,11 @@ class RemoteUiConfigModel {
       popupAd: rawPopupAd is Map<String, dynamic>
           ? ManualAdModel.fromJson(rawPopupAd)
           : null,
+      market: market,
+      appUpdate: appUpdate,
+      fcsApiKey: json['fcs_api_key']?.toString() ?? json['api_key']?.toString(),
+      translationUrl: json['translation_url']?.toString() ?? json['arabic_names_url']?.toString(),
+      liveSocketKey: json['livesocket_key']?.toString() ?? json['socket_key']?.toString(),
     );
   }
 
@@ -204,6 +302,11 @@ class RemoteUiConfigModel {
     List<ManagedAppListing>? ourApps,
     FacebookSdkConfig? facebookSdk,
     ManualAdModel? popupAd,
+    ManagedMarketConfig? market,
+    AppUpdateConfig? appUpdate,
+    String? fcsApiKey,
+    String? translationUrl,
+    String? liveSocketKey,
     bool clearMenuCta = false,
     bool clearPopupAd = false,
   }) {
@@ -213,6 +316,11 @@ class RemoteUiConfigModel {
       ourApps: ourApps ?? this.ourApps,
       facebookSdk: facebookSdk ?? this.facebookSdk,
       popupAd: clearPopupAd ? null : (popupAd ?? this.popupAd),
+      market: market ?? this.market,
+      appUpdate: appUpdate ?? this.appUpdate,
+      fcsApiKey: fcsApiKey ?? this.fcsApiKey,
+      translationUrl: translationUrl ?? this.translationUrl,
+      liveSocketKey: liveSocketKey ?? this.liveSocketKey,
     );
   }
 }
