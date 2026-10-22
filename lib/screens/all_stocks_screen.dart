@@ -682,7 +682,7 @@ class _AllStocksScreenState extends State<AllStocksScreen> {
             Icon(Icons.search_off_rounded, size: 64, color: AppColors.border),
             const SizedBox(height: 16),
             Text(
-              'لا توجد نتائج مطابقة',
+              (_selectedCategory == AssetCategory.etfs ? 'لا توجد صناديق مؤشرات متداولة (ETF) مدرجة حالياً' : 'لا توجد نتائج مطابقة'),
               style: AppTextStyles.headingSmall
                   .copyWith(color: AppColors.textSecondary),
             ),

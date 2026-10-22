@@ -3,7 +3,7 @@ description: تطبيق مراقب الأسهم المصرية - تطبيق اح
 
 publish_to: 'none'
 
-version: 5.0.19+19
+version: 5.0.20+20
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -59,6 +59,7 @@ flutter:
   assets:
     - assets/images/Icon.png
     - assets/images/logo.png
+    - assets/data/egx_stocks_ar.json
 
   fonts:
     - family: Tajawal

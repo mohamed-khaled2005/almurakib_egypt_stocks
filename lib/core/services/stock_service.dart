@@ -335,19 +335,24 @@ class StockService {
       LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
       return attached;
     } else if (cat == 'etfs' || cat == 'etf') {
-      final data = await ApiClient.get(
-        ApiEndpoints.latest(
-          country: ApiKeys.defaultCountry,
-          getProfile: true,
-          type: 'fund',
-          subType: 'etf',
-          perPage: 100,
-        ),
-      );
-      final stocks = _parseStocks(data);
-      final attached = await attachArabicNames(stocks);
-      LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
-      return attached;
+      try {
+        final data = await ApiClient.get(
+          ApiEndpoints.latest(
+            country: ApiKeys.defaultCountry,
+            getProfile: true,
+            type: 'fund',
+            subType: 'etf',
+            perPage: 100,
+          ),
+        );
+        final stocks = _parseStocks(data);
+        final attached = await attachArabicNames(stocks);
+        LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
+        return attached;
+      } catch (_) {
+        // Upstream provider may not have ETF funds for this market
+        return <StockModel>[];
+      }
     }
 
     // Default to stocks
@@ -385,9 +390,13 @@ class StockService {
   }
 
   static Future<StockPerformanceModel> getPerformance(String symbol) async {
-    final data = await ApiClient.get(ApiEndpoints.performance(symbol: symbol));
-    LastUpdateService.updateFromApi(data);
-    return StockPerformanceModel.fromJson(data);
+    try {
+      final data = await ApiClient.get(ApiEndpoints.performance(symbol: symbol));
+      LastUpdateService.updateFromApi(data);
+      return StockPerformanceModel.fromJson(data);
+    } catch (_) {
+      return StockPerformanceModel.fallback(symbol);
+    }
   }
 
   // ===================================================================

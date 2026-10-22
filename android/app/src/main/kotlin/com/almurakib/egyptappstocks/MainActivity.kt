@@ -5,6 +5,9 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
 import io.flutter.embedding.android.FlutterActivity
@@ -13,6 +16,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val facebookChannel = "com.almurakib.egyptappstocks/facebook_sdk"
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,28 +42,71 @@ class MainActivity : FlutterActivity() {
                     return@setMethodCallHandler
                 }
 
-                if (FacebookSdk.isInitialized()) {
-                    result.success(FacebookSdk.getApplicationId() == appId)
-                    return@setMethodCallHandler
-                }
-
                 try {
-                    FacebookSdk.setApplicationId(appId)
-                    FacebookSdk.setClientToken(clientToken)
-                    FacebookSdk.setAutoInitEnabled(true)
-                    FacebookSdk.setAutoLogAppEventsEnabled(autoLogAppEvents)
-                    @Suppress("DEPRECATION")
-                    FacebookSdk.sdkInitialize(
-                        applicationContext,
-                        FacebookSdk.InitializeCallback {
-                            if (autoLogAppEvents) {
+                    val currentAppId = try { FacebookSdk.getApplicationId() } catch (_: Exception) { null }
+                    val isAlreadyInitialized = FacebookSdk.isInitialized()
+
+                    if (isAlreadyInitialized && currentAppId == appId) {
+                        if (autoLogAppEvents) {
+                            try {
                                 AppEventsLogger.activateApp(application, appId)
+                            } catch (e: Exception) {
+                                Log.w("FacebookSdk", "activateApp warning: ${e.message}")
                             }
-                            result.success(true)
-                        },
-                    )
+                        }
+                        result.success(true)
+                        return@setMethodCallHandler
+                    }
+
+                    try {
+                        FacebookSdk.setApplicationId(appId)
+                    } catch (e: Exception) {
+                        Log.w("FacebookSdk", "setApplicationId notice: ${e.message}")
+                    }
+
+                    try {
+                        FacebookSdk.setClientToken(clientToken)
+                    } catch (e: Exception) {
+                        Log.w("FacebookSdk", "setClientToken notice: ${e.message}")
+                    }
+
+                    // Modern Facebook SDK initialization: must initialize before configuring auto-init
+                    try {
+                        FacebookSdk.sdkInitialize(applicationContext)
+                        FacebookSdk.fullyInitialize()
+                    } catch (e: Exception) {
+                        Log.w("FacebookSdk", "initialize notice: ${e.message}")
+                    }
+
+                    try {
+                        FacebookSdk.setAutoInitEnabled(true)
+                        FacebookSdk.setAutoLogAppEventsEnabled(autoLogAppEvents)
+                    } catch (e: Exception) {
+                        Log.w("FacebookSdk", "setAutoInitEnabled notice: ${e.message}")
+                    }
+
+                    if (autoLogAppEvents) {
+                        try {
+                            AppEventsLogger.activateApp(application, appId)
+                        } catch (e: Exception) {
+                            Log.w("FacebookSdk", "activateApp notice: ${e.message}")
+                        }
+                    }
+
+                    mainHandler.post {
+                        result.success(true)
+                    }
                 } catch (error: Exception) {
-                    result.error("facebook_sdk_init_failed", error.message, null)
+                    Log.e("FacebookSdk", "Facebook SDK configuration error: ${error.message}", error)
+                    if (FacebookSdk.isInitialized()) {
+                        mainHandler.post {
+                            result.success(true)
+                        }
+                    } else {
+                        mainHandler.post {
+                            result.error("facebook_sdk_init_failed", error.message ?: "Initialization error", null)
+                        }
+                    }
                 }
             }
     }

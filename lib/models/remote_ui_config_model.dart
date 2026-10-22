@@ -208,6 +208,8 @@ class RemoteUiConfigModel {
     required this.popupAd,
     required this.market,
     required this.appUpdate,
+    this.almurakibBaseUrl,
+    this.almurakibToken,
     this.fcsApiKey,
     this.translationUrl,
     this.liveSocketKey,
@@ -220,6 +222,8 @@ class RemoteUiConfigModel {
   final ManualAdModel? popupAd;
   final ManagedMarketConfig market;
   final AppUpdateConfig appUpdate;
+  final String? almurakibBaseUrl;
+  final String? almurakibToken;
   final String? fcsApiKey;
   final String? translationUrl;
   final String? liveSocketKey;
@@ -290,6 +294,8 @@ class RemoteUiConfigModel {
           : null,
       market: market,
       appUpdate: appUpdate,
+      almurakibBaseUrl: json['almurakib_base_url']?.toString() ?? json['api_base_url']?.toString(),
+      almurakibToken: json['almurakib_token']?.toString() ?? json['api_token']?.toString(),
       fcsApiKey: json['fcs_api_key']?.toString() ?? json['api_key']?.toString(),
       translationUrl: json['translation_url']?.toString() ?? json['arabic_names_url']?.toString(),
       liveSocketKey: json['livesocket_key']?.toString() ?? json['socket_key']?.toString(),
@@ -304,6 +310,8 @@ class RemoteUiConfigModel {
     ManualAdModel? popupAd,
     ManagedMarketConfig? market,
     AppUpdateConfig? appUpdate,
+    String? almurakibBaseUrl,
+    String? almurakibToken,
     String? fcsApiKey,
     String? translationUrl,
     String? liveSocketKey,
@@ -318,6 +326,8 @@ class RemoteUiConfigModel {
       popupAd: clearPopupAd ? null : (popupAd ?? this.popupAd),
       market: market ?? this.market,
       appUpdate: appUpdate ?? this.appUpdate,
+      almurakibBaseUrl: almurakibBaseUrl ?? this.almurakibBaseUrl,
+      almurakibToken: almurakibToken ?? this.almurakibToken,
       fcsApiKey: fcsApiKey ?? this.fcsApiKey,
       translationUrl: translationUrl ?? this.translationUrl,
       liveSocketKey: liveSocketKey ?? this.liveSocketKey,

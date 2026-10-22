@@ -1,0 +1,2442 @@
+{
+  "meta": {
+    "country": "egypt",
+    "exchange": "EGX",
+    "total": 608,
+    "updated_at": "2026-10-20T19:29:55.821Z"
+  },
+  "stocks_by_id": {
+    "EGX:EGX30": {
+      "ar": "مؤشر إيجي إكس 30",
+      "en": "EGX 30 Index"
+    },
+    "EGX30": {
+      "ar": "مؤشر إيجي إكس 30",
+      "en": "EGX 30 Index"
+    },
+    "EGX:EGX70": {
+      "ar": "مؤشر إيجي إكس 70 متساوي الأوزان",
+      "en": "EGX 70 EWI Index"
+    },
+    "EGX70": {
+      "ar": "مؤشر إيجي إكس 70 متساوي الأوزان",
+      "en": "EGX 70 EWI Index"
+    },
+    "EGX:EGX100": {
+      "ar": "مؤشر إيجي إكس 100 متساوي الأوزان",
+      "en": "EGX 100 EWI Index"
+    },
+    "EGX100": {
+      "ar": "مؤشر إيجي إكس 100 متساوي الأوزان",
+      "en": "EGX 100 EWI Index"
+    },
+    "EGX:EGX33": {
+      "ar": "مؤشر الشريعة إيجي إكس 33",
+      "en": "EGX 33 Shariah Index"
+    },
+    "EGX33": {
+      "ar": "مؤشر الشريعة إيجي إكس 33",
+      "en": "EGX 33 Shariah Index"
+    },
+    "EGX:TAMAYUZ": {
+      "ar": "مؤشر تميز للمشروعات الصغيرة والمتوسطة",
+      "en": "Tamayuz Index"
+    },
+    "TAMAYUZ": {
+      "ar": "مؤشر تميز للمشروعات الصغيرة والمتوسطة",
+      "en": "Tamayuz Index"
+    },
+    "EGX:SPX": {
+      "ar": "مؤشر سندات الشركات",
+      "en": "Corporate Bonds Index"
+    },
+    "SPX": {
+      "ar": "مؤشر سندات الشركات",
+      "en": "Corporate Bonds Index"
+    },
+    "EGX:AALR": {
+      "ar": "العامة لاستصلاح الأراضي والتنمية والتعمير",
+      "en": "General Co. for Land Reclamation Development & Reconstruction"
+    },
+    "AALR": {
+      "ar": "العامة لاستصلاح الأراضي والتنمية والتعمير",
+      "en": "General Co. for Land Reclamation Development & Reconstruction"
+    },
+    "EGX:ABUK": {
+      "ar": "أبو قير للأسمدة والصناعات الكيماوية",
+      "en": "Abou Kir Fertilizers & Chemical Industries Co."
+    },
+    "ABUK": {
+      "ar": "أبو قير للأسمدة والصناعات الكيماوية",
+      "en": "Abou Kir Fertilizers & Chemical Industries Co."
+    },
+    "EGX:ACAMD": {
+      "ar": "العربية لإدارة وتطوير الأصول",
+      "en": "Arab Co. for Asset Management & Development"
+    },
+    "ACAMD": {
+      "ar": "العربية لإدارة وتطوير الأصول",
+      "en": "Arab Co. for Asset Management & Development"
+    },
+    "EGX:ACAP": {
+      "ar": "إيه كابيتال القابضة",
+      "en": "A Capital Holding"
+    },
+    "ACAP": {
+      "ar": "إيه كابيتال القابضة",
+      "en": "A Capital Holding"
+    },
+    "EGX:ACGC": {
+      "ar": "العربية لحليج الأقطان",
+      "en": "Arab Cotton Ginning Co."
+    },
+    "ACGC": {
+      "ar": "العربية لحليج الأقطان",
+      "en": "Arab Cotton Ginning Co."
+    },
+    "EGX:ACTF": {
+      "ar": "أكت فاينانشال",
+      "en": "Act Financial"
+    },
+    "ACTF": {
+      "ar": "أكت فاينانشال",
+      "en": "Act Financial"
+    },
+    "EGX:ADCI": {
+      "ar": "العربية للأدوية والصناعات الكيماوية",
+      "en": "Arab Pharmaceuticals"
+    },
+    "ADCI": {
+      "ar": "العربية للأدوية والصناعات الكيماوية",
+      "en": "Arab Pharmaceuticals"
+    },
+    "EGX:ADIB": {
+      "ar": "مصرف أبو ظبي الإسلامي - مصر",
+      "en": "Abu Dhabi Islamic Bank-Egypt"
+    },
+    "ADIB": {
+      "ar": "مصرف أبو ظبي الإسلامي - مصر",
+      "en": "Abu Dhabi Islamic Bank-Egypt"
+    },
+    "EGX:ADPC": {
+      "ar": "العربية لمنتجات الألبان (باندا)",
+      "en": "Arab Dairy Products Co. Arab Dairy - Panda"
+    },
+    "ADPC": {
+      "ar": "العربية لمنتجات الألبان (باندا)",
+      "en": "Arab Dairy Products Co. Arab Dairy - Panda"
+    },
+    "EGX:ADRI": {
+      "ar": "العربية للتنمية والاستثمار العقاري",
+      "en": "Arab Development & Real Estate Investment"
+    },
+    "ADRI": {
+      "ar": "العربية للتنمية والاستثمار العقاري",
+      "en": "Arab Development & Real Estate Investment"
+    },
+    "EGX:AFDI": {
+      "ar": "الأهلي للتنمية والاستثمار",
+      "en": "Alahly For Development & Investment"
+    },
+    "AFDI": {
+      "ar": "الأهلي للتنمية والاستثمار",
+      "en": "Alahly For Development & Investment"
+    },
+    "EGX:AFMC": {
+      "ar": "مطاحن ومخابز الإسكندرية",
+      "en": "Alexandria Flour Mills Co."
+    },
+    "AFMC": {
+      "ar": "مطاحن ومخابز الإسكندرية",
+      "en": "Alexandria Flour Mills Co."
+    },
+    "EGX:AIDC": {
+      "ar": "أرابيا للاستثمار والتنمية",
+      "en": "Arabia for Investment and Development"
+    },
+    "AIDC": {
+      "ar": "أرابيا للاستثمار والتنمية",
+      "en": "Arabia for Investment and Development"
+    },
+    "EGX:AIFI": {
+      "ar": "أطلس للاستثمار والصناعات الغذائية",
+      "en": "Atlas for Investment & Food Industries SAE"
+    },
+    "AIFI": {
+      "ar": "أطلس للاستثمار والصناعات الغذائية",
+      "en": "Atlas for Investment & Food Industries SAE"
+    },
+    "EGX:AIH": {
+      "ar": "العربية للاستثمارات والتنمية القابضة",
+      "en": "Arabia Investments Holding SAE"
+    },
+    "AIH": {
+      "ar": "العربية للاستثمارات والتنمية القابضة",
+      "en": "Arabia Investments Holding SAE"
+    },
+    "EGX:AJWA": {
+      "ar": "أجواء للصناعات الغذائية - مصر",
+      "en": "Ajwa for Food Industries Co. Egypt"
+    },
+    "AJWA": {
+      "ar": "أجواء للصناعات الغذائية - مصر",
+      "en": "Ajwa for Food Industries Co. Egypt"
+    },
+    "EGX:ALCN": {
+      "ar": "الإسكندرية لتداول الحاويات والبضائع",
+      "en": "Alexandria Containers & Goods"
+    },
+    "ALCN": {
+      "ar": "الإسكندرية لتداول الحاويات والبضائع",
+      "en": "Alexandria Containers & Goods"
+    },
+    "EGX:ALUM": {
+      "ar": "العربية للألومنيوم",
+      "en": "Arab Aluminum Co. SAE"
+    },
+    "ALUM": {
+      "ar": "العربية للألومنيوم",
+      "en": "Arab Aluminum Co. SAE"
+    },
+    "EGX:AMER": {
+      "ar": "عامر جروب القابضة",
+      "en": "Amer Group Holding"
+    },
+    "AMER": {
+      "ar": "عامر جروب القابضة",
+      "en": "Amer Group Holding"
+    },
+    "EGX:AMES": {
+      "ar": "الإسكندرية للخدمات الطبية (المركز الطبي الجديد)",
+      "en": "Alexandria New Medical Center Co."
+    },
+    "AMES": {
+      "ar": "الإسكندرية للخدمات الطبية (المركز الطبي الجديد)",
+      "en": "Alexandria New Medical Center Co."
+    },
+    "EGX:AMIA": {
+      "ar": "الملتقى العربي للاستثمارات",
+      "en": "Arab Moltaqa Investments Company"
+    },
+    "AMIA": {
+      "ar": "الملتقى العربي للاستثمارات",
+      "en": "Arab Moltaqa Investments Company"
+    },
+    "EGX:AMOC": {
+      "ar": "الإسكندرية للزيوت المعدنية (أموك)",
+      "en": "Alexandria Mineral Oils Co."
+    },
+    "AMOC": {
+      "ar": "الإسكندرية للزيوت المعدنية (أموك)",
+      "en": "Alexandria Mineral Oils Co."
+    },
+    "EGX:AMPI": {
+      "ar": "المؤشر باي للمدفوعات الإلكترونية",
+      "en": "AL Moasher Pay for Electronic Payment and Collection (S.A.E)"
+    },
+    "AMPI": {
+      "ar": "المؤشر باي للمدفوعات الإلكترونية",
+      "en": "AL Moasher Pay for Electronic Payment and Collection (S.A.E)"
+    },
+    "EGX:APSW": {
+      "ar": "العربية وبولفارا للغزل والنسيج",
+      "en": "Arab Polvara Spinning & Weaving Co."
+    },
+    "APSW": {
+      "ar": "العربية وبولفارا للغزل والنسيج",
+      "en": "Arab Polvara Spinning & Weaving Co."
+    },
+    "EGX:ARAB": {
+      "ar": "المطورون العرب القابضة",
+      "en": "Arab Developers Holding"
+    },
+    "ARAB": {
+      "ar": "المطورون العرب القابضة",
+      "en": "Arab Developers Holding"
+    },
+    "EGX:ARCC": {
+      "ar": "الإسمنت العربية",
+      "en": "Arabian Cement Company"
+    },
+    "ARCC": {
+      "ar": "الإسمنت العربية",
+      "en": "Arabian Cement Company"
+    },
+    "EGX:AREH": {
+      "ar": "المجموعة العقارية المصرية",
+      "en": "Egyptian Real Estate Group"
+    },
+    "AREH": {
+      "ar": "المجموعة العقارية المصرية",
+      "en": "Egyptian Real Estate Group"
+    },
+    "EGX:ASCM": {
+      "ar": "أسيك للتعدين (أسكوم)",
+      "en": "ASEC Co. for Mining"
+    },
+    "ASCM": {
+      "ar": "أسيك للتعدين (أسكوم)",
+      "en": "ASEC Co. for Mining"
+    },
+    "EGX:ASPI": {
+      "ar": "أسباير كابيتال القابضة للاستثمارات المالية",
+      "en": "Aspire Capital Holding for Financial Investments"
+    },
+    "ASPI": {
+      "ar": "أسباير كابيتال القابضة للاستثمارات المالية",
+      "en": "Aspire Capital Holding for Financial Investments"
+    },
+    "EGX:ATLC": {
+      "ar": "التوفيق للتأجير التمويلي (أية.تي.ليز)",
+      "en": "Al Tawfeek Leasing Company-A.T.LEASE"
+    },
+    "ATLC": {
+      "ar": "التوفيق للتأجير التمويلي (أية.تي.ليز)",
+      "en": "Al Tawfeek Leasing Company-A.T.LEASE"
+    },
+    "EGX:ATQA": {
+      "ar": "مصر الوطنية للصلب (عتاقة)",
+      "en": "Misr National Steel"
+    },
+    "ATQA": {
+      "ar": "مصر الوطنية للصلب (عتاقة)",
+      "en": "Misr National Steel"
+    },
+    "EGX:AXPH": {
+      "ar": "الإسكندرية للأدوية والصناعات الكيماوية",
+      "en": "Alexandria Company for Pharmaceuticals and Chemical Industries"
+    },
+    "AXPH": {
+      "ar": "الإسكندرية للأدوية والصناعات الكيماوية",
+      "en": "Alexandria Company for Pharmaceuticals and Chemical Industries"
+    },
+    "EGX:BIDI": {
+      "ar": "البدر للاستثمار والتنمية",
+      "en": "El Badr Investment and Development - BID"
+    },
+    "BIDI": {
+      "ar": "البدر للاستثمار والتنمية",
+      "en": "El Badr Investment and Development - BID"
+    },
+    "EGX:BIGP": {
+      "ar": "مجموعة البربري للاستثمار",
+      "en": "ElBarbary Investment Group"
+    },
+    "BIGP": {
+      "ar": "مجموعة البربري للاستثمار",
+      "en": "ElBarbary Investment Group"
+    },
+    "EGX:BINV": {
+      "ar": "بي إنفستمنتس القابضة",
+      "en": "B Investments Holding SAE"
+    },
+    "BINV": {
+      "ar": "بي إنفستمنتس القابضة",
+      "en": "B Investments Holding SAE"
+    },
+    "EGX:BIOC": {
+      "ar": "جلاكسو سميثكلاين",
+      "en": "GlaxoSmithKline S.A.E."
+    },
+    "BIOC": {
+      "ar": "جلاكسو سميثكلاين",
+      "en": "GlaxoSmithKline S.A.E."
+    },
+    "EGX:BONY": {
+      "ar": "بنيان للتنمية والتجارة",
+      "en": "Bonyan for Development and Trade"
+    },
+    "BONY": {
+      "ar": "بنيان للتنمية والتجارة",
+      "en": "Bonyan for Development and Trade"
+    },
+    "EGX:BTFH": {
+      "ar": "بلتون القابضة",
+      "en": "Beltone Holding"
+    },
+    "BTFH": {
+      "ar": "بلتون القابضة",
+      "en": "Beltone Holding"
+    },
+    "EGX:CAED": {
+      "ar": "القاهرة للخدمات التعليمية",
+      "en": "Cairo Educational Services"
+    },
+    "CAED": {
+      "ar": "القاهرة للخدمات التعليمية",
+      "en": "Cairo Educational Services"
+    },
+    "EGX:CANA": {
+      "ar": "بنك قناة السويس",
+      "en": "Suez Canal Bank SAE"
+    },
+    "CANA": {
+      "ar": "بنك قناة السويس",
+      "en": "Suez Canal Bank SAE"
+    },
+    "EGX:CCAP": {
+      "ar": "القلعة للاستشارات المالية",
+      "en": "QALA For Financial Investments"
+    },
+    "CCAP": {
+      "ar": "القلعة للاستشارات المالية",
+      "en": "QALA For Financial Investments"
+    },
+    "EGX:CCRS": {
+      "ar": "الخليجية الكندية للاستثمار العقاري",
+      "en": "Gulf Canadian Real Estate Investment Co."
+    },
+    "CCRS": {
+      "ar": "الخليجية الكندية للاستثمار العقاري",
+      "en": "Gulf Canadian Real Estate Investment Co."
+    },
+    "EGX:CEFM": {
+      "ar": "مطاحن مصر الوسطى",
+      "en": "Middle Egypt Flour Mills"
+    },
+    "CEFM": {
+      "ar": "مطاحن مصر الوسطى",
+      "en": "Middle Egypt Flour Mills"
+    },
+    "EGX:CERA": {
+      "ar": "العربية للخزف (سيراميكا ريماس)",
+      "en": "Arab Ceramic Co. - Ceramica Remas"
+    },
+    "CERA": {
+      "ar": "العربية للخزف (سيراميكا ريماس)",
+      "en": "Arab Ceramic Co. - Ceramica Remas"
+    },
+    "EGX:CFGH": {
+      "ar": "مجموعة كونكريت فاشون للاستثمارات التجارية والصناعية",
+      "en": "Concrete Fashion Group for Commercial and Industrial Investments S.A.E"
+    },
+    "CFGH": {
+      "ar": "مجموعة كونكريت فاشون للاستثمارات التجارية والصناعية",
+      "en": "Concrete Fashion Group for Commercial and Industrial Investments S.A.E"
+    },
+    "EGX:CICH": {
+      "ar": "سي آي كابيتال القابضة للاستثمارات المالية",
+      "en": "CI Capital Holding for Financial Investments"
+    },
+    "CICH": {
+      "ar": "سي آي كابيتال القابضة للاستثمارات المالية",
+      "en": "CI Capital Holding for Financial Investments"
+    },
+    "EGX:CIEB": {
+      "ar": "كريدي أجريكول - مصر",
+      "en": "Credit Agricole Egypt"
+    },
+    "CIEB": {
+      "ar": "كريدي أجريكول - مصر",
+      "en": "Credit Agricole Egypt"
+    },
+    "EGX:CIRA": {
+      "ar": "القاهرة للاستثمار والتنمية العقارية (سيرا للتعليم)",
+      "en": "Cairo For Investment And Real Estate Developments -CIRA Education"
+    },
+    "CIRA": {
+      "ar": "القاهرة للاستثمار والتنمية العقارية (سيرا للتعليم)",
+      "en": "Cairo For Investment And Real Estate Developments -CIRA Education"
+    },
+    "EGX:CLHO": {
+      "ar": "مستشفى كليوباترا",
+      "en": "Cleopatra Hospital Company"
+    },
+    "CLHO": {
+      "ar": "مستشفى كليوباترا",
+      "en": "Cleopatra Hospital Company"
+    },
+    "EGX:CNFN": {
+      "ar": "كونتكت المالية القابضة",
+      "en": "Contact Financial Holding SAE"
+    },
+    "CNFN": {
+      "ar": "كونتكت المالية القابضة",
+      "en": "Contact Financial Holding SAE"
+    },
+    "EGX:COMI": {
+      "ar": "البنك التجاري الدولي (مصر) - CIB",
+      "en": "Commercial International Bank - Egypt (CIB) S.A.E."
+    },
+    "COMI": {
+      "ar": "البنك التجاري الدولي (مصر) - CIB",
+      "en": "Commercial International Bank - Egypt (CIB) S.A.E."
+    },
+    "EGX:COPR": {
+      "ar": "كوبر للاستثمار التجاري والتطوير العقاري",
+      "en": "Cooper for Commercial Investment & Real Estate Development"
+    },
+    "COPR": {
+      "ar": "كوبر للاستثمار التجاري والتطوير العقاري",
+      "en": "Cooper for Commercial Investment & Real Estate Development"
+    },
+    "EGX:COSG": {
+      "ar": "القاهرة للزيوت والصابون",
+      "en": "Cairo Oils & Soap"
+    },
+    "COSG": {
+      "ar": "القاهرة للزيوت والصابون",
+      "en": "Cairo Oils & Soap"
+    },
+    "EGX:CPCI": {
+      "ar": "القاهرة للأدوية والصناعات الكيماوية",
+      "en": "Kahira Pharmaceuticals & Chemical Industries Co."
+    },
+    "CPCI": {
+      "ar": "القاهرة للأدوية والصناعات الكيماوية",
+      "en": "Kahira Pharmaceuticals & Chemical Industries Co."
+    },
+    "EGX:CPME": {
+      "ar": "كاتاليست بارتنرز ميدل إيست",
+      "en": "Catalyst Partners Middle East"
+    },
+    "CPME": {
+      "ar": "كاتاليست بارتنرز ميدل إيست",
+      "en": "Catalyst Partners Middle East"
+    },
+    "EGX:CRST": {
+      "ar": "كريست مارك للمقاولات والتطوير العقاري",
+      "en": "Creast Mark For Contracting And Real Estate Development"
+    },
+    "CRST": {
+      "ar": "كريست مارك للمقاولات والتطوير العقاري",
+      "en": "Creast Mark For Contracting And Real Estate Development"
+    },
+    "EGX:CSAG": {
+      "ar": "القناة للتوكيلات الملاحية",
+      "en": "Canal Shipping Agencies Co."
+    },
+    "CSAG": {
+      "ar": "القناة للتوكيلات الملاحية",
+      "en": "Canal Shipping Agencies Co."
+    },
+    "EGX:DAPH": {
+      "ar": "الاستشارات الهندسية والتطوير",
+      "en": "Development & Engineering Consultants"
+    },
+    "DAPH": {
+      "ar": "الاستشارات الهندسية والتطوير",
+      "en": "Development & Engineering Consultants"
+    },
+    "EGX:DCCC": {
+      "ar": "دمياط لتداول الحاويات والبضائع",
+      "en": "Damietta Container and Cargo Handling"
+    },
+    "DCCC": {
+      "ar": "دمياط لتداول الحاويات والبضائع",
+      "en": "Damietta Container and Cargo Handling"
+    },
+    "EGX:DEIN": {
+      "ar": "الدلتا للتأمين",
+      "en": "Delta Insurance"
+    },
+    "DEIN": {
+      "ar": "الدلتا للتأمين",
+      "en": "Delta Insurance"
+    },
+    "EGX:DGTZ": {
+      "ar": "ديجيتيز للاستثمار والتقنية",
+      "en": "Digitize for Investment And Technology"
+    },
+    "DGTZ": {
+      "ar": "ديجيتيز للاستثمار والتقنية",
+      "en": "Digitize for Investment And Technology"
+    },
+    "EGX:DOMT": {
+      "ar": "الصناعات الغذائية العربية (دومتي)",
+      "en": "Arabian Food Industries Co."
+    },
+    "DOMT": {
+      "ar": "الصناعات الغذائية العربية (دومتي)",
+      "en": "Arabian Food Industries Co."
+    },
+    "EGX:DSCW": {
+      "ar": "دايس للملابس الجاهزة",
+      "en": "Dice Sports & Casual Wear Manufacturers SAE"
+    },
+    "DSCW": {
+      "ar": "دايس للملابس الجاهزة",
+      "en": "Dice Sports & Casual Wear Manufacturers SAE"
+    },
+    "EGX:DTPP": {
+      "ar": "الدلتا للطباعة والتغليف",
+      "en": "Delta for Printing & Packaging"
+    },
+    "DTPP": {
+      "ar": "الدلتا للطباعة والتغليف",
+      "en": "Delta for Printing & Packaging"
+    },
+    "EGX:EALR": {
+      "ar": "العربية لاستصلاح الأراضي",
+      "en": "El Arabia for Land Reclamation"
+    },
+    "EALR": {
+      "ar": "العربية لاستصلاح الأراضي",
+      "en": "El Arabia for Land Reclamation"
+    },
+    "EGX:EASB": {
+      "ar": "المصرية العربية للوساطة في الأوراق المالية (ثمار)",
+      "en": "Egyptian Arabian Company for Securities Brokerage EAC"
+    },
+    "EASB": {
+      "ar": "المصرية العربية للوساطة في الأوراق المالية (ثمار)",
+      "en": "Egyptian Arabian Company for Securities Brokerage EAC"
+    },
+    "EGX:EAST": {
+      "ar": "الشرقية - إيسترن كومباني",
+      "en": "Eastern Company"
+    },
+    "EAST": {
+      "ar": "الشرقية - إيسترن كومباني",
+      "en": "Eastern Company"
+    },
+    "EGX:EBSC": {
+      "ar": "أصول للوساطة في الأوراق المالية",
+      "en": "Osool ESB Securities Brokerage"
+    },
+    "EBSC": {
+      "ar": "أصول للوساطة في الأوراق المالية",
+      "en": "Osool ESB Securities Brokerage"
+    },
+    "EGX:ECAP": {
+      "ar": "العز للسيراميك والبورسلين (الجوهرة)",
+      "en": "El Ezz Ceramics & Porcelain Co. (Gemma)"
+    },
+    "ECAP": {
+      "ar": "العز للسيراميك والبورسلين (الجوهرة)",
+      "en": "El Ezz Ceramics & Porcelain Co. (Gemma)"
+    },
+    "EGX:EDFM": {
+      "ar": "مطاحن شرق الدلتا",
+      "en": "East Delta Flour Mills Co."
+    },
+    "EDFM": {
+      "ar": "مطاحن شرق الدلتا",
+      "en": "East Delta Flour Mills Co."
+    },
+    "EGX:EEII": {
+      "ar": "الصناعات الهندسية المعمارية للإنشاء والتعمير (إيكون)",
+      "en": "El Arabia Engineering Industries"
+    },
+    "EEII": {
+      "ar": "الصناعات الهندسية المعمارية للإنشاء والتعمير (إيكون)",
+      "en": "El Arabia Engineering Industries"
+    },
+    "EGX:EFIC": {
+      "ar": "المصرية المالية والصناعية",
+      "en": "Egyptian Financial & Industrial Co."
+    },
+    "EFIC": {
+      "ar": "المصرية المالية والصناعية",
+      "en": "Egyptian Financial & Industrial Co."
+    },
+    "EGX:EFID": {
+      "ar": "إيديتا للصناعات الغذائية",
+      "en": "Edita Food Industries SAE"
+    },
+    "EFID": {
+      "ar": "إيديتا للصناعات الغذائية",
+      "en": "Edita Food Industries SAE"
+    },
+    "EGX:EFIH": {
+      "ar": "إي فاينانس للاستثمارات المالية والرقمية",
+      "en": "e-finance for Digital and Financial Investments S.A.E."
+    },
+    "EFIH": {
+      "ar": "إي فاينانس للاستثمارات المالية والرقمية",
+      "en": "e-finance for Digital and Financial Investments S.A.E."
+    },
+    "EGX:EGAL": {
+      "ar": "مصر للألومنيوم",
+      "en": "Egypt Aluminum"
+    },
+    "EGAL": {
+      "ar": "مصر للألومنيوم",
+      "en": "Egypt Aluminum"
+    },
+    "EGX:EGAS": {
+      "ar": "غاز مصر",
+      "en": "Egypt Gas Co."
+    },
+    "EGAS": {
+      "ar": "غاز مصر",
+      "en": "Egypt Gas Co."
+    },
+    "EGX:EGBE": {
+      "ar": "البنك المصري الخليجي",
+      "en": "Egyptian Gulf Bank"
+    },
+    "EGBE": {
+      "ar": "البنك المصري الخليجي",
+      "en": "Egyptian Gulf Bank"
+    },
+    "EGX:EGCH": {
+      "ar": "الصناعات الكيماوية المصرية (كيما)",
+      "en": "Egyptian Chemical Industries"
+    },
+    "EGCH": {
+      "ar": "الصناعات الكيماوية المصرية (كيما)",
+      "en": "Egyptian Chemical Industries"
+    },
+    "EGX:EGS370O1C013": {
+      "ar": "الشركة الوطنية للطباعة",
+      "en": "National Printing"
+    },
+    "EGS370O1C013": {
+      "ar": "الشركة الوطنية للطباعة",
+      "en": "National Printing"
+    },
+    "EGX:EGS72L31C011": {
+      "ar": "سولارسول للطاقة",
+      "en": "SOLARSOL For Energy"
+    },
+    "EGS72L31C011": {
+      "ar": "سولارسول للطاقة",
+      "en": "SOLARSOL For Energy"
+    },
+    "EGX:EGSA": {
+      "ar": "المصرية للأقمار الصناعية (نايل سات)",
+      "en": "Egyptian Satellite Co."
+    },
+    "EGSA": {
+      "ar": "المصرية للأقمار الصناعية (نايل سات)",
+      "en": "Egyptian Satellite Co."
+    },
+    "EGX:EGTS": {
+      "ar": "المصرية للمنتجعات السياحية",
+      "en": "Egyptian for Tourism Resorts"
+    },
+    "EGTS": {
+      "ar": "المصرية للمنتجعات السياحية",
+      "en": "Egyptian for Tourism Resorts"
+    },
+    "EGX:EGWA": {
+      "ar": "المستودعات المصرية العامة",
+      "en": "General Warehouses of Egypt"
+    },
+    "EGWA": {
+      "ar": "المستودعات المصرية العامة",
+      "en": "General Warehouses of Egypt"
+    },
+    "EGX:ELEC": {
+      "ar": "الكابلات الكهربائية المصرية",
+      "en": "Electro Cable Egypt"
+    },
+    "ELEC": {
+      "ar": "الكابلات الكهربائية المصرية",
+      "en": "Electro Cable Egypt"
+    },
+    "EGX:ELKA": {
+      "ar": "القاهرة للإسكان والتعمير",
+      "en": "El Kahera Housing"
+    },
+    "ELKA": {
+      "ar": "القاهرة للإسكان والتعمير",
+      "en": "El Kahera Housing"
+    },
+    "EGX:ELNA": {
+      "ar": "النصر لتصنيع الحاصلات الزراعية",
+      "en": "El Nasr for Manufacturing Agricultural Crops"
+    },
+    "ELNA": {
+      "ar": "النصر لتصنيع الحاصلات الزراعية",
+      "en": "El Nasr for Manufacturing Agricultural Crops"
+    },
+    "EGX:ELSH": {
+      "ar": "الشمس للإسكان والتعمير",
+      "en": "El-Shams Housing & Development SA"
+    },
+    "ELSH": {
+      "ar": "الشمس للإسكان والتعمير",
+      "en": "El-Shams Housing & Development SA"
+    },
+    "EGX:ELWA": {
+      "ar": "الوادي العالمية للاستثمار والتنمية",
+      "en": "Elwadi for International Investment & Development"
+    },
+    "ELWA": {
+      "ar": "الوادي العالمية للاستثمار والتنمية",
+      "en": "Elwadi for International Investment & Development"
+    },
+    "EGX:EMFD": {
+      "ar": "إعمار مصر للتنمية",
+      "en": "Emaar Misr for Development SAE"
+    },
+    "EMFD": {
+      "ar": "إعمار مصر للتنمية",
+      "en": "Emaar Misr for Development SAE"
+    },
+    "EGX:ENGC": {
+      "ar": "الهندسية للصناعات والتشييد (سياك)",
+      "en": "Industrial Engineering Co. for Construction & Development"
+    },
+    "ENGC": {
+      "ar": "الهندسية للصناعات والتشييد (سياك)",
+      "en": "Industrial Engineering Co. for Construction & Development"
+    },
+    "EGX:EOSB": {
+      "ar": "العروبة للسمسرة في الأوراق المالية",
+      "en": "El Orouba Securities Brokerage"
+    },
+    "EOSB": {
+      "ar": "العروبة للسمسرة في الأوراق المالية",
+      "en": "El Orouba Securities Brokerage"
+    },
+    "EGX:EPCO": {
+      "ar": "مصر للدواجن",
+      "en": "Egypt for Poultry Co."
+    },
+    "EPCO": {
+      "ar": "مصر للدواجن",
+      "en": "Egypt for Poultry Co."
+    },
+    "EGX:EPPK": {
+      "ar": "الأهرام للطباعة والتغليف",
+      "en": "El Ahram Co. for Printing & Packing"
+    },
+    "EPPK": {
+      "ar": "الأهرام للطباعة والتغليف",
+      "en": "El Ahram Co. for Printing & Packing"
+    },
+    "EGX:ETEL": {
+      "ar": "المصرية للاتصالات (وي)",
+      "en": "Telecom Egypt"
+    },
+    "ETEL": {
+      "ar": "المصرية للاتصالات (وي)",
+      "en": "Telecom Egypt"
+    },
+    "EGX:ETRS": {
+      "ar": "المصرية لخدمات النقل والتجارة (إيجيترانس)",
+      "en": "Egyptian Transport & Commercial Services Co. SAE"
+    },
+    "ETRS": {
+      "ar": "المصرية لخدمات النقل والتجارة (إيجيترانس)",
+      "en": "Egyptian Transport & Commercial Services Co. SAE"
+    },
+    "EGX:EXPA": {
+      "ar": "بنك تنمية الصادرات",
+      "en": "Export Development Bank of Egypt"
+    },
+    "EXPA": {
+      "ar": "بنك تنمية الصادرات",
+      "en": "Export Development Bank of Egypt"
+    },
+    "EGX:FAIT": {
+      "ar": "بنك فيصل الإسلامي المصري (جنيه)",
+      "en": "Faisal Islamic Bank of Egypt"
+    },
+    "FAIT": {
+      "ar": "بنك فيصل الإسلامي المصري (جنيه)",
+      "en": "Faisal Islamic Bank of Egypt"
+    },
+    "EGX:FAITA": {
+      "ar": "بنك فيصل الإسلامي المصري (دولار)",
+      "en": "Faisal Islamic Bank of Egypt"
+    },
+    "FAITA": {
+      "ar": "بنك فيصل الإسلامي المصري (دولار)",
+      "en": "Faisal Islamic Bank of Egypt"
+    },
+    "EGX:FIRE": {
+      "ar": "فيرست للاستثمار والتنمية العقارية",
+      "en": "First Investment & Real Estate Development"
+    },
+    "FIRE": {
+      "ar": "فيرست للاستثمار والتنمية العقارية",
+      "en": "First Investment & Real Estate Development"
+    },
+    "EGX:FNAR": {
+      "ar": "الفنار للمقاولات والتجارة والاستيراد والتصدير",
+      "en": "Al Fanar Contracting Construction Trade Import & Export Co."
+    },
+    "FNAR": {
+      "ar": "الفنار للمقاولات والتجارة والاستيراد والتصدير",
+      "en": "Al Fanar Contracting Construction Trade Import & Export Co."
+    },
+    "EGX:FTNS": {
+      "ar": "فيتنس برايم للأندية الصحية",
+      "en": "Fitness Prime"
+    },
+    "FTNS": {
+      "ar": "فيتنس برايم للأندية الصحية",
+      "en": "Fitness Prime"
+    },
+    "EGX:FWRY": {
+      "ar": "فوري لتكنولوجيا البنوك والمدفوعات الإلكترونية",
+      "en": "Fawry For Banking Technology And Electronic Payment"
+    },
+    "FWRY": {
+      "ar": "فوري لتكنولوجيا البنوك والمدفوعات الإلكترونية",
+      "en": "Fawry For Banking Technology And Electronic Payment"
+    },
+    "EGX:GBCO": {
+      "ar": "جي بي كورب (غبور أوتو)",
+      "en": "GB Corp"
+    },
+    "GBCO": {
+      "ar": "جي بي كورب (غبور أوتو)",
+      "en": "GB Corp"
+    },
+    "EGX:GDWA": {
+      "ar": "جدوى للتنمية الصناعية",
+      "en": "Gadwa For Industrial Development"
+    },
+    "GDWA": {
+      "ar": "جدوى للتنمية الصناعية",
+      "en": "Gadwa For Industrial Development"
+    },
+    "EGX:GEOS": {
+      "ar": "جيوس للتجارة والمقاولات",
+      "en": "Geos for trading and contracting"
+    },
+    "GEOS": {
+      "ar": "جيوس للتجارة والمقاولات",
+      "en": "Geos for trading and contracting"
+    },
+    "EGX:GGCC": {
+      "ar": "الجيزة العامة للمقاولات والاستثمار العقاري",
+      "en": "Giza General Contracting & Real Estate Investment"
+    },
+    "GGCC": {
+      "ar": "الجيزة العامة للمقاولات والاستثمار العقاري",
+      "en": "Giza General Contracting & Real Estate Investment"
+    },
+    "EGX:GGRN": {
+      "ar": "جو جرين للاستثمار والتنمية الزراعية",
+      "en": "Gogreen for Agricultural Investment and Development Company"
+    },
+    "GGRN": {
+      "ar": "جو جرين للاستثمار والتنمية الزراعية",
+      "en": "Gogreen for Agricultural Investment and Development Company"
+    },
+    "EGX:GIHD": {
+      "ar": "الغربية الإسلامية للتنمية العمرانية",
+      "en": "Gharbia Islamic Housing Development"
+    },
+    "GIHD": {
+      "ar": "الغربية الإسلامية للتنمية العمرانية",
+      "en": "Gharbia Islamic Housing Development"
+    },
+    "EGX:GMCI": {
+      "ar": "مجموعة جي إم سي للاستثمارات الصناعية والتجارية",
+      "en": "GMC Group for Industrial Commercial & Financial Investments"
+    },
+    "GMCI": {
+      "ar": "مجموعة جي إم سي للاستثمارات الصناعية والتجارية",
+      "en": "GMC Group for Industrial Commercial & Financial Investments"
+    },
+    "EGX:GPPL": {
+      "ar": "جولدن بيراميدز بلازا",
+      "en": "Golden Pyramids Plaza"
+    },
+    "GPPL": {
+      "ar": "جولدن بيراميدز بلازا",
+      "en": "Golden Pyramids Plaza"
+    },
+    "EGX:GRCA": {
+      "ar": "جراند انفستمنت القابضة للاستثمارات المالية",
+      "en": "Grand Investment Capital"
+    },
+    "GRCA": {
+      "ar": "جراند انفستمنت القابضة للاستثمارات المالية",
+      "en": "Grand Investment Capital"
+    },
+    "EGX:GSSC": {
+      "ar": "العامة للصوامع والتخزين",
+      "en": "General Silos & Storage Co."
+    },
+    "GSSC": {
+      "ar": "العامة للصوامع والتخزين",
+      "en": "General Silos & Storage Co."
+    },
+    "EGX:GTEX": {
+      "ar": "جي تكس للاستثمارات التجارية والصناعية",
+      "en": "G-TEX for Commercial and Industrial Investments S.A.E"
+    },
+    "GTEX": {
+      "ar": "جي تكس للاستثمارات التجارية والصناعية",
+      "en": "G-TEX for Commercial and Industrial Investments S.A.E"
+    },
+    "EGX:GTWL": {
+      "ar": "النصر للملابس والمنسوجات (كابو / جولدن تكس)",
+      "en": "Golden Textiles & Clothes Wool"
+    },
+    "GTWL": {
+      "ar": "النصر للملابس والمنسوجات (كابو / جولدن تكس)",
+      "en": "Golden Textiles & Clothes Wool"
+    },
+    "EGX:HBCO": {
+      "ar": "هيبكو",
+      "en": "Heibco Npv"
+    },
+    "HBCO": {
+      "ar": "هيبكو",
+      "en": "Heibco Npv"
+    },
+    "EGX:HDBK": {
+      "ar": "بنك التعمير والإسكان",
+      "en": "Housing & Development Bank"
+    },
+    "HDBK": {
+      "ar": "بنك التعمير والإسكان",
+      "en": "Housing & Development Bank"
+    },
+    "EGX:HDST": {
+      "ar": "هيدجستون للاستثمار",
+      "en": "HEDGESTONE INVESTMENT"
+    },
+    "HDST": {
+      "ar": "هيدجستون للاستثمار",
+      "en": "HEDGESTONE INVESTMENT"
+    },
+    "EGX:HELI": {
+      "ar": "مصر الجديدة للإسكان والتعمير",
+      "en": "Heliopolis Housing"
+    },
+    "HELI": {
+      "ar": "مصر الجديدة للإسكان والتعمير",
+      "en": "Heliopolis Housing"
+    },
+    "EGX:HRHO": {
+      "ar": "مجموعة إي إف جي القابضة (هيرميس)",
+      "en": "EFG Holding S.A.E."
+    },
+    "HRHO": {
+      "ar": "مجموعة إي إف جي القابضة (هيرميس)",
+      "en": "EFG Holding S.A.E."
+    },
+    "EGX:IBCT": {
+      "ar": "الدولية للأعمال والتجارة والتوكيلات",
+      "en": "International Business Corp. for Trading & Agencies"
+    },
+    "IBCT": {
+      "ar": "الدولية للأعمال والتجارة والتوكيلات",
+      "en": "International Business Corp. for Trading & Agencies"
+    },
+    "EGX:ICFC": {
+      "ar": "الدولية للأسمدة والكيماويات",
+      "en": "International Co. for Fertilizers & Chemicals"
+    },
+    "ICFC": {
+      "ar": "الدولية للأسمدة والكيماويات",
+      "en": "International Co. for Fertilizers & Chemicals"
+    },
+    "EGX:ICID": {
+      "ar": "الدولية للاستثمار والتنمية",
+      "en": "International Company for Investment & Development"
+    },
+    "ICID": {
+      "ar": "الدولية للاستثمار والتنمية",
+      "en": "International Company for Investment & Development"
+    },
+    "EGX:ICLE": {
+      "ar": "التوفيق للتأجير التمويلي / إنترناشيونال للتأجير (إينكوليس)",
+      "en": "International Co. for Leasing SAE"
+    },
+    "ICLE": {
+      "ar": "التوفيق للتأجير التمويلي / إنترناشيونال للتأجير (إينكوليس)",
+      "en": "International Co. for Leasing SAE"
+    },
+    "EGX:IDRE": {
+      "ar": "الإسماعيلية للتطوير والتنمية العمرانية",
+      "en": "Ismailia Development & Real Estate Co."
+    },
+    "IDRE": {
+      "ar": "الإسماعيلية للتطوير والتنمية العمرانية",
+      "en": "Ismailia Development & Real Estate Co."
+    },
+    "EGX:IEEC": {
+      "ar": "المشروعات الصناعية والهندسية",
+      "en": "Industrial & Engineering Enterprises Co."
+    },
+    "IEEC": {
+      "ar": "المشروعات الصناعية والهندسية",
+      "en": "Industrial & Engineering Enterprises Co."
+    },
+    "EGX:IFAP": {
+      "ar": "الدولية للمحاصيل الزراعية",
+      "en": "International Agricultural Products"
+    },
+    "IFAP": {
+      "ar": "الدولية للمحاصيل الزراعية",
+      "en": "International Agricultural Products"
+    },
+    "EGX:INEG": {
+      "ar": "المجموعة المتكاملة للأعمال الهندسية",
+      "en": "Integrated Engineering Group S.A.E"
+    },
+    "INEG": {
+      "ar": "المجموعة المتكاملة للأعمال الهندسية",
+      "en": "Integrated Engineering Group S.A.E"
+    },
+    "EGX:INFI": {
+      "ar": "الإسماعيلية الوطنية للصناعات الغذائية (فوديكو)",
+      "en": "Ismailia National Food Industries"
+    },
+    "INFI": {
+      "ar": "الإسماعيلية الوطنية للصناعات الغذائية (فوديكو)",
+      "en": "Ismailia National Food Industries"
+    },
+    "EGX:IRON": {
+      "ar": "الحديد والصلب المصرية",
+      "en": "Egyptian Iron & Steel"
+    },
+    "IRON": {
+      "ar": "الحديد والصلب المصرية",
+      "en": "Egyptian Iron & Steel"
+    },
+    "EGX:ISMA": {
+      "ar": "الإسماعيلية مصر للدواجن",
+      "en": "Ismailia Misr Poultry"
+    },
+    "ISMA": {
+      "ar": "الإسماعيلية مصر للدواجن",
+      "en": "Ismailia Misr Poultry"
+    },
+    "EGX:ISMQ": {
+      "ar": "الحديد والصلب للمناجم والمحاجر",
+      "en": "Iron & Steel for Mines & Quarries"
+    },
+    "ISMQ": {
+      "ar": "الحديد والصلب للمناجم والمحاجر",
+      "en": "Iron & Steel for Mines & Quarries"
+    },
+    "EGX:ISPH": {
+      "ar": "ابن سينا فارما",
+      "en": "Ibnsina Pharma"
+    },
+    "ISPH": {
+      "ar": "ابن سينا فارما",
+      "en": "Ibnsina Pharma"
+    },
+    "EGX:JUFO": {
+      "ar": "جهينة للصناعات الغذائية",
+      "en": "Juhayna Food Industries"
+    },
+    "JUFO": {
+      "ar": "جهينة للصناعات الغذائية",
+      "en": "Juhayna Food Industries"
+    },
+    "EGX:KABO": {
+      "ar": "النصر للملابس والمنسوجات (كابو)",
+      "en": "El Nasr Clothing & Textiles Co."
+    },
+    "KABO": {
+      "ar": "النصر للملابس والمنسوجات (كابو)",
+      "en": "El Nasr Clothing & Textiles Co."
+    },
+    "EGX:KORA": {
+      "ar": "قرة إنرجي",
+      "en": "KORRA"
+    },
+    "KORA": {
+      "ar": "قرة إنرجي",
+      "en": "KORRA"
+    },
+    "EGX:KRDI": {
+      "ar": "نهر الخير للتنمية والاستثمار الزراعي والخدمات البيئية",
+      "en": "Al Khair River for Development Agriculture Investment and Environmental Services"
+    },
+    "KRDI": {
+      "ar": "نهر الخير للتنمية والاستثمار الزراعي والخدمات البيئية",
+      "en": "Al Khair River for Development Agriculture Investment and Environmental Services"
+    },
+    "EGX:KWIN": {
+      "ar": "القاهرة الوطنية للاستثمار والأوراق المالية",
+      "en": "El Kahera El Watania Investment"
+    },
+    "KWIN": {
+      "ar": "القاهرة الوطنية للاستثمار والأوراق المالية",
+      "en": "El Kahera El Watania Investment"
+    },
+    "EGX:KZPC": {
+      "ar": "كفر الزيات للمبيدات والكيماويات",
+      "en": "Kafr El Zayat Pesticides & Chemical Co."
+    },
+    "KZPC": {
+      "ar": "كفر الزيات للمبيدات والكيماويات",
+      "en": "Kafr El Zayat Pesticides & Chemical Co."
+    },
+    "EGX:LCSW": {
+      "ar": "ليسيكو مصر",
+      "en": "Lecico Egypt SAE"
+    },
+    "LCSW": {
+      "ar": "ليسيكو مصر",
+      "en": "Lecico Egypt SAE"
+    },
+    "EGX:LUTS": {
+      "ar": "لوتس للاستثمار والتنمية الزراعية",
+      "en": "Lotus For Agricultural Investments And Development"
+    },
+    "LUTS": {
+      "ar": "لوتس للاستثمار والتنمية الزراعية",
+      "en": "Lotus For Agricultural Investments And Development"
+    },
+    "EGX:MAAL": {
+      "ar": "مرسيليا المصرية الخليجية للاستثمار العقاري",
+      "en": "Marseilla Al Masreia Al Khalegeya for Holding Investment"
+    },
+    "MAAL": {
+      "ar": "مرسيليا المصرية الخليجية للاستثمار العقاري",
+      "en": "Marseilla Al Masreia Al Khalegeya for Holding Investment"
+    },
+    "EGX:MASR": {
+      "ar": "مدينة مصر للإسكان والتعمير",
+      "en": "Madinet Masr for Housing & Development"
+    },
+    "MASR": {
+      "ar": "مدينة مصر للإسكان والتعمير",
+      "en": "Madinet Masr for Housing & Development"
+    },
+    "EGX:MBEG": {
+      "ar": "إم بي للهندسة والمقاولات",
+      "en": "MB for Engineering & Contracting"
+    },
+    "MBEG": {
+      "ar": "إم بي للهندسة والمقاولات",
+      "en": "MB for Engineering & Contracting"
+    },
+    "EGX:MBSC": {
+      "ar": "مصر بني سويف للأسمنت",
+      "en": "Misr Beni Suef Cement Co. SAE"
+    },
+    "MBSC": {
+      "ar": "مصر بني سويف للأسمنت",
+      "en": "Misr Beni Suef Cement Co. SAE"
+    },
+    "EGX:MCQE": {
+      "ar": "أسمنت قنا (مصر للأسمنت)",
+      "en": "Misr Cement Co. (Qena)"
+    },
+    "MCQE": {
+      "ar": "أسمنت قنا (مصر للأسمنت)",
+      "en": "Misr Cement Co. (Qena)"
+    },
+    "EGX:MCRO": {
+      "ar": "ماكرو جروب للمستحضرات الطبية (ماكرو كابيتال)",
+      "en": "Macro Group Pharmaceutical S.A.E."
+    },
+    "MCRO": {
+      "ar": "ماكرو جروب للمستحضرات الطبية (ماكرو كابيتال)",
+      "en": "Macro Group Pharmaceutical S.A.E."
+    },
+    "EGX:MEGM": {
+      "ar": "الشرق الأوسط لصناعة الزجاج",
+      "en": "Middle East Glass Manufacturing SAE"
+    },
+    "MEGM": {
+      "ar": "الشرق الأوسط لصناعة الزجاج",
+      "en": "Middle East Glass Manufacturing SAE"
+    },
+    "EGX:MENA": {
+      "ar": "مينا للاستثمار السياحي والعقاري",
+      "en": "Mena Touristic & Real Estate Investment"
+    },
+    "MENA": {
+      "ar": "مينا للاستثمار السياحي والعقاري",
+      "en": "Mena Touristic & Real Estate Investment"
+    },
+    "EGX:MEPA": {
+      "ar": "العبوات الطبية",
+      "en": "Medical Packaging Company"
+    },
+    "MEPA": {
+      "ar": "العبوات الطبية",
+      "en": "Medical Packaging Company"
+    },
+    "EGX:MFPC": {
+      "ar": "مصر لإنتاج الأسمدة (موبكو)",
+      "en": "Misr Fertilizers Production Company MOPCO"
+    },
+    "MFPC": {
+      "ar": "مصر لإنتاج الأسمدة (موبكو)",
+      "en": "Misr Fertilizers Production Company MOPCO"
+    },
+    "EGX:MFSC": {
+      "ar": "مصر للأسواق الحرة",
+      "en": "Misr Duty Free Shops Co."
+    },
+    "MFSC": {
+      "ar": "مصر للأسواق الحرة",
+      "en": "Misr Duty Free Shops Co."
+    },
+    "EGX:MHOT": {
+      "ar": "مصر للفنادق",
+      "en": "Misr Hotels Co."
+    },
+    "MHOT": {
+      "ar": "مصر للفنادق",
+      "en": "Misr Hotels Co."
+    },
+    "EGX:MICH": {
+      "ar": "مصر لصناعة الكيماويات",
+      "en": "Misr Chemical Industries Ltd."
+    },
+    "MICH": {
+      "ar": "مصر لصناعة الكيماويات",
+      "en": "Misr Chemical Industries Ltd."
+    },
+    "EGX:MILS": {
+      "ar": "مطاحن شمال القاهرة",
+      "en": "North Cairo Mills Co."
+    },
+    "MILS": {
+      "ar": "مطاحن شمال القاهرة",
+      "en": "North Cairo Mills Co."
+    },
+    "EGX:MIPH": {
+      "ar": "مينافارم للأدوية والصناعات الكيماوية",
+      "en": "Minapharm Pharmaceuticals"
+    },
+    "MIPH": {
+      "ar": "مينافارم للأدوية والصناعات الكيماوية",
+      "en": "Minapharm Pharmaceuticals"
+    },
+    "EGX:MISR": {
+      "ar": "مصر إنتركونتننتال للجرانيت والرخام",
+      "en": "MISR Intercontinental for Granite & Marble"
+    },
+    "MISR": {
+      "ar": "مصر إنتركونتننتال للجرانيت والرخام",
+      "en": "MISR Intercontinental for Granite & Marble"
+    },
+    "EGX:MMAT": {
+      "ar": "مرسى مرسى علم للتنمية السياحية",
+      "en": "Marsa Marsa Alam for Tourism Development"
+    },
+    "MMAT": {
+      "ar": "مرسى مرسى علم للتنمية السياحية",
+      "en": "Marsa Marsa Alam for Tourism Development"
+    },
+    "EGX:MOED": {
+      "ar": "المصرية لنظم التعليم الحديثة",
+      "en": "Egyptian Modern Education Systems"
+    },
+    "MOED": {
+      "ar": "المصرية لنظم التعليم الحديثة",
+      "en": "Egyptian Modern Education Systems"
+    },
+    "EGX:MOIL": {
+      "ar": "الخدمات الملاحية والبترولية (ماريديف)",
+      "en": "Maridive & Oil Services SAE"
+    },
+    "MOIL": {
+      "ar": "الخدمات الملاحية والبترولية (ماريديف)",
+      "en": "Maridive & Oil Services SAE"
+    },
+    "EGX:MOIN": {
+      "ar": "المهندس للتأمين",
+      "en": "Mohandes Insurance Co."
+    },
+    "MOIN": {
+      "ar": "المهندس للتأمين",
+      "en": "Mohandes Insurance Co."
+    },
+    "EGX:MOSC": {
+      "ar": "مصر للزيوت والصابون",
+      "en": "Misr Oils & Soap Co."
+    },
+    "MOSC": {
+      "ar": "مصر للزيوت والصابون",
+      "en": "Misr Oils & Soap Co."
+    },
+    "EGX:MPCI": {
+      "ar": "ممفيس للأدوية والصناعات الكيماوية",
+      "en": "Memphis Pharmaceutical & Chemical Industries"
+    },
+    "MPCI": {
+      "ar": "ممفيس للأدوية والصناعات الكيماوية",
+      "en": "Memphis Pharmaceutical & Chemical Industries"
+    },
+    "EGX:MPCO": {
+      "ar": "المنصورة للدواجن",
+      "en": "Mansourah Poultry Co."
+    },
+    "MPCO": {
+      "ar": "المنصورة للدواجن",
+      "en": "Mansourah Poultry Co."
+    },
+    "EGX:MPRC": {
+      "ar": "الشركة المصرية لمدينة الإنتاج الإعلامي",
+      "en": "Egyptian Media Production City"
+    },
+    "MPRC": {
+      "ar": "الشركة المصرية لمدينة الإنتاج الإعلامي",
+      "en": "Egyptian Media Production City"
+    },
+    "EGX:MTIE": {
+      "ar": "إم إم جروب للصناعة والتجارة العالمية",
+      "en": "MM Group for Industry & International Trade"
+    },
+    "MTIE": {
+      "ar": "إم إم جروب للصناعة والتجارة العالمية",
+      "en": "MM Group for Industry & International Trade"
+    },
+    "EGX:NAHO": {
+      "ar": "النعيم القابضة للاستثمارات",
+      "en": "Naeem Holding Co."
+    },
+    "NAHO": {
+      "ar": "النعيم القابضة للاستثمارات",
+      "en": "Naeem Holding Co."
+    },
+    "EGX:NARE": {
+      "ar": "النعيم للاستثمار العقاري",
+      "en": "Naeem Real Estate Holding Group"
+    },
+    "NARE": {
+      "ar": "النعيم للاستثمار العقاري",
+      "en": "Naeem Real Estate Holding Group"
+    },
+    "EGX:NCCW": {
+      "ar": "النصر للأعمال المدنية",
+      "en": "Nasr Co. for Civil Works"
+    },
+    "NCCW": {
+      "ar": "النصر للأعمال المدنية",
+      "en": "Nasr Co. for Civil Works"
+    },
+    "EGX:NDRL": {
+      "ar": "الوطنية للحفر",
+      "en": "National Drilling Co."
+    },
+    "NDRL": {
+      "ar": "الوطنية للحفر",
+      "en": "National Drilling Co."
+    },
+    "EGX:NEDA": {
+      "ar": "شمال الصعيد للتنمية والإنتاج الزراعي (نيوداب)",
+      "en": "Northern Upper Egypt Development & Agricultural Production"
+    },
+    "NEDA": {
+      "ar": "شمال الصعيد للتنمية والإنتاج الزراعي (نيوداب)",
+      "en": "Northern Upper Egypt Development & Agricultural Production"
+    },
+    "EGX:NHPS": {
+      "ar": "الإسكان الوطني للنقابات المهنية",
+      "en": "National Housing for Professional Syndicates"
+    },
+    "NHPS": {
+      "ar": "الإسكان الوطني للنقابات المهنية",
+      "en": "National Housing for Professional Syndicates"
+    },
+    "EGX:NINH": {
+      "ar": "مستشفى النزهة الدولي",
+      "en": "Nozha International Hospital"
+    },
+    "NINH": {
+      "ar": "مستشفى النزهة الدولي",
+      "en": "Nozha International Hospital"
+    },
+    "EGX:NIPH": {
+      "ar": "النيل للأدوية والصناعات الكيماوية",
+      "en": "El-Nile Co. for Pharmaceuticals & Chemical Industries"
+    },
+    "NIPH": {
+      "ar": "النيل للأدوية والصناعات الكيماوية",
+      "en": "El-Nile Co. for Pharmaceuticals & Chemical Industries"
+    },
+    "EGX:OBRI": {
+      "ar": "العبور للاستثمار العقاري",
+      "en": "El Obour Real Estate Investment"
+    },
+    "OBRI": {
+      "ar": "العبور للاستثمار العقاري",
+      "en": "El Obour Real Estate Investment"
+    },
+    "EGX:OCDI": {
+      "ar": "السادس من أكتوبر للتنمية والاستثمار (سوديك)",
+      "en": "Six of October Development & Investment (SODIC)"
+    },
+    "OCDI": {
+      "ar": "السادس من أكتوبر للتنمية والاستثمار (سوديك)",
+      "en": "Six of October Development & Investment (SODIC)"
+    },
+    "EGX:OCPH": {
+      "ar": "أكتوبر فارما",
+      "en": "October Pharma Co."
+    },
+    "OCPH": {
+      "ar": "أكتوبر فارما",
+      "en": "October Pharma Co."
+    },
+    "EGX:ODIN": {
+      "ar": "أودن للاستثمارات المالية",
+      "en": "ODIN Investments"
+    },
+    "ODIN": {
+      "ar": "أودن للاستثمارات المالية",
+      "en": "ODIN Investments"
+    },
+    "EGX:OFH": {
+      "ar": "أوراسكوم المالية القابضة",
+      "en": "O B Financial Holding"
+    },
+    "OFH": {
+      "ar": "أوراسكوم المالية القابضة",
+      "en": "O B Financial Holding"
+    },
+    "EGX:OIH": {
+      "ar": "أوراسكوم للاستثمار القابضة",
+      "en": "Orascom Investment Holding SAE"
+    },
+    "OIH": {
+      "ar": "أوراسكوم للاستثمار القابضة",
+      "en": "Orascom Investment Holding SAE"
+    },
+    "EGX:OLFI": {
+      "ar": "عبور لاند للصناعات الغذائية",
+      "en": "Obour Land for Food Industries"
+    },
+    "OLFI": {
+      "ar": "عبور لاند للصناعات الغذائية",
+      "en": "Obour Land for Food Industries"
+    },
+    "EGX:ORAS": {
+      "ar": "أوراسكوم كونستراكشون بي إل سي",
+      "en": "Orascom Construction Plc"
+    },
+    "ORAS": {
+      "ar": "أوراسكوم كونستراكشون بي إل سي",
+      "en": "Orascom Construction Plc"
+    },
+    "EGX:ORHD": {
+      "ar": "أوراسكوم للتنمية مصر",
+      "en": "Orascom Development Egypt (S.A.E)"
+    },
+    "ORHD": {
+      "ar": "أوراسكوم للتنمية مصر",
+      "en": "Orascom Development Egypt (S.A.E)"
+    },
+    "EGX:ORWE": {
+      "ar": "النساجون الشرقيون للسجاد",
+      "en": "Oriental Weavers Carpet"
+    },
+    "ORWE": {
+      "ar": "النساجون الشرقيون للسجاد",
+      "en": "Oriental Weavers Carpet"
+    },
+    "EGX:PHAR": {
+      "ar": "المصرية الدولية للصناعات الدوائية (إيبيكو)",
+      "en": "Egyptian International Pharmaceutical Industries Co."
+    },
+    "PHAR": {
+      "ar": "المصرية الدولية للصناعات الدوائية (إيبيكو)",
+      "en": "Egyptian International Pharmaceutical Industries Co."
+    },
+    "EGX:PHDC": {
+      "ar": "بالم هيلز للتعمير",
+      "en": "Palm Hills Development Co."
+    },
+    "PHDC": {
+      "ar": "بالم هيلز للتعمير",
+      "en": "Palm Hills Development Co."
+    },
+    "EGX:PHTV": {
+      "ar": "بيراميزا للفنادق والقرى السياحية",
+      "en": "Pyramisa Hotels"
+    },
+    "PHTV": {
+      "ar": "بيراميزا للفنادق والقرى السياحية",
+      "en": "Pyramisa Hotels"
+    },
+    "EGX:POCO": {
+      "ar": "بورسعيد لتداول الحاويات والبضائع",
+      "en": "Port Said Container And Cargo Handling"
+    },
+    "POCO": {
+      "ar": "بورسعيد لتداول الحاويات والبضائع",
+      "en": "Port Said Container And Cargo Handling"
+    },
+    "EGX:POUL": {
+      "ar": "القاهرة للدواجن",
+      "en": "Cairo Poultry Co."
+    },
+    "POUL": {
+      "ar": "القاهرة للدواجن",
+      "en": "Cairo Poultry Co."
+    },
+    "EGX:PRCL": {
+      "ar": "العامة لمنتجات الخزف والصيني (شيني)",
+      "en": "General Co. for Ceramic & Porcelain Products"
+    },
+    "PRCL": {
+      "ar": "العامة لمنتجات الخزف والصيني (شيني)",
+      "en": "General Co. for Ceramic & Porcelain Products"
+    },
+    "EGX:PRDC": {
+      "ar": "بايونيرز بروبرتيز للتنمية العمرانية",
+      "en": "Pioneers Properties for Urban Development"
+    },
+    "PRDC": {
+      "ar": "بايونيرز بروبرتيز للتنمية العمرانية",
+      "en": "Pioneers Properties for Urban Development"
+    },
+    "EGX:PRMH": {
+      "ar": "برايم القابضة للاستثمارات المالية",
+      "en": "Prime Holding"
+    },
+    "PRMH": {
+      "ar": "برايم القابضة للاستثمارات المالية",
+      "en": "Prime Holding"
+    },
+    "EGX:QNBE": {
+      "ar": "بنك قطر الوطني - الأهلي (مصر)",
+      "en": "Qatar National Bank"
+    },
+    "QNBE": {
+      "ar": "بنك قطر الوطني - الأهلي (مصر)",
+      "en": "Qatar National Bank"
+    },
+    "EGX:RACC": {
+      "ar": "راية لمراكز الاتصالات",
+      "en": "Raya Contact Center"
+    },
+    "RACC": {
+      "ar": "راية لمراكز الاتصالات",
+      "en": "Raya Contact Center"
+    },
+    "EGX:RAKT": {
+      "ar": "العامة لصناعة الورق (راكتا)",
+      "en": "Rakta Paper Manufacturing"
+    },
+    "RAKT": {
+      "ar": "العامة لصناعة الورق (راكتا)",
+      "en": "Rakta Paper Manufacturing"
+    },
+    "EGX:RAYA": {
+      "ar": "راية القابضة للاستثمارات المالية",
+      "en": "Raya Holding for Financial Investments SAE"
+    },
+    "RAYA": {
+      "ar": "راية القابضة للاستثمارات المالية",
+      "en": "Raya Holding for Financial Investments SAE"
+    },
+    "EGX:RKAZ": {
+      "ar": "ركاز المالية القابضة",
+      "en": "REKAZ Financial Holding"
+    },
+    "RKAZ": {
+      "ar": "ركاز المالية القابضة",
+      "en": "REKAZ Financial Holding"
+    },
+    "EGX:RMDA": {
+      "ar": "العاشر من رمضان للصناعات الدوائية (راميدا)",
+      "en": "Tenth of Ramadan Pharmaceutical Industries & Diagnostic-Rameda"
+    },
+    "RMDA": {
+      "ar": "العاشر من رمضان للصناعات الدوائية (راميدا)",
+      "en": "Tenth of Ramadan Pharmaceutical Industries & Diagnostic-Rameda"
+    },
+    "EGX:ROTO": {
+      "ar": "رواد السياحة (الرواد)",
+      "en": "Rowad Tourism (Al Rowad) Co"
+    },
+    "ROTO": {
+      "ar": "رواد السياحة (الرواد)",
+      "en": "Rowad Tourism (Al Rowad) Co"
+    },
+    "EGX:RREI": {
+      "ar": "العربية للاستثمار العقاري",
+      "en": "Arab Real Estate Investment Co."
+    },
+    "RREI": {
+      "ar": "العربية للاستثمار العقاري",
+      "en": "Arab Real Estate Investment Co."
+    },
+    "EGX:RTVC": {
+      "ar": "رمكو لإنشاء القرى السياحية",
+      "en": "Remco for Touristic Villages Construction"
+    },
+    "RTVC": {
+      "ar": "رمكو لإنشاء القرى السياحية",
+      "en": "Remco for Touristic Villages Construction"
+    },
+    "EGX:RUBX": {
+      "ar": "روبكس العالمية لتصنيع البلاستيك والأكريلك",
+      "en": "Rubex International for Plastic & Acrylic Manufacturing"
+    },
+    "RUBX": {
+      "ar": "روبكس العالمية لتصنيع البلاستيك والأكريلك",
+      "en": "Rubex International for Plastic & Acrylic Manufacturing"
+    },
+    "EGX:SAIB": {
+      "ar": "بنك الشركة المصرفية العربية الدولية (سايب)",
+      "en": "Societe Arabe Internationale de Banque"
+    },
+    "SAIB": {
+      "ar": "بنك الشركة المصرفية العربية الدولية (سايب)",
+      "en": "Societe Arabe Internationale de Banque"
+    },
+    "EGX:SAUD": {
+      "ar": "بنك البركة - مصر",
+      "en": "Al Baraka Bank Egypt"
+    },
+    "SAUD": {
+      "ar": "بنك البركة - مصر",
+      "en": "Al Baraka Bank Egypt"
+    },
+    "EGX:SCEM": {
+      "ar": "أسمنت سيناء",
+      "en": "Sinai Cement Co."
+    },
+    "SCEM": {
+      "ar": "أسمنت سيناء",
+      "en": "Sinai Cement Co."
+    },
+    "EGX:SCFM": {
+      "ar": "مطاحن ومخابز جنوب القاهرة والجيزة",
+      "en": "South Cairo & Giza Mills & Bakeries"
+    },
+    "SCFM": {
+      "ar": "مطاحن ومخابز جنوب القاهرة والجيزة",
+      "en": "South Cairo & Giza Mills & Bakeries"
+    },
+    "EGX:SCTS": {
+      "ar": "قناة السويس لتوطين التكنولوجيا",
+      "en": "Sues Canal Co. for Technology Settling"
+    },
+    "SCTS": {
+      "ar": "قناة السويس لتوطين التكنولوجيا",
+      "en": "Sues Canal Co. for Technology Settling"
+    },
+    "EGX:SDTI": {
+      "ar": "شرم دريمز للاستثمار السياحي",
+      "en": "Sharm Dreams Co. for Tourism Investment"
+    },
+    "SDTI": {
+      "ar": "شرم دريمز للاستثمار السياحي",
+      "en": "Sharm Dreams Co. for Tourism Investment"
+    },
+    "EGX:SEIG": {
+      "ar": "السعودية المصرية للاستثمار والتمويل (جنيه)",
+      "en": "Saudi Egyptian Investment & Finance Co. SAE"
+    },
+    "SEIG": {
+      "ar": "السعودية المصرية للاستثمار والتمويل (جنيه)",
+      "en": "Saudi Egyptian Investment & Finance Co. SAE"
+    },
+    "EGX:SEIGA": {
+      "ar": "السعودية المصرية للاستثمار والتمويل (دولار)",
+      "en": "Saudi Egyptian Investment & Finance Co. SAE"
+    },
+    "SEIGA": {
+      "ar": "السعودية المصرية للاستثمار والتمويل (دولار)",
+      "en": "Saudi Egyptian Investment & Finance Co. SAE"
+    },
+    "EGX:SIPC": {
+      "ar": "سبأ الدولية للأدوية والصناعات الكيماوية",
+      "en": "Sabaa International Company for Pharmaceutial and Chemical Industry"
+    },
+    "SIPC": {
+      "ar": "سبأ الدولية للأدوية والصناعات الكيماوية",
+      "en": "Sabaa International Company for Pharmaceutial and Chemical Industry"
+    },
+    "EGX:SKPC": {
+      "ar": "سيدي كرير للبتروكيماويات (سيدبك)",
+      "en": "Sidi Kerir Petrochemicals"
+    },
+    "SKPC": {
+      "ar": "سيدي كرير للبتروكيماويات (سيدبك)",
+      "en": "Sidi Kerir Petrochemicals"
+    },
+    "EGX:SMFR": {
+      "ar": "سماد مصر (إيجيفرت)",
+      "en": "Samad Misr-EGYFERT"
+    },
+    "SMFR": {
+      "ar": "سماد مصر (إيجيفرت)",
+      "en": "Samad Misr-EGYFERT"
+    },
+    "EGX:SNFC": {
+      "ar": "الشرقية الوطنية للأمن الغذائي",
+      "en": "Sharkia National Food"
+    },
+    "SNFC": {
+      "ar": "الشرقية الوطنية للأمن الغذائي",
+      "en": "Sharkia National Food"
+    },
+    "EGX:SPHT": {
+      "ar": "الشمس بيراميدز للفنادق والمنشآت السياحية",
+      "en": "El Shams Pyramids Co. for Hotels & Touristic Projects SAE"
+    },
+    "SPHT": {
+      "ar": "الشمس بيراميدز للفنادق والمنشآت السياحية",
+      "en": "El Shams Pyramids Co. for Hotels & Touristic Projects SAE"
+    },
+    "EGX:SPIN": {
+      "ar": "الإسكندرية للغزل والنسيج (سبينالكس)",
+      "en": "Alexandria Spinning & Weaving"
+    },
+    "SPIN": {
+      "ar": "الإسكندرية للغزل والنسيج (سبينالكس)",
+      "en": "Alexandria Spinning & Weaving"
+    },
+    "EGX:SPMD": {
+      "ar": "سبيد ميديكال",
+      "en": "Speed Medical SAE"
+    },
+    "SPMD": {
+      "ar": "سبيد ميديكال",
+      "en": "Speed Medical SAE"
+    },
+    "EGX:SUGR": {
+      "ar": "الدلتا للسكر",
+      "en": "Delta Sugar"
+    },
+    "SUGR": {
+      "ar": "الدلتا للسكر",
+      "en": "Delta Sugar"
+    },
+    "EGX:SVCE": {
+      "ar": "أسمنت جنوب الوادي",
+      "en": "South Valley Cement Co."
+    },
+    "SVCE": {
+      "ar": "أسمنت جنوب الوادي",
+      "en": "South Valley Cement Co."
+    },
+    "EGX:SWDY": {
+      "ar": "السويدي إليكتريك",
+      "en": "El Sewedy Electric Company"
+    },
+    "SWDY": {
+      "ar": "السويدي إليكتريك",
+      "en": "El Sewedy Electric Company"
+    },
+    "EGX:TALM": {
+      "ar": "تعليم لخدمات الإدارة",
+      "en": "Taaleem Management Services S.A.E"
+    },
+    "TALM": {
+      "ar": "تعليم لخدمات الإدارة",
+      "en": "Taaleem Management Services S.A.E"
+    },
+    "EGX:TANM": {
+      "ar": "تنمية للاستثمار العقاري",
+      "en": "Tanmiya for Real Estate Investment"
+    },
+    "TANM": {
+      "ar": "تنمية للاستثمار العقاري",
+      "en": "Tanmiya for Real Estate Investment"
+    },
+    "EGX:TAQA": {
+      "ar": "طاقة عربية",
+      "en": "TAQA Arabia"
+    },
+    "TAQA": {
+      "ar": "طاقة عربية",
+      "en": "TAQA Arabia"
+    },
+    "EGX:TMGH": {
+      "ar": "مجموعة طلعت مصطفى القابضة",
+      "en": "Talaat Moustafa Group Holding"
+    },
+    "TMGH": {
+      "ar": "مجموعة طلعت مصطفى القابضة",
+      "en": "Talaat Moustafa Group Holding"
+    },
+    "EGX:TRTO": {
+      "ar": "ترانس أوكشينز ترافيل",
+      "en": "TransOceans Tours"
+    },
+    "TRTO": {
+      "ar": "ترانس أوكشينز ترافيل",
+      "en": "TransOceans Tours"
+    },
+    "EGX:TWSA": {
+      "ar": "توسع للتخصيم",
+      "en": "TAWASOA FOR FACTORING"
+    },
+    "TWSA": {
+      "ar": "توسع للتخصيم",
+      "en": "TAWASOA FOR FACTORING"
+    },
+    "EGX:UBEE": {
+      "ar": "المصرف المتحد",
+      "en": "United Bank SAE"
+    },
+    "UBEE": {
+      "ar": "المصرف المتحد",
+      "en": "United Bank SAE"
+    },
+    "EGX:UEFM": {
+      "ar": "مطاحن مصر العليا",
+      "en": "Upper Egypt Flour Mills Co."
+    },
+    "UEFM": {
+      "ar": "مطاحن مصر العليا",
+      "en": "Upper Egypt Flour Mills Co."
+    },
+    "EGX:UEGC": {
+      "ar": "الصعيد العامة للمقاولات والاستثمار العقاري",
+      "en": "El-Saeed Contracting & Real Estate Investment Co. SCCD"
+    },
+    "UEGC": {
+      "ar": "الصعيد العامة للمقاولات والاستثمار العقاري",
+      "en": "El-Saeed Contracting & Real Estate Investment Co. SCCD"
+    },
+    "EGX:UNIP": {
+      "ar": "يونيفرسال لصناعة مواد التعبئة والتغليف (يونيباك)",
+      "en": "Universal Co. for Paper & Packaging Materials-Unipack"
+    },
+    "UNIP": {
+      "ar": "يونيفرسال لصناعة مواد التعبئة والتغليف (يونيباك)",
+      "en": "Universal Co. for Paper & Packaging Materials-Unipack"
+    },
+    "EGX:UNIT": {
+      "ar": "المتحدة للإسكان والتعمير",
+      "en": "United Housing Construction SA"
+    },
+    "UNIT": {
+      "ar": "المتحدة للإسكان والتعمير",
+      "en": "United Housing Construction SA"
+    },
+    "EGX:UPMS": {
+      "ar": "اتحاد الصيدلية للخدمات الطبية والاستثمار",
+      "en": "Union Pharmacist Company For Medical Services And Investment"
+    },
+    "UPMS": {
+      "ar": "اتحاد الصيدلية للخدمات الطبية والاستثمار",
+      "en": "Union Pharmacist Company For Medical Services And Investment"
+    },
+    "EGX:UTOP": {
+      "ar": "يوتوبيا للاستثمار العقاري والسياحي",
+      "en": "Utopia Real Estate Investment & Tourism SAE"
+    },
+    "UTOP": {
+      "ar": "يوتوبيا للاستثمار العقاري والسياحي",
+      "en": "Utopia Real Estate Investment & Tourism SAE"
+    },
+    "EGX:VALU": {
+      "ar": "ڤاليو لخدمات التمويل الاستهلاكي",
+      "en": "U Consumer Finance S.A.E"
+    },
+    "VALU": {
+      "ar": "ڤاليو لخدمات التمويل الاستهلاكي",
+      "en": "U Consumer Finance S.A.E"
+    },
+    "EGX:VERT": {
+      "ar": "فرتيكا للصناعة والتجارة",
+      "en": "Vertika for Industry & Trade"
+    },
+    "VERT": {
+      "ar": "فرتيكا للصناعة والتجارة",
+      "en": "Vertika for Industry & Trade"
+    },
+    "EGX:VLMR": {
+      "ar": "فالمور القابضة",
+      "en": "Valmore Holding"
+    },
+    "VLMR": {
+      "ar": "فالمور القابضة",
+      "en": "Valmore Holding"
+    },
+    "EGX:VLMRA": {
+      "ar": "فالمور القابضة (فئة أ)",
+      "en": "Valmore Holding"
+    },
+    "VLMRA": {
+      "ar": "فالمور القابضة (فئة أ)",
+      "en": "Valmore Holding"
+    },
+    "EGX:WCDF": {
+      "ar": "مطاحن ومخابز الإسكندرية / غرب الدلتا",
+      "en": "Middle & West Delta Flour Mills Co."
+    },
+    "WCDF": {
+      "ar": "مطاحن ومخابز الإسكندرية / غرب الدلتا",
+      "en": "Middle & West Delta Flour Mills Co."
+    },
+    "EGX:WKOL": {
+      "ar": "وادي كوم أمبو لاستصلاح الأراضي",
+      "en": "Wadi Kom Ombo Land Reclamation"
+    },
+    "WKOL": {
+      "ar": "وادي كوم أمبو لاستصلاح الأراضي",
+      "en": "Wadi Kom Ombo Land Reclamation"
+    },
+    "EGX:GOUR": {
+      "ar": "جورميه إيجيبت للأغذية",
+      "en": "Gourmet Egypt.Com Foods"
+    },
+    "GOUR": {
+      "ar": "جورميه إيجيبت للأغذية",
+      "en": "Gourmet Egypt.Com Foods"
+    },
+    "EGX:GPIM": {
+      "ar": "جي بي آي للتنمية العمرانية",
+      "en": "GPI For Urban Growth"
+    },
+    "GPIM": {
+      "ar": "جي بي آي للتنمية العمرانية",
+      "en": "GPI For Urban Growth"
+    },
+    "EGX:MLIC": {
+      "ar": "مصر لتأمينات الحياة",
+      "en": "Misr Life Insurance"
+    },
+    "MLIC": {
+      "ar": "مصر لتأمينات الحياة",
+      "en": "Misr Life Insurance"
+    },
+    "EGX:ACFR": {
+      "ar": "الإسكندرية للحراريات",
+      "en": "Alexandria Company For Refractories"
+    },
+    "ACFR": {
+      "ar": "الإسكندرية للحراريات",
+      "en": "Alexandria Company For Refractories"
+    },
+    "EGX:KNGC": {
+      "ar": "النصر للزجاج والبلور",
+      "en": "EL- Nasr Glass & Crystal -NGC"
+    },
+    "KNGC": {
+      "ar": "النصر للزجاج والبلور",
+      "en": "EL- Nasr Glass & Crystal -NGC"
+    },
+    "EGX:SIEG": {
+      "ar": "المصرية للمواسير والمنتجات الأسمنتية (سيجوارت)",
+      "en": "Egyptian Company for Pipes and Cement Products Siegwart"
+    },
+    "SIEG": {
+      "ar": "المصرية للمواسير والمنتجات الأسمنتية (سيجوارت)",
+      "en": "Egyptian Company for Pipes and Cement Products Siegwart"
+    },
+    "EGX:ANCC": {
+      "ar": "النهضة للصناعات",
+      "en": "ALNAHDA Industrial Co."
+    },
+    "ANCC": {
+      "ar": "النهضة للصناعات",
+      "en": "ALNAHDA Industrial Co."
+    },
+    "EGX:EFAC": {
+      "ar": "المصرية للسبائك الحديدية",
+      "en": "Egyptian Ferro All Egp10"
+    },
+    "EFAC": {
+      "ar": "المصرية للسبائك الحديدية",
+      "en": "Egyptian Ferro All Egp10"
+    },
+    "EGX:NMIN": {
+      "ar": "النصر للتعدين",
+      "en": "El Nasr Mining Co Egp10"
+    },
+    "NMIN": {
+      "ar": "النصر للتعدين",
+      "en": "El Nasr Mining Co Egp10"
+    },
+    "EGX:EGS65101C015": {
+      "ar": "الشركة الوطنية للاستثمار وإعادة الإعمار",
+      "en": "National Investment And Reconstruction C"
+    },
+    "EGS65101C015": {
+      "ar": "الشركة الوطنية للاستثمار وإعادة الإعمار",
+      "en": "National Investment And Reconstruction C"
+    },
+    "EGX:EGS65621C012": {
+      "ar": "النصر للإسكان والتعمير",
+      "en": "El Nasr Housing and Development"
+    },
+    "EGS65621C012": {
+      "ar": "النصر للإسكان والتعمير",
+      "en": "El Nasr Housing and Development"
+    },
+    "EGX:EGS65861C014": {
+      "ar": "المصرية للمقاولات (مختار إبراهيم / العبد)",
+      "en": "The Egyptian Contracting Co.-AL- ABD"
+    },
+    "EGS65861C014": {
+      "ar": "المصرية للمقاولات (مختار إبراهيم / العبد)",
+      "en": "The Egyptian Contracting Co.-AL- ABD"
+    },
+    "EGX:ALEX": {
+      "ar": "أسمنت الإسكندرية",
+      "en": "Alexandria Cement Co."
+    },
+    "ALEX": {
+      "ar": "أسمنت الإسكندرية",
+      "en": "Alexandria Cement Co."
+    },
+    "EGX:APPC": {
+      "ar": "المتقدمة للعبوات الدوائية",
+      "en": "Advanced Pharmaceutical Packaging Co."
+    },
+    "APPC": {
+      "ar": "المتقدمة للعبوات الدوائية",
+      "en": "Advanced Pharmaceutical Packaging Co."
+    },
+    "EGX:DCRC": {
+      "ar": "الدلتا للإنشاء والتعمير",
+      "en": "Delta Construction & Rebuilding Co."
+    },
+    "DCRC": {
+      "ar": "الدلتا للإنشاء والتعمير",
+      "en": "Delta Construction & Rebuilding Co."
+    },
+    "EGX:EGS30AJ1C016-EGP": {
+      "ar": "الدولية للثلج الجاف",
+      "en": "International Dry Ice Co."
+    },
+    "EGS30AJ1C016-EGP": {
+      "ar": "الدولية للثلج الجاف",
+      "en": "International Dry Ice Co."
+    },
+    "EGS30AJ1C016": {
+      "ar": "الدولية للثلج الجاف",
+      "en": "International Dry Ice Co."
+    },
+    "EGX:EGS30AJ1C016": {
+      "ar": "الدولية للثلج الجاف",
+      "en": "International Dry Ice Co."
+    },
+    "EGX:EGS3E071C013-EGP": {
+      "ar": "أكرو مصر للشدات والسقالات المعدنية",
+      "en": "Acrow Misr"
+    },
+    "EGS3E071C013-EGP": {
+      "ar": "أكرو مصر للشدات والسقالات المعدنية",
+      "en": "Acrow Misr"
+    },
+    "EGS3E071C013": {
+      "ar": "أكرو مصر للشدات والسقالات المعدنية",
+      "en": "Acrow Misr"
+    },
+    "EGX:EGS3E071C013": {
+      "ar": "أكرو مصر للشدات والسقالات المعدنية",
+      "en": "Acrow Misr"
+    },
+    "EGX:EGS48271C018-EGP": {
+      "ar": "مصر - جنوب أفريقيا للاتصالات",
+      "en": "Egypt - South Africa for Communication"
+    },
+    "EGS48271C018-EGP": {
+      "ar": "مصر - جنوب أفريقيا للاتصالات",
+      "en": "Egypt - South Africa for Communication"
+    },
+    "EGS48271C018": {
+      "ar": "مصر - جنوب أفريقيا للاتصالات",
+      "en": "Egypt - South Africa for Communication"
+    },
+    "EGX:EGS48271C018": {
+      "ar": "مصر - جنوب أفريقيا للاتصالات",
+      "en": "Egypt - South Africa for Communication"
+    },
+    "EGX:EITP": {
+      "ar": "المصرية للمشروعات السياحية العالمية (أمريكانا مصر)",
+      "en": "Egyptian International Tourism Projects"
+    },
+    "EITP": {
+      "ar": "المصرية للمشروعات السياحية العالمية (أمريكانا مصر)",
+      "en": "Egyptian International Tourism Projects"
+    },
+    "EGX:GTHE": {
+      "ar": "جلوبال تليكوم القابضة",
+      "en": "Global Telecom Holding S.A.E."
+    },
+    "GTHE": {
+      "ar": "جلوبال تليكوم القابضة",
+      "en": "Global Telecom Holding S.A.E."
+    },
+    "EGX:IRAX": {
+      "ar": "العز الدخيلة للصلب - الإسكندرية",
+      "en": "El Ezz Aldekhela Steel-Alexandria"
+    },
+    "IRAX": {
+      "ar": "العز الدخيلة للصلب - الإسكندرية",
+      "en": "El Ezz Aldekhela Steel-Alexandria"
+    },
+    "EGX:LKGP": {
+      "ar": "مجموعة لكح للاستثمار المالي",
+      "en": "The Holding Company for Financial Investment - The Lakah Group"
+    },
+    "LKGP": {
+      "ar": "مجموعة لكح للاستثمار المالي",
+      "en": "The Holding Company for Financial Investment - The Lakah Group"
+    },
+    "EGX:NBKE": {
+      "ar": "بنك الكويت الوطني - مصر",
+      "en": "National Bank of Kuwait - Egypt"
+    },
+    "NBKE": {
+      "ar": "بنك الكويت الوطني - مصر",
+      "en": "National Bank of Kuwait - Egypt"
+    },
+    "EGX:NCGC": {
+      "ar": "النيل لحليج الأقطان",
+      "en": "Nile Cotton Ginning"
+    },
+    "NCGC": {
+      "ar": "النيل لحليج الأقطان",
+      "en": "Nile Cotton Ginning"
+    },
+    "EGX:PACH": {
+      "ar": "البويات والصناعات الكيماوية (باكين)",
+      "en": "Paints & Chemical Industries Co."
+    },
+    "PACH": {
+      "ar": "البويات والصناعات الكيماوية (باكين)",
+      "en": "Paints & Chemical Industries Co."
+    },
+    "EGX:RMTV": {
+      "ar": "رواد مصر للاستثمار السياحي",
+      "en": "Rowad Misr Tourism Investment"
+    },
+    "RMTV": {
+      "ar": "رواد مصر للاستثمار السياحي",
+      "en": "Rowad Misr Tourism Investment"
+    },
+    "EGX:SMPP": {
+      "ar": "الشروق الحديثة للطباعة والتغليف",
+      "en": "Modern Shorouk Printing & Packaging"
+    },
+    "SMPP": {
+      "ar": "الشروق الحديثة للطباعة والتغليف",
+      "en": "Modern Shorouk Printing & Packaging"
+    },
+    "EGX:SNFI": {
+      "ar": "سوهاج الوطنية للصناعات الغذائية",
+      "en": "Souhag National Food Industries"
+    },
+    "SNFI": {
+      "ar": "سوهاج الوطنية للصناعات الغذائية",
+      "en": "Souhag National Food Industries"
+    },
+    "EGX:SUCE": {
+      "ar": "أسمنت السويس",
+      "en": "Suez Cement Co."
+    },
+    "SUCE": {
+      "ar": "أسمنت السويس",
+      "en": "Suez Cement Co."
+    },
+    "EGX:TORA": {
+      "ar": "أسمنت طره",
+      "en": "Tourah Cement Co"
+    },
+    "TORA": {
+      "ar": "أسمنت طره",
+      "en": "Tourah Cement Co"
+    },
+    "EGX:WATP": {
+      "ar": "الحديثة للمواد العازلة (مودرن ووتر بروف)",
+      "en": "Modern Co. for Water Proofing"
+    },
+    "WATP": {
+      "ar": "الحديثة للمواد العازلة (مودرن ووتر بروف)",
+      "en": "Modern Co. for Water Proofing"
+    },
+    "EGX:TYCN": {
+      "ar": "تايكون القابضة للاستثمارات",
+      "en": "Tycoon Investments Holding LLC"
+    },
+    "TYCN": {
+      "ar": "تايكون القابضة للاستثمارات",
+      "en": "Tycoon Investments Holding LLC"
+    },
+    "EGX:SINA": {
+      "ar": "سيناء للمنجنيز",
+      "en": "Sinai Manganese Company"
+    },
+    "SINA": {
+      "ar": "سيناء للمنجنيز",
+      "en": "Sinai Manganese Company"
+    },
+    "EGX:EEP": {
+      "ar": "منصة مصر للتعليم (EEP)",
+      "en": "Egypt Education Platform .EEP"
+    },
+    "EEP": {
+      "ar": "منصة مصر للتعليم (EEP)",
+      "en": "Egypt Education Platform .EEP"
+    },
+    "EGX:MITR": {
+      "ar": "مصر للسياحة",
+      "en": "Misr Travel&Touris Egp6"
+    },
+    "MITR": {
+      "ar": "مصر للسياحة",
+      "en": "Misr Travel&Touris Egp6"
+    },
+    "EGX:CID": {
+      "ar": "تنمية الكيماويات (سيد)",
+      "en": "Chemical Dev Ind Egp10"
+    },
+    "CID": {
+      "ar": "تنمية الكيماويات (سيد)",
+      "en": "Chemical Dev Ind Egp10"
+    },
+    "EGX:NFCI": {
+      "ar": "النصر للأسمدة والصناعات الكيماوية (سماد السويس)",
+      "en": "ELNASR Co For Fertilizers And Chemical Industries"
+    },
+    "NFCI": {
+      "ar": "النصر للأسمدة والصناعات الكيماوية (سماد السويس)",
+      "en": "ELNASR Co For Fertilizers And Chemical Industries"
+    },
+    "EGX:OCAP": {
+      "ar": "أو جي كابيتال للاستثمارات",
+      "en": "O G Capital For Investments SPAC"
+    },
+    "OCAP": {
+      "ar": "أو جي كابيتال للاستثمارات",
+      "en": "O G Capital For Investments SPAC"
+    },
+    "EGX:EGOTH": {
+      "ar": "الشركة المصرية العامة للسياحة والفنادق (إيجوث)",
+      "en": "El Masreyah Touris Egp100"
+    },
+    "EGOTH": {
+      "ar": "الشركة المصرية العامة للسياحة والفنادق (إيجوث)",
+      "en": "El Masreyah Touris Egp100"
+    },
+    "EGX:ELAB": {
+      "ar": "المصرية لإنتاج الألكيل بنزين الخطي (إيلاب)",
+      "en": "The Egyptian Linear Alkyl Benzene co.-ELAB"
+    },
+    "ELAB": {
+      "ar": "المصرية لإنتاج الألكيل بنزين الخطي (إيلاب)",
+      "en": "The Egyptian Linear Alkyl Benzene co.-ELAB"
+    },
+    "EGX:YAYT": {
+      "ar": "اليايات ومهمات وسائل النقل",
+      "en": "Spring & Transportation Needs Manufacturing Co."
+    },
+    "YAYT": {
+      "ar": "اليايات ومهمات وسائل النقل",
+      "en": "Spring & Transportation Needs Manufacturing Co."
+    },
+    "EGX:MMHC": {
+      "ar": "المعمورة للتعمير والتنمية السياحية",
+      "en": "El Mamoura Co For Egp10"
+    },
+    "MMHC": {
+      "ar": "المعمورة للتعمير والتنمية السياحية",
+      "en": "El Mamoura Co For Egp10"
+    },
+    "EGX:ENPI": {
+      "ar": "الهندسية للصناعات البترولية والكيماوية (إنبي)",
+      "en": "Engineering for the Petroleum Enppi"
+    },
+    "ENPI": {
+      "ar": "الهندسية للصناعات البترولية والكيماوية (إنبي)",
+      "en": "Engineering for the Petroleum Enppi"
+    },
+    "EGX:PMSC": {
+      "ar": "خدمات البترول البحرية (PMS)",
+      "en": "Petroleum Marine Services Co .P.M.S"
+    },
+    "PMSC": {
+      "ar": "خدمات البترول البحرية (PMS)",
+      "en": "Petroleum Marine Services Co .P.M.S"
+    },
+    "EGX:ZEOT": {
+      "ar": "الزيوت المستخلصة ومنتجاتها",
+      "en": "Extracted Oils & Derivatives Co."
+    },
+    "ZEOT": {
+      "ar": "الزيوت المستخلصة ومنتجاتها",
+      "en": "Extracted Oils & Derivatives Co."
+    },
+    "EGX:ZMID": {
+      "ar": "زهراء المعادي للاستثمار والتعمير",
+      "en": "Zahraa Maadi Investment & Development"
+    },
+    "ZMID": {
+      "ar": "زهراء المعادي للاستثمار والتعمير",
+      "en": "Zahraa Maadi Investment & Development"
+    },
+    "EGX:AMII": {
+      "ar": "الصناعات المعدنية العربية للاستثمارات الصناعية",
+      "en": "Arabian Metal Industries and Industrial Investments"
+    },
+    "AMII": {
+      "ar": "الصناعات المعدنية العربية للاستثمارات الصناعية",
+      "en": "Arabian Metal Industries and Industrial Investments"
+    },
+    "EGX:PHGC": {
+      "ar": "بريميوم هيلثكير جروب",
+      "en": "Premium Healthcare Group"
+    },
+    "PHGC": {
+      "ar": "بريميوم هيلثكير جروب",
+      "en": "Premium Healthcare Group"
+    },
+    "EGX:EGS659O1C015": {
+      "ar": "مصر الكويت للاستثمار والتجارة",
+      "en": "Misr Kuwait Investment & Trading Co."
+    },
+    "EGS659O1C015": {
+      "ar": "مصر الكويت للاستثمار والتجارة",
+      "en": "Misr Kuwait Investment & Trading Co."
+    },
+    "EGX:TOUR": {
+      "ar": "التعمير السياحي",
+      "en": "Tourism Urbanization"
+    },
+    "TOUR": {
+      "ar": "التعمير السياحي",
+      "en": "Tourism Urbanization"
+    },
+    "EGX:ALXD": {
+      "ar": "الإسكندرية للاستثمار والتنمية العمرانية",
+      "en": "Alexandria For Investment and Urban Development"
+    },
+    "ALXD": {
+      "ar": "الإسكندرية للاستثمار والتنمية العمرانية",
+      "en": "Alexandria For Investment and Urban Development"
+    },
+    "EGX:GROV": {
+      "ar": "جروفا للاستحواذ ذو الغرض الخاص",
+      "en": "Grova Special Purpose Acquisition Company"
+    },
+    "GROV": {
+      "ar": "جروفا للاستحواذ ذو الغرض الخاص",
+      "en": "Grova Special Purpose Acquisition Company"
+    },
+    "EGX:NBCC": {
+      "ar": "النصر للمباني والإنشاءات (إيجيكو)",
+      "en": "ALNASR For Building And Construction Company"
+    },
+    "NBCC": {
+      "ar": "النصر للمباني والإنشاءات (إيجيكو)",
+      "en": "ALNASR For Building And Construction Company"
+    },
+    "EGX:HALN": {
+      "ar": "إم إن تي تيك القابضة للاستثمارات المالية (حالاً)",
+      "en": "MNT Tech Holding For Financial Investments"
+    },
+    "HALN": {
+      "ar": "إم إن تي تيك القابضة للاستثمارات المالية (حالاً)",
+      "en": "MNT Tech Holding For Financial Investments"
+    },
+    "EGX:FERC": {
+      "ar": "فيركيم مصر للأسمدة والكيماويات",
+      "en": "Ferchem Misr Co. for Fertilizers & Chemicals"
+    },
+    "FERC": {
+      "ar": "فيركيم مصر للأسمدة والكيماويات",
+      "en": "Ferchem Misr Co. for Fertilizers & Chemicals"
+    },
+    "EGX:NAMI": {
+      "ar": "الوطنية لإدارة الأصول والاستثمار",
+      "en": "National Asset Management And Investment"
+    },
+    "NAMI": {
+      "ar": "الوطنية لإدارة الأصول والاستثمار",
+      "en": "National Asset Management And Investment"
+    },
+    "EGX:EGS3I0S1C019": {
+      "ar": "فيوتشر كير للصناعات الطبية",
+      "en": "Future Care For Medical Industries"
+    },
+    "EGS3I0S1C019": {
+      "ar": "فيوتشر كير للصناعات الطبية",
+      "en": "Future Care For Medical Industries"
+    }
+  }
+}

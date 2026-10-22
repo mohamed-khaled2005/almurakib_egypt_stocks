@@ -9,6 +9,13 @@ class StockPerformanceModel {
     this.serverTime,
   });
 
+  factory StockPerformanceModel.fallback(String ticker) {
+    return StockPerformanceModel(
+      ticker: ticker,
+      perf: const {},
+    );
+  }
+
   factory StockPerformanceModel.fromJson(Map<String, dynamic> json) {
     final resp = json['response'];
 

@@ -43,7 +43,13 @@ class FacebookSdkService {
       // The native SDK is intentionally Android-only for this integration.
     } on PlatformException catch (error) {
       if (kDebugMode) {
-        debugPrint('Facebook SDK configuration failed: ${error.code}');
+        debugPrint(
+          'Facebook SDK configuration notice: ${error.code} - ${error.message}',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Facebook SDK configuration error: $e');
       }
     }
     return false;

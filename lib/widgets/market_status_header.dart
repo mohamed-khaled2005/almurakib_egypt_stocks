@@ -134,25 +134,33 @@ class _MarketStatusHeaderState extends State<MarketStatusHeader> {
           ),
           const SizedBox(width: 8),
 
-          // Status & Session
-          Text(
-            status.localizedStatus,
-            style: TextStyle(
-              color: statusColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '• ${status.startTime ?? "10:00"} - ${status.endTime ?? "14:30"} (توقيت القاهرة)',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 11,
+          // Status & Session (Flexible to prevent any overflow)
+          Expanded(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6,
+              runSpacing: 2,
+              children: [
+                Text(
+                  status.localizedStatus,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  '• ${status.startTime ?? "10:00"} - ${status.endTime ?? "14:30"}',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ),
 
-          const Spacer(),
+          const SizedBox(width: 6),
 
           // Countdown if available
           if (_countdownText.isNotEmpty)

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import '../core/api/api_keys.dart';
 import '../core/models/stock_model.dart';
 import '../core/utils/constants.dart';
 
@@ -60,9 +59,38 @@ class _InteractiveChartScreenState extends State<InteractiveChartScreen> {
     _webViewController = controller;
   }
 
+  String _cleanSymbol() {
+    return widget.stock.symbol.replaceAll('EGX:', '').trim();
+  }
+
+  String _tradingViewInterval(String period) {
+    switch (period.toLowerCase()) {
+      case '1m':
+        return '1';
+      case '5m':
+        return '5';
+      case '15m':
+        return '15';
+      case '30m':
+        return '30';
+      case '1h':
+        return '60';
+      case '4h':
+        return '240';
+      case '1d':
+        return 'D';
+      case '1w':
+        return 'W';
+      case '1month':
+        return 'M';
+      default:
+        return 'D';
+    }
+  }
+
   void _loadChartHtml(WebViewController controller, String period) {
-    final apiKey = ApiKeys.fcsApiKey;
-    final symbol = widget.stock.symbol;
+    final clean = _cleanSymbol();
+    final tvInterval = _tradingViewInterval(period);
 
     final htmlContent = '''
 <!DOCTYPE html>
@@ -70,7 +98,6 @@ class _InteractiveChartScreenState extends State<InteractiveChartScreen> {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fcsapi/chart-js@latest/src/fcsapi-chart.css">
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -80,43 +107,29 @@ class _InteractiveChartScreenState extends State<InteractiveChartScreen> {
       height: 100%;
       background-color: #0b111e;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    #fcs_chartparent {
-      width: 100%;
-      height: 100vh;
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-    }
-    #fcs_chart {
+    #tv_chart_container {
       width: 100%;
       height: 100%;
     }
   </style>
 </head>
 <body>
-  <div id="fcs_chartparent">
-    <div id="fcs_chart"></div>
-  </div>
-  <script src="https://cdn.jsdelivr.net/gh/fcsapi/chart-js@latest/src/fcsapi-chart.js"></script>
-  <script>
-    window.addEventListener("DOMContentLoaded", function() {
-      try {
-        new FCSAPIChart({
-          container: document.getElementById('fcs_chart'),
-          parentid: 'fcs_chartparent',
-          accessKey: '$apiKey',
-          symbol: '$symbol',
-          period: '$period',
-          length: 300,
-          theme: 'dark'
-        });
-      } catch (err) {
-        console.error("FCS Chart error:", err);
-      }
+  <div id="tv_chart_container"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script type="text/javascript">
+    new TradingView.widget({
+      "autosize": true,
+      "symbol": "EGX:$clean",
+      "interval": "$tvInterval",
+      "timezone": "Africa/Cairo",
+      "theme": "dark",
+      "style": "1",
+      "locale": "ar_AE",
+      "toolbar_bg": "#0b111e",
+      "enable_publishing": false,
+      "allow_symbol_change": true,
+      "container_id": "tv_chart_container"
     });
   </script>
 </body>
@@ -135,6 +148,7 @@ class _InteractiveChartScreenState extends State<InteractiveChartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final clean = _cleanSymbol();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -157,10 +171,10 @@ class _InteractiveChartScreenState extends State<InteractiveChartScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.open_in_browser_rounded, size: 22),
-            tooltip: 'فتح في المتصفح',
+            tooltip: 'فتح في TradingView',
             onPressed: () async {
               final url = Uri.parse(
-                'https://fcsapi.com/widgets/stock-chart?symbol=${widget.stock.symbol}',
+                'https://ar.tradingview.com/symbols/EGX-$clean/',
               );
               if (await canLaunchUrl(url)) {
                 await launchUrl(url, mode: LaunchMode.externalApplication);

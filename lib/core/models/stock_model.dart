@@ -188,35 +188,7 @@ class StockModel {
 
     if (s.startsWith('http://') || s.startsWith('https://')) return s;
 
-    var path = s;
-    if (path.startsWith('/')) path = path.substring(1);
-
-    if (path.startsWith('assets/logos/')) {
-      return 'https://api-v4.fcsapi.com/$path';
-    }
-
-    if (path.startsWith('stock/')) {
-      path = 'assets/logos/$path';
-      final lower = path.toLowerCase();
-      final hasExt = lower.contains('.svg') ||
-          lower.contains('.png') ||
-          lower.contains('.jpg') ||
-          lower.contains('.jpeg') ||
-          lower.contains('.webp');
-      if (!hasExt) path = '$path.svg';
-      return 'https://api-v4.fcsapi.com/$path';
-    }
-
-    final lower = path.toLowerCase();
-    final hasExt = lower.contains('.svg') ||
-        lower.contains('.png') ||
-        lower.contains('.jpg') ||
-        lower.contains('.jpeg') ||
-        lower.contains('.webp');
-
-    if (!hasExt) path = '$path.svg';
-
-    return 'https://api-v4.fcsapi.com/assets/logos/$path';
+    return null;
   }
 
   StockModel copyWith({

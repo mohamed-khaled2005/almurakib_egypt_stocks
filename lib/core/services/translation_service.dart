@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
 import '../api/api_client.dart';
 import '../api/api_keys.dart';
 
@@ -27,29 +29,45 @@ class StockTranslations {
     final sym = _norm(symbol);
     final sid = _norm(id);
 
+    // 1. Direct match on symbol (e.g. EGX:COMI or COMI)
     final v1 = _getAr(sym);
     if (v1 != null) return v1;
 
+    // 2. Direct match on id
     final v2 = _getAr(sid);
     if (v2 != null) return v2;
 
+    // 3. EGX prefixed lookup
     if (!sid.contains(':') && sid.isNotEmpty) {
-      final v3 = _getAr('TADAWUL:$sid');
+      final v3 = _getAr('EGX:$sid');
       if (v3 != null) return v3;
     }
 
     if (!sym.contains(':') && sym.isNotEmpty) {
-      final v4 = _getAr('TADAWUL:$sym');
+      final v4 = _getAr('EGX:$sym');
       if (v4 != null) return v4;
     }
 
+    // 4. Split prefix (EGX:XYZ -> XYZ)
     if (sym.contains(':')) {
       final parts = sym.split(':');
-      if (parts.length == 2) {
-        final numeric = parts[1].trim();
-        final v5 = _getAr(numeric);
+      if (parts.length >= 2) {
+        final shortSym = parts.last.trim();
+        final v5 = _getAr(shortSym);
         if (v5 != null) return v5;
       }
+    }
+
+    // 5. Handle dash suffixes (e.g. EGS3E071C013-EGP -> EGS3E071C013)
+    if (sym.contains('-')) {
+      final baseSym = sym.split('-').first.trim();
+      final v6 = _getAr(baseSym) ?? _getAr('EGX:$baseSym');
+      if (v6 != null) return v6;
+    }
+    if (sid.contains('-')) {
+      final baseSid = sid.split('-').first.trim();
+      final v7 = _getAr(baseSid) ?? _getAr('EGX:$baseSid');
+      if (v7 != null) return v7;
     }
 
     return null;
@@ -93,10 +111,7 @@ class TranslationService {
   /// ✅ لا TTL — لا 24 ساعة — لا أي صلاحية زمنية
   static Future<StockTranslations?> getTranslations(
       {bool forceRefresh = false}) async {
-    // لو عندنا كاش في الرام وطالب مش force -> رجّعه
     if (!forceRefresh && _cache != null) return _cache;
-
-    // لو فيه طلب شغال بالفعل -> رجّعه (لتفادي سبام requests reminder)
     if (!forceRefresh && _inFlight != null) return _inFlight;
 
     _inFlight = _load();
@@ -107,47 +122,95 @@ class TranslationService {
 
   static Future<StockTranslations?> _load() async {
     try {
-      print('🌐 تحميل ملف الأسماء العربية...');
+      final map = <String, Map<String, String>>{};
 
-      final data = await ApiClient.get(ApiKeys.translationUrl);
+      // 1. Load local bundled Egyptian stock translations asset first (Guaranteed instant offline data)
+      try {
+        final localJsonStr =
+            await rootBundle.loadString('assets/data/egx_stocks_ar.json');
+        final localData = jsonDecode(localJsonStr);
+        final rawLocal =
+            localData['stocks_by_id'] ?? localData['stocksById'] ?? localData;
+        if (rawLocal is Map) {
+          _populateMap(map, rawLocal);
+        }
+      } catch (e) {
+        // Local asset fallback failed, will try remote
+      }
 
-      dynamic raw = data['stocks_by_id'] ?? data['stocksById'] ?? data;
+      // 2. Try to fetch remote translations (from Manager or API server)
+      try {
+        final url = ApiKeys.translationUrl;
+        if (url.isNotEmpty) {
+          final remoteData = await ApiClient.get(url);
+          final rawRemote = remoteData['stocks_by_id'] ??
+              remoteData['stocksById'] ??
+              remoteData;
 
-      if (raw is! Map) {
+          if (rawRemote is Map && rawRemote.isNotEmpty) {
+            // Check if remote data has Egyptian stocks or EGX tickers
+            final hasEgyptianData = rawRemote.keys.any((k) {
+              final keyStr = k.toString().toUpperCase();
+              return keyStr.contains('EGX') ||
+                  keyStr.contains('COMI') ||
+                  !keyStr.contains('TADAWUL');
+            });
+
+            if (hasEgyptianData) {
+              _populateMap(map, rawRemote);
+            }
+          }
+        }
+      } catch (e) {
+        // Remote fetch failed, fallback already in map
+      }
+
+      if (map.isEmpty) {
         isTranslationAvailable = false;
         return null;
       }
 
-      final map = <String, Map<String, String>>{};
-      raw.forEach((key, value) {
-        if (value is Map) {
-          final v = Map<String, dynamic>.from(value);
-          final k0 = key.toString().trim();
-          if (k0.isEmpty) return;
-
-          String nk = k0;
-          try {
-            nk = Uri.decodeComponent(nk);
-          } catch (_) {}
-          nk = nk.trim().toUpperCase();
-
-          map[nk] = {
-            'ar': (v['ar'] ?? '').toString(),
-            'en': (v['en'] ?? '').toString(),
-          };
-        }
-      });
-
       _cache = StockTranslations(map);
       isTranslationAvailable = true;
-
-      print('✅ تم تحميل الأسماء: ${map.length} شركة');
       return _cache;
     } catch (e) {
       isTranslationAvailable = false;
-      print('❌ فشل تحميل الأسماء العربية: $e');
       return null;
     }
+  }
+
+  static void _populateMap(
+      Map<String, Map<String, String>> targetMap, Map raw) {
+    raw.forEach((key, value) {
+      if (value is Map) {
+        final v = Map<String, dynamic>.from(value);
+        final k0 = key.toString().trim();
+        if (k0.isEmpty) return;
+
+        String nk = k0;
+        try {
+          nk = Uri.decodeComponent(nk);
+        } catch (_) {}
+        nk = nk.trim().toUpperCase();
+
+        targetMap[nk] = {
+          'ar': (v['ar'] ?? '').toString(),
+          'en': (v['en'] ?? '').toString(),
+        };
+      } else if (value is String) {
+        final k0 = key.toString().trim();
+        if (k0.isEmpty) return;
+        String nk = k0;
+        try {
+          nk = Uri.decodeComponent(nk);
+        } catch (_) {}
+        nk = nk.trim().toUpperCase();
+        targetMap[nk] = {
+          'ar': value.trim(),
+          'en': '',
+        };
+      }
+    });
   }
 
   /// ✅ يمسح session cache (رام فقط)

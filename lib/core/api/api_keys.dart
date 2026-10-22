@@ -1,21 +1,33 @@
 class ApiKeys {
-  // ====== AlMurakib API Proxy ======
-  static const String almurakibBaseUrl =
+  // ====== AlMurakib API Proxy (ONLY - Mediates between FCS and Users) ======
+  static const String defaultAlmurakibBaseUrl =
       'https://api.almurakib.com/egypt-stocks-app/api.php';
+  static String _almurakibBaseUrl = defaultAlmurakibBaseUrl;
+  static String get almurakibBaseUrl => _almurakibBaseUrl;
+  static void setAlmurakibBaseUrl(String? url) {
+    if (url != null && url.trim().isNotEmpty) {
+      _almurakibBaseUrl = url.trim();
+    }
+  }
 
-  static const String almurakibToken =
+  static const String defaultAlmurakibToken =
       '11x2x2x4x3XXXWWs2a9w8xvVvWxVcJZNuzn9Oft';
+  static String _almurakibToken = defaultAlmurakibToken;
+  static String get almurakibToken => _almurakibToken;
+  static void setAlmurakibToken(String? token) {
+    if (token != null && token.trim().isNotEmpty) {
+      _almurakibToken = token.trim();
+    }
+  }
 
-  // ====== FCS Direct API (for deep data: dividends, forecast, financials, converter) ======
-  static const String fcsBaseUrl = 'https://api-v4.fcsapi.com';
-  static const String defaultFcsApiKey =
-      'lBB4ZvG2m7ma9w8xvVvWxVcJZNuzn9Oft';
-
-  static String _fcsApiKey = defaultFcsApiKey;
-  static String get fcsApiKey => _fcsApiKey;
-  static void setFcsApiKey(String? key) {
-    if (key != null && key.trim().isNotEmpty) {
-      _fcsApiKey = key.trim();
+  // ====== AlMurakib Currency Conversion API Mediator ======
+  static const String defaultCurrencyBaseUrl =
+      'https://api.almurakib.com/conversion-apps/api.php';
+  static String _currencyBaseUrl = defaultCurrencyBaseUrl;
+  static String get currencyBaseUrl => _currencyBaseUrl;
+  static void setCurrencyBaseUrl(String? url) {
+    if (url != null && url.trim().isNotEmpty) {
+      _currencyBaseUrl = url.trim();
     }
   }
 
@@ -56,4 +68,8 @@ class ApiKeys {
   static const String saudiCountry = defaultCountry;
   static const String tasiSymbol = egyptMainIndexTicker;
   static const String tasiIndexId = '';
+
+  // Deprecated shim to prevent compile breaks if referenced
+  static String get fcsApiKey => _almurakibToken;
+  static void setFcsApiKey(String? key) => setAlmurakibToken(key);
 }

@@ -99,11 +99,18 @@ class LiveSocketService {
 
   Stream<LivePriceUpdate> streamFor(String symbol) {
     final norm = _normalize(symbol);
-    return _priceStreamController.stream.where((u) => _normalize(u.symbol) == norm);
+    final clean = _cleanSymbol(symbol);
+    return _priceStreamController.stream.where((u) {
+      final uNorm = _normalize(u.symbol);
+      final uClean = _cleanSymbol(u.symbol);
+      return uNorm == norm || uClean == clean;
+    });
   }
 
   LivePriceUpdate? getLatestPrice(String symbol) {
-    return _latestPrices[_normalize(symbol)];
+    final norm = _normalize(symbol);
+    final clean = _cleanSymbol(symbol);
+    return _latestPrices[norm] ?? _latestPrices[clean];
   }
 
   void addPriceAlertListener(void Function(LivePriceUpdate) listener) {
@@ -171,6 +178,7 @@ class LiveSocketService {
         final update = LivePriceUpdate.fromJson(decoded);
         if (update.symbol.isNotEmpty) {
           _latestPrices[_normalize(update.symbol)] = update;
+          _latestPrices[_cleanSymbol(update.symbol)] = update;
           _priceStreamController.add(update);
 
           for (final listener in _priceAlertListeners) {
@@ -214,7 +222,7 @@ class LiveSocketService {
   }
 
   void subscribe(String symbol) {
-    final norm = symbol.trim().toUpperCase();
+    final norm = _normalize(symbol);
     if (norm.isEmpty) return;
 
     final wasEmpty = !_subscribedSymbols.contains(norm);
@@ -235,7 +243,7 @@ class LiveSocketService {
   void subscribeBatch(List<String> symbols) {
     final toAdd = <String>[];
     for (final s in symbols) {
-      final norm = s.trim().toUpperCase();
+      final norm = _normalize(s);
       if (norm.isNotEmpty && !_subscribedSymbols.contains(norm)) {
         _subscribedSymbols.add(norm);
         toAdd.add(norm);
@@ -256,7 +264,7 @@ class LiveSocketService {
   }
 
   void unsubscribe(String symbol) {
-    final norm = symbol.trim().toUpperCase();
+    final norm = _normalize(symbol);
     if (norm.isEmpty) return;
     if (_subscribedSymbols.remove(norm) && _isAuthenticated) {
       try {
@@ -273,7 +281,7 @@ class LiveSocketService {
   void unsubscribeBatch(List<String> symbols) {
     final toRemove = <String>[];
     for (final s in symbols) {
-      final norm = s.trim().toUpperCase();
+      final norm = _normalize(s);
       if (_subscribedSymbols.remove(norm)) {
         toRemove.add(norm);
       }
@@ -330,7 +338,22 @@ class LiveSocketService {
     });
   }
 
-  String _normalize(String s) => s.trim().toUpperCase();
+  String _normalize(String s) {
+    var str = s.trim().toUpperCase();
+    if (str.isEmpty) return '';
+    if (!str.contains(':')) {
+      str = 'EGX:$str';
+    }
+    return str;
+  }
+
+  String _cleanSymbol(String s) {
+    var str = s.trim().toUpperCase();
+    if (str.contains(':')) {
+      str = str.split(':').last;
+    }
+    return str;
+  }
 
   void dispose() {
     _cancelTimers();

@@ -631,6 +631,12 @@ class AppManagerProvider with ChangeNotifier {
       );
 
       // Configure dynamic keys if provided by manager
+      if (_remoteUiConfig.almurakibBaseUrl != null && _remoteUiConfig.almurakibBaseUrl!.isNotEmpty) {
+        ApiKeys.setAlmurakibBaseUrl(_remoteUiConfig.almurakibBaseUrl);
+      }
+      if (_remoteUiConfig.almurakibToken != null && _remoteUiConfig.almurakibToken!.isNotEmpty) {
+        ApiKeys.setAlmurakibToken(_remoteUiConfig.almurakibToken);
+      }
       if (_remoteUiConfig.fcsApiKey != null && _remoteUiConfig.fcsApiKey!.isNotEmpty) {
         ApiKeys.setFcsApiKey(_remoteUiConfig.fcsApiKey);
       }

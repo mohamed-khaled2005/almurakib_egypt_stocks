@@ -216,7 +216,9 @@ class PriceAlertsService {
     for (var i = 0; i < current.length; i++) {
       final alert = current[i];
       if (!alert.isActive || alert.isTriggered) continue;
-      if (alert.symbol != update.symbol) continue;
+      final aNorm = alert.symbol.contains(':') ? alert.symbol.split(':').last.trim().toUpperCase() : alert.symbol.trim().toUpperCase();
+      final uNorm = update.symbol.contains(':') ? update.symbol.split(':').last.trim().toUpperCase() : update.symbol.trim().toUpperCase();
+      if (aNorm != uNorm) continue;
 
       var shouldTrigger = false;
       if (alert.direction == AlertDirection.above && update.price >= alert.targetPrice) {
