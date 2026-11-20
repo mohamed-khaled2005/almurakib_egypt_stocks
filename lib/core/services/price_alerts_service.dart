@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,6 +37,8 @@ class StockPriceAlert {
   });
 
   StockPriceAlert copyWith({
+    double? targetPrice,
+    AlertDirection? direction,
     bool? isActive,
     bool? isTriggered,
     DateTime? triggeredAt,
@@ -45,8 +47,8 @@ class StockPriceAlert {
       id: id,
       symbol: symbol,
       stockName: stockName,
-      targetPrice: targetPrice,
-      direction: direction,
+      targetPrice: targetPrice ?? this.targetPrice,
+      direction: direction ?? this.direction,
       isActive: isActive ?? this.isActive,
       isTriggered: isTriggered ?? this.isTriggered,
       createdAt: createdAt,
@@ -185,6 +187,29 @@ class PriceAlertsService {
       final hasOther = current.any((a) => a.symbol == removed.symbol && a.isActive && !a.isTriggered);
       if (!hasOther) {
         LiveSocketService.instance.unsubscribe(removed.symbol);
+      }
+    }
+  }
+
+  Future<void> updateAlert({
+    required String id,
+    required double targetPrice,
+    required AlertDirection direction,
+  }) async {
+    final current = List<StockPriceAlert>.from(alertsNotifier.value);
+    final index = current.indexWhere((a) => a.id == id);
+    if (index >= 0) {
+      final alert = current[index];
+      final updated = alert.copyWith(
+        targetPrice: targetPrice,
+        direction: direction,
+        isTriggered: false,
+      );
+      current[index] = updated;
+      await _saveAlerts(current);
+
+      if (updated.isActive) {
+        LiveSocketService.instance.subscribe(updated.symbol);
       }
     }
   }

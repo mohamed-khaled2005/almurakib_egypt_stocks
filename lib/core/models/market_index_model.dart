@@ -1,3 +1,6 @@
+import '../services/translation_service.dart';
+import 'stock_model.dart';
+
 class MarketIndexModel {
   const MarketIndexModel({
     required this.ticker,
@@ -18,6 +21,32 @@ class MarketIndexModel {
   final DateTime? updateTimeUtc;
 
   bool get isGain => change >= 0;
+
+  String get displayTicker {
+    if (ticker.contains(':')) return ticker.split(':').last.trim();
+    return ticker;
+  }
+
+  String get displayName {
+    return TranslationService.resolveIndexDisplayName(
+      ticker: ticker,
+      fallbackName: name,
+    );
+  }
+
+  StockModel toStockModel() {
+    return StockModel(
+      id: displayTicker,
+      symbol: ticker.isNotEmpty ? ticker : 'EGX:$displayTicker',
+      name: name,
+      arabicName: displayName,
+      price: value,
+      change: change,
+      changePercent: changePercent,
+      currency: 'EGP',
+      type: 'index',
+    );
+  }
 
   MarketIndexModel copyWith({
     String? ticker,

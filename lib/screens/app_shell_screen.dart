@@ -1,22 +1,17 @@
-import 'dart:math' as math;
-
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../core/models/stock_model.dart';
 import '../core/services/favorites_service.dart';
-import '../core/services/last_update_service.dart';
-import '../core/services/stock_service.dart';
 import '../core/services/translation_service.dart';
 import '../core/utils/constants.dart';
 import '../models/manual_ad_model.dart';
 import '../models/remote_ui_config_model.dart';
+import '../widgets/ad_banner_card.dart';
 import '../providers/app_manager_provider.dart';
 import '../utils/app_lifecycle_refresh.dart';
 import '../utils/first_time_hint.dart';
-import '../widgets/manual_ad_banner.dart';
 import 'about_screen.dart';
 import 'account_screen.dart';
 import 'all_stocks_screen.dart';
@@ -29,46 +24,18 @@ import 'favorites_screen.dart';
 import 'home_screen.dart';
 import 'market_today_screen.dart';
 import 'market_indices_screen.dart';
+import 'more_screen.dart';
 import 'our_apps_screen.dart';
 import 'price_alerts_screen.dart';
 import 'profile_completion_screen.dart';
+import 'notifications_screen.dart';
 import 'stock_comparison_screen.dart';
-import 'stock_detail_screen.dart';
+import 'stock_search_screen.dart';
 import '../core/services/live_socket_service.dart';
 import '../core/services/price_alerts_service.dart';
 import '../widgets/app_update_dialog.dart';
-
-const String _almurakibWebsiteUrl = 'https://almurakib.com';
-const Color _shellTop = Color(0xFFFFFFFF);
-const Color _shellBottom = Color(0xFFFFF1F3);
-const Color _shellAccent = AppColors.primaryBlue;
-const Color _shellHighlight = AppColors.accentGold;
-
-Color _o(Color color, double opacity) =>
-    color.withAlpha((opacity.clamp(0.0, 1.0) * 255).round());
-
-String _stockSecondaryLabel(String symbol, String id) {
-  final trimmedSymbol = symbol.trim();
-  final trimmedId = id.trim();
-  if (trimmedSymbol.isEmpty) {
-    return trimmedId;
-  }
-  if (trimmedId.isEmpty) {
-    return trimmedSymbol;
-  }
-
-  final normalizedSymbol = trimmedSymbol.toLowerCase();
-  final normalizedId = trimmedId.toLowerCase();
-  final symbolTail = normalizedSymbol.contains(':')
-      ? normalizedSymbol.split(':').last
-      : normalizedSymbol;
-
-  if (normalizedSymbol == normalizedId || symbolTail == normalizedId) {
-    return trimmedSymbol;
-  }
-
-  return '$trimmedSymbol - $trimmedId';
-}
+import '../widgets/market_status_header.dart';
+import '../widgets/chevron_left_icon.dart';
 
 class AppShellScreen extends StatefulWidget {
   const AppShellScreen({super.key});
@@ -95,17 +62,20 @@ class _AppShellScreenState extends State<AppShellScreen> {
   int? _pendingAuthTabIndex;
   int _lastNonAccountTabIndex = 0;
   String? _trackedMenuCtaImpressionKey;
+  bool _hasTriggeredUpdateCheck = false;
+  String? _lastCheckedUpdateVersion;
 
   int get _homeTabIndex => 0;
   int get _marketTodayTabIndex => 1;
   int get _indicesTabIndex => 2;
   int get _allStocksTabIndex => 3;
   int get _favoritesTabIndex => 4;
-  int get _ourAppsTabIndex => 5;
-  int get _educationTabIndex => _hideOurAppsTab ? 5 : 6;
-  int get _aboutScreenIndex => _hideOurAppsTab ? 6 : 7;
-  int get _contactScreenIndex => _hideOurAppsTab ? 7 : 8;
-  int get _accountScreenIndex => _hideOurAppsTab ? 8 : 9;
+  int get _moreTabIndex => 5;
+  int get _ourAppsTabIndex => 6;
+  int get _educationTabIndex => _hideOurAppsTab ? 6 : 7;
+  int get _aboutScreenIndex => _hideOurAppsTab ? 7 : 8;
+  int get _contactScreenIndex => _hideOurAppsTab ? 8 : 9;
+  int get _accountScreenIndex => _hideOurAppsTab ? 9 : 10;
   int get _pageCount => _accountScreenIndex + 1;
 
   @override
@@ -142,8 +112,6 @@ class _AppShellScreenState extends State<AppShellScreen> {
   bool _isDesktopNav(BuildContext context) =>
       MediaQuery.of(context).size.width >= 1080;
 
-  bool get _showHeaderTools => _index <= _favoritesTabIndex;
-
   Widget _pageForIndex(int index) {
     final cachedPage = _pageCache[index];
     if (cachedPage != null) {
@@ -174,19 +142,34 @@ class _AppShellScreenState extends State<AppShellScreen> {
       return const AllStocksScreen();
     }
     if (index == _favoritesTabIndex) {
-      return const FavoritesScreen();
+      return FavoritesScreen(
+        onNavigateToStocks: () => _setIndex(_allStocksTabIndex),
+      );
+    }
+    if (index == _moreTabIndex) {
+      return MoreScreen(
+        onNavigateToTab: _setIndex,
+        allStocksTabIndex: _allStocksTabIndex,
+        favoritesTabIndex: _favoritesTabIndex,
+        indicesTabIndex: _indicesTabIndex,
+        educationTabIndex: _educationTabIndex,
+        ourAppsTabIndex: _ourAppsTabIndex,
+        aboutTabIndex: _aboutScreenIndex,
+        contactTabIndex: _contactScreenIndex,
+        accountTabIndex: _accountScreenIndex,
+      );
     }
     if (!_hideOurAppsTab && index == _ourAppsTabIndex) {
       return const OurAppsScreen();
     }
     if (index == _educationTabIndex) {
-      return const EducationalContentScreen();
+      return const EducationalContentScreen(showFixedBanner: false);
     }
     if (index == _aboutScreenIndex) {
       return const AboutScreen();
     }
     if (index == _contactScreenIndex) {
-      return const ContactScreen();
+      return const ContactScreen(showFixedBanner: false);
     }
     if (index == _accountScreenIndex) {
       return AccountScreen(onAuthSuccess: _handleAccountAuthSuccess);
@@ -253,16 +236,9 @@ class _AppShellScreenState extends State<AppShellScreen> {
   }
 
   Future<void> _onQuickSearch() async {
-    final picked = await showSearch<StockModel?>(
-      context: context,
-      delegate: _StockQuickSearchDelegate(perPage: 500),
-    );
-
-    if (!mounted || picked == null) return;
-
-    Navigator.push(
+    await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => StockDetailScreen(stock: picked)),
+      MaterialPageRoute(builder: (_) => const StockSearchScreen()),
     );
   }
 
@@ -347,6 +323,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
     if (index == _indicesTabIndex) return 'market_indices';
     if (index == _allStocksTabIndex) return 'all_stocks';
     if (index == _favoritesTabIndex) return 'favorites';
+    if (index == _moreTabIndex) return 'more';
     if (!_hideOurAppsTab && index == _ourAppsTabIndex) return 'our_apps';
     if (index == _educationTabIndex) return 'educational_content';
     if (index == _aboutScreenIndex) return 'about';
@@ -439,12 +416,12 @@ class _AppShellScreenState extends State<AppShellScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
                   boxShadow: <BoxShadow>[
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.22),
+                      color: Colors.black.withValues(alpha: 0.18),
                       blurRadius: 24,
-                      offset: const Offset(0, 18),
+                      offset: const Offset(0, 12),
                     ),
                   ],
                 ),
@@ -462,11 +439,11 @@ class _AppShellScreenState extends State<AppShellScreen> {
                             ad.imageUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Container(
-                              color: AppColors.cardLight,
+                              color: const Color(0xFFF8FAFC),
                               alignment: Alignment.center,
                               child: const Icon(
                                 Icons.campaign_rounded,
-                                color: AppColors.primaryBlue,
+                                color: Color(0xFFC1121F),
                                 size: 42,
                               ),
                             ),
@@ -481,26 +458,36 @@ class _AppShellScreenState extends State<AppShellScreen> {
                           Text(
                             ad.title.trim().isEmpty ? 'إعلان' : ad.title,
                             textAlign: TextAlign.center,
-                            style: AppTextStyles.headingSmall.copyWith(
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 18,
                               fontWeight: FontWeight.w900,
+                              color: Color(0xFF111827),
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 14),
                           Row(
                             children: <Widget>[
                               Expanded(
                                 child: OutlinedButton(
                                   onPressed: closePopup,
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.textSecondary,
-                                    side: BorderSide(
-                                      color: AppColors.border,
+                                    foregroundColor: const Color(0xFF64748B),
+                                    side: const BorderSide(
+                                      color: Color(0xFFE5E7EB),
                                     ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(14),
                                     ),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
                                   ),
-                                  child: const Text('إغلاق'),
+                                  child: const Text(
+                                    'إغلاق',
+                                    style: TextStyle(
+                                      fontFamily: 'Tajawal',
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -510,16 +497,22 @@ class _AppShellScreenState extends State<AppShellScreen> {
                                       ? closePopup
                                       : openPopupLink,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primaryBlue,
+                                    backgroundColor: const Color(0xFFC1121F),
                                     foregroundColor: Colors.white,
+                                    elevation: 0,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(14),
                                     ),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
                                   ),
                                   child: Text(
                                     ad.targetUrl.trim().isEmpty
                                         ? 'حسنًا'
                                         : 'افتح الآن',
+                                    style: const TextStyle(
+                                      fontFamily: 'Tajawal',
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -716,7 +709,9 @@ class _AppShellScreenState extends State<AppShellScreen> {
               compact: compact,
               menuCta: manager.menuCta,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+            const AdBannerCard(),
+            const SizedBox(height: 10),
             _buildManagedSocialMediaSection(
               compact: compact,
               socialLinks: manager.socialLinks,
@@ -1004,10 +999,9 @@ class _AppShellScreenState extends State<AppShellScreen> {
                     ),
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 12,
-                  color: AppColors.textSecondary.withOpacity(0.5),
+                ChevronLeftIcon(
+                  size: 14,
+                  color: AppColors.textSecondary.withValues(alpha: 0.5),
                 ),
               ],
             ),
@@ -1440,48 +1434,174 @@ class _AppShellScreenState extends State<AppShellScreen> {
     );
   }
 
+  int _navBarIndexForShellIndex(int shellIndex) {
+    if (shellIndex == _homeTabIndex) return 0;
+    if (shellIndex == _allStocksTabIndex) return 1;
+    if (shellIndex == _indicesTabIndex) return 2;
+    if (shellIndex == _favoritesTabIndex) return 3;
+    if (shellIndex == _moreTabIndex) return 4;
+    return 0;
+  }
+
+  void _onBottomNavTap(int navIndex) {
+    switch (navIndex) {
+      case 0:
+        _setIndex(_homeTabIndex);
+        break;
+      case 1:
+        _setIndex(_allStocksTabIndex);
+        break;
+      case 2:
+        _setIndex(_indicesTabIndex);
+        break;
+      case 3:
+        _setIndex(_favoritesTabIndex);
+        break;
+      case 4:
+        _setIndex(_moreTabIndex);
+        break;
+    }
+  }
+
   PreferredSizeWidget _buildHeader({
     required bool isDesktopNav,
     required bool isAuthenticated,
   }) {
-    final headerHeight = _showHeaderTools ? 128.0 : 74.0;
-
+    final bool isMoreScreen = _index == _moreTabIndex;
     return PreferredSize(
-      preferredSize: Size.fromHeight(headerHeight),
+      preferredSize: Size.fromHeight(isMoreScreen ? 62.0 : 115.0),
       child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: <Color>[_shellTop, _shellBottom],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          border: Border(
-            bottom: BorderSide(color: AppColors.border),
-          ),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: _o(Colors.black, 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+        color: const Color(0xFFFEFEFE),
         child: SafeArea(
           bottom: false,
-          child: _HeaderContent(
-            scaffoldKey: _scaffoldKey,
-            isDesktopNav: isDesktopNav,
-            refreshKey: _refreshHintKey,
-            showHeaderTools: _showHeaderTools,
-            currentIndex: _index,
-            accountIndex: _accountScreenIndex,
-            refreshing: _refreshing,
-            onRefreshTap:
-                _refreshing ? null : () => _onRefresh(showSnackBar: true),
-            onSearch: _onQuickSearch,
-            onHome: () => _setIndex(0),
-            onAccount: () => _setIndex(_accountScreenIndex),
-            isAuthenticated: isAuthenticated,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Top Row: Logo & App Title (Right in RTL) and Search + Notification Bell (Left in RTL)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+                child: Row(
+                  textDirection: TextDirection.rtl,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Right: Logo
+                    Image.asset(
+                      'assets/images/logo.png',
+                      height: 42,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text(
+                        'مراقب الأسهم المصرية',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+
+                    // Left: Search Button + Notification Bell Button
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      textDirection: TextDirection.rtl,
+                      children: [
+                        // Search Button (Towards center)
+                        InkWell(
+                          onTap: _onQuickSearch,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.search_rounded,
+                              color: Color(0xFF374151),
+                              size: 20,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        // Notification Bell Button with red dot badge (On far left edge)
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const NotificationsScreen(),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.notifications_none_rounded,
+                                  color: Color(0xFF374151),
+                                  size: 20,
+                                ),
+                                ValueListenableBuilder<int>(
+                                  valueListenable: NotificationsScreen.unreadCountNotifier,
+                                  builder: (_, count, __) {
+                                    if (count <= 0) return const SizedBox.shrink();
+                                    return Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: Container(
+                                        width: 7,
+                                        height: 7,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFDC2626),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Sub-Header Row: Market Status Pill + Refresh Pill
+              if (!isMoreScreen)
+                MarketStatusHeader(
+                  onRefresh: () => _onRefresh(showSnackBar: true),
+                ),
+            ],
           ),
         ),
       ),
@@ -1495,13 +1615,19 @@ class _AppShellScreenState extends State<AppShellScreen> {
 
     if (manager.isMarketClosedByManager) {
       return AppMaintenanceScreen(
-        title: 'السوق مغلق حالياً',
-        message: manager.marketClosedMessage,
+        title: 'التطبيق تحت الصيانة',
+        message: manager.marketClosedMessage.isNotEmpty
+            ? manager.marketClosedMessage
+            : 'نقوم حالياً بتحسين الخدمة وسنعود قريباً.',
         onRetry: () => manager.refreshRemoteUiConfig(),
       );
     }
 
-    if (manager.appUpdate.updateAvailable) {
+    final updateVer = manager.appUpdate.latestVersion;
+    if (manager.appUpdate.updateAvailable &&
+        (!_hasTriggeredUpdateCheck || _lastCheckedUpdateVersion != updateVer)) {
+      _hasTriggeredUpdateCheck = true;
+      _lastCheckedUpdateVersion = updateVer;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           AppUpdateDialog.showIfAvailable(context, manager.appUpdate);
@@ -1516,18 +1642,115 @@ class _AppShellScreenState extends State<AppShellScreen> {
       _maybeShowPopupAd(manager);
     }
 
+    final currentNavIndex = _navBarIndexForShellIndex(_index);
+
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.scaffold,
+      backgroundColor: const Color(0xFFFEFEFE),
       appBar: _buildHeader(
         isDesktopNav: isDesktopNav,
         isAuthenticated: manager.isAuthenticated,
       ),
       drawer: isDesktopNav ? null : _buildSideDrawer(context, manager),
-      bottomNavigationBar: ManualAdBanner(
-        stickyBottom: true,
-        ad: manager.activeAd,
-      ),
+      bottomNavigationBar: isDesktopNav
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  color: const Color(0xFFFEFEFE),
+                  padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+                  child: const AdBannerCard(),
+                ),
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFEFEFE),
+                    border: Border(
+                      top: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+                    ),
+                  ),
+                  child: BottomNavigationBar(
+                    currentIndex: currentNavIndex,
+                    onTap: _onBottomNavTap,
+                    type: BottomNavigationBarType.fixed,
+                    backgroundColor: const Color(0xFFFEFEFE),
+                    selectedItemColor: const Color(0xFFC1121F),
+                    unselectedItemColor: const Color(0xFF64748B),
+                    selectedLabelStyle: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                    elevation: 0,
+                    items: [
+                      BottomNavigationBarItem(
+                        icon: Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Image.asset(
+                            'assets/icons/Vector (8).png',
+                            width: 20,
+                            height: 20,
+                            color: currentNavIndex == 0 ? const Color(0xFFC1121F) : const Color(0xFF64748B),
+                          ),
+                        ),
+                        label: 'الرئيسية',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Image.asset(
+                            'assets/icons/Vector (7).png',
+                            width: 18,
+                            height: 18,
+                            color: currentNavIndex == 1 ? const Color(0xFFC1121F) : const Color(0xFF64748B),
+                          ),
+                        ),
+                        label: 'الأسهم',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Image.asset(
+                            'assets/icons/Vector (6).png',
+                            width: 22,
+                            height: 16,
+                            color: currentNavIndex == 2 ? const Color(0xFFC1121F) : const Color(0xFF64748B),
+                          ),
+                        ),
+                        label: 'المؤشرات',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Icon(
+                            Icons.star_outline_rounded,
+                            size: 22,
+                            color: currentNavIndex == 3 ? const Color(0xFFC1121F) : const Color(0xFF64748B),
+                          ),
+                        ),
+                        label: 'المفضلة',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Icon(
+                            Icons.more_horiz_rounded,
+                            size: 22,
+                            color: currentNavIndex == 4 ? const Color(0xFFC1121F) : const Color(0xFF64748B),
+                          ),
+                        ),
+                        label: 'المزيد',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
       body: _buildBody(isDesktopNav),
     );
   }
@@ -1545,823 +1768,3 @@ class _SideNavItem {
   final IconData icon;
 }
 
-class _HeaderContent extends StatelessWidget {
-  const _HeaderContent({
-    required this.scaffoldKey,
-    required this.isDesktopNav,
-    required this.refreshKey,
-    required this.showHeaderTools,
-    required this.currentIndex,
-    required this.accountIndex,
-    required this.refreshing,
-    required this.onRefreshTap,
-    required this.onSearch,
-    required this.onHome,
-    required this.onAccount,
-    required this.isAuthenticated,
-  });
-
-  final GlobalKey<ScaffoldState> scaffoldKey;
-  final bool isDesktopNav;
-  final GlobalKey refreshKey;
-  final bool showHeaderTools;
-  final int currentIndex;
-  final int accountIndex;
-  final bool refreshing;
-  final VoidCallback? onRefreshTap;
-  final VoidCallback onSearch;
-  final VoidCallback onHome;
-  final VoidCallback onAccount;
-  final bool isAuthenticated;
-
-  Widget _buildHeaderLogo(BuildContext context, double logoMaxWidth) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: logoMaxWidth),
-      child: SizedBox(
-        height: 48,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () => _openWebsiteWithConfirm(context),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Image.asset(
-                'assets/images/logo.png',
-                fit: BoxFit.contain,
-                alignment: Alignment.centerRight,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (_, __, ___) {
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      const Icon(
-                        Icons.assessment_rounded,
-                        color: AppColors.primaryBlue,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'مراقب الأسهم',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontFamily: 'Tajawal',
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openWebsiteWithConfirm(BuildContext context) async {
-    final bool? go = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text(
-              'زيارة موقع المراقب',
-              style: TextStyle(
-                fontFamily: 'Tajawal',
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            content: const Text(
-              'هل تريد الانتقال إلى موقع المراقب الآن؟',
-              style: TextStyle(
-                fontFamily: 'Tajawal',
-                height: 1.5,
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text(
-                  'إلغاء',
-                  style: TextStyle(fontFamily: 'Tajawal'),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'زيارة الموقع',
-                  style: TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
-    if (go != true) return;
-
-    final uri = Uri.parse(_almurakibWebsiteUrl);
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-
-    if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'تعذر فتح الموقع الآن',
-            style: TextStyle(fontFamily: 'Tajawal'),
-          ),
-          backgroundColor: AppColors.primaryBlue,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final logoMaxWidth =
-            math.min(220.0, math.max(120.0, constraints.maxWidth * 0.56));
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Row(
-                textDirection: TextDirection.rtl,
-                children: <Widget>[
-                  _buildHeaderLogo(context, logoMaxWidth),
-                  const Spacer(),
-                  _HeaderActionButton(
-                    tooltip: 'الرئيسية',
-                    onTap: onHome,
-                    child: Icon(
-                      currentIndex == 0
-                          ? Icons.home_rounded
-                          : Icons.home_outlined,
-                      color: _shellAccent,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  _HeaderAccountButton(
-                    onTap: onAccount,
-                    isAuthenticated: isAuthenticated,
-                    isSelected: currentIndex == accountIndex,
-                  ),
-                  if (!isDesktopNav &&
-                      MediaQuery.sizeOf(context).width < 0) ...<Widget>[
-                    const SizedBox(width: 10),
-                    _HeaderActionButton(
-                      tooltip: 'القائمة',
-                      onTap: () => scaffoldKey.currentState?.openDrawer(),
-                      child: const Icon(
-                        Icons.menu_rounded,
-                        color: _shellAccent,
-                      ),
-                    ),
-                  ],
-                  if (currentIndex < 0) const Spacer(),
-                  if (currentIndex < 0)
-                    ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: logoMaxWidth),
-                      child: SizedBox(
-                        height: 48,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: () => _openWebsiteWithConfirm(context),
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Image.asset(
-                                'assets/images/logo.png',
-                                fit: BoxFit.contain,
-                                alignment: Alignment.centerRight,
-                                filterQuality: FilterQuality.high,
-                                errorBuilder: (_, __, ___) {
-                                  return Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: <Widget>[
-                                      const Icon(
-                                        Icons.assessment_rounded,
-                                        color: AppColors.primaryBlue,
-                                        size: 24,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'مراقب الأسهم',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontFamily: 'Tajawal',
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 16,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 10),
-                  if (!isDesktopNav)
-                    _HeaderActionButton(
-                      tooltip: 'القائمة',
-                      onTap: () => scaffoldKey.currentState?.openDrawer(),
-                      child: const Icon(
-                        Icons.menu_rounded,
-                        color: _shellAccent,
-                      ),
-                    ),
-                ],
-              ),
-              if (showHeaderTools) ...<Widget>[
-                const SizedBox(height: 10),
-                Row(
-                  textDirection: TextDirection.rtl,
-                  children: <Widget>[
-                    const Expanded(
-                      child: _TopLastUpdateBanner(),
-                    ),
-                    const SizedBox(width: 10),
-                    _HeaderSearchButton(onTap: onSearch),
-                    const SizedBox(width: 8),
-                    KeyedSubtree(
-                      key: refreshKey,
-                      child: _HeaderRefreshButton(
-                        loading: refreshing,
-                        onTap: onRefreshTap,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _HeaderActionButton extends StatelessWidget {
-  const _HeaderActionButton({
-    required this.tooltip,
-    required this.onTap,
-    required this.child,
-  });
-
-  final String tooltip;
-  final VoidCallback? onTap;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _shellAccent.withValues(
-                  alpha: onTap == null ? 0.12 : 0.26,
-                ),
-              ),
-            ),
-            child: Center(child: child),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderRefreshButton extends StatelessWidget {
-  const _HeaderRefreshButton({
-    required this.loading,
-    required this.onTap,
-  });
-
-  final bool loading;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _HeaderActionButton(
-      tooltip: 'تحديث البيانات',
-      onTap: onTap,
-      child: loading
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: _shellAccent,
-              ),
-            )
-          : const Icon(
-              Icons.refresh_rounded,
-              size: 20,
-              color: _shellAccent,
-            ),
-    );
-  }
-}
-
-class _HeaderSearchButton extends StatelessWidget {
-  const _HeaderSearchButton({required this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _HeaderActionButton(
-      tooltip: 'البحث السريع',
-      onTap: onTap,
-      child: const Icon(
-        Icons.search_rounded,
-        size: 20,
-        color: _shellAccent,
-      ),
-    );
-  }
-}
-
-class _HeaderAccountButton extends StatelessWidget {
-  const _HeaderAccountButton({
-    required this.onTap,
-    required this.isAuthenticated,
-    required this.isSelected,
-  });
-
-  final VoidCallback? onTap;
-  final bool isAuthenticated;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return _HeaderActionButton(
-      tooltip: isAuthenticated ? 'حسابي' : 'تسجيل الدخول',
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          Icon(
-            isSelected
-                ? Icons.account_circle_rounded
-                : (isAuthenticated
-                    ? Icons.person_outline_rounded
-                    : Icons.account_circle_outlined),
-            color: isAuthenticated ? _shellHighlight : _shellAccent,
-          ),
-          if (isAuthenticated)
-            const Positioned(
-              top: 1,
-              left: -1,
-              child: _AuthIndicatorDot(),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AuthIndicatorDot extends StatelessWidget {
-  const _AuthIndicatorDot();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox.shrink();
-  }
-}
-
-class _TopLastUpdateBanner extends StatelessWidget {
-  const _TopLastUpdateBanner();
-
-  String _twoDigits(int value) => value.toString().padLeft(2, '0');
-
-  String _formatLocalDateTime(DateTime localDateTime) {
-    return '${localDateTime.year}/${_twoDigits(localDateTime.month)}/${_twoDigits(localDateTime.day)} '
-        '${_twoDigits(localDateTime.hour)}:${_twoDigits(localDateTime.minute)}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<DateTime?>(
-      valueListenable: LastUpdateService.lastUpdateUtc,
-      builder: (context, lastUpdatedUtc, _) {
-        final DateTime? localDateTime = lastUpdatedUtc?.toLocal();
-        final String displayText =
-            localDateTime == null ? '--' : _formatLocalDateTime(localDateTime);
-
-        return Container(
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _shellAccent.withValues(alpha: 0.22),
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: Row(
-            textDirection: TextDirection.rtl,
-            children: <Widget>[
-              const Icon(
-                Icons.schedule_rounded,
-                size: 15,
-                color: _shellAccent,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'آخر تحديث:',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 10.5,
-                  height: 1.0,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  displayText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textDirection: TextDirection.ltr,
-                  textAlign: TextAlign.left,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 10.8,
-                    height: 1.0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _StockQuickSearchDelegate extends SearchDelegate<StockModel?> {
-  _StockQuickSearchDelegate({required this.perPage});
-
-  final int perPage;
-  Future<List<StockModel>>? _future;
-  List<StockModel> _all = <StockModel>[];
-
-  String _normalizeForSearch(String input) {
-    var normalized = input.toLowerCase();
-    normalized = normalized.replaceAll(
-      RegExp(r'[\u200E\u200F\u202A-\u202E\u2066-\u2069]'),
-      '',
-    );
-    normalized = normalized.replaceAll(RegExp(r'["“”«»]'), '');
-    normalized = normalized.replaceAll(RegExp(r"[\'`´]"), '');
-    normalized = normalized.replaceAll(
-      RegExp(r'[^a-z0-9\u0621-\u064A\u0660-\u0669\u06F0-\u06F9]+'),
-      ' ',
-    );
-    normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
-    return normalized;
-  }
-
-  String get _normalizedQuery => _normalizeForSearch(query.trim());
-
-  Future<List<StockModel>> _loadOnce() {
-    _future ??= StockService.getStocksList(perPage: perPage, page: 1).then((v) {
-      _all = v;
-      return v;
-    });
-    return _future!;
-  }
-
-  List<StockModel> _filter(List<StockModel> items) {
-    final normalizedQuery = _normalizedQuery;
-    if (normalizedQuery.isEmpty) {
-      return items.take(30).toList();
-    }
-
-    final tokens = normalizedQuery
-        .split(' ')
-        .where((token) => token.trim().isNotEmpty)
-        .toList();
-    final compactQuery = normalizedQuery.replaceAll(' ', '');
-
-    bool match(StockModel stock) {
-      final raw = '${stock.displayName} ${stock.symbol} ${stock.id}';
-      final index = _normalizeForSearch(raw);
-      if (index.contains(normalizedQuery)) return true;
-
-      final compactIndex = index.replaceAll(' ', '');
-      if (compactQuery.isNotEmpty && compactIndex.contains(compactQuery)) {
-        return true;
-      }
-
-      return tokens.every(index.contains);
-    }
-
-    return items.where(match).take(50).toList();
-  }
-
-  @override
-  String get searchFieldLabel => 'ابحث باسم السهم أو الرمز...';
-
-  @override
-  TextStyle? get searchFieldStyle => const TextStyle(
-        fontFamily: 'Tajawal',
-        fontWeight: FontWeight.w700,
-      );
-
-  @override
-  ThemeData appBarTheme(BuildContext context) {
-    final base = Theme.of(context);
-    return base.copyWith(
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: IconThemeData(color: Colors.black87),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        hintStyle: TextStyle(
-          fontFamily: 'Tajawal',
-          color: AppColors.textSecondary.withValues(alpha: 0.75),
-        ),
-        border: InputBorder.none,
-      ),
-      textTheme: base.textTheme.apply(fontFamily: 'Tajawal'),
-    );
-  }
-
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return <Widget>[
-      if (query.trim().isNotEmpty)
-        IconButton(
-          onPressed: () {
-            query = '';
-            showSuggestions(context);
-          },
-          icon: const Icon(Icons.clear_rounded),
-        ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      onPressed: () => close(context, null),
-      icon: const Icon(Icons.arrow_back_rounded),
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) =>
-      _buildBody(context, showEmptyHint: true);
-
-  @override
-  Widget buildSuggestions(BuildContext context) =>
-      _buildBody(context, showEmptyHint: true);
-
-  Widget _buildBody(BuildContext context, {required bool showEmptyHint}) {
-    return FutureBuilder<List<StockModel>>(
-      future: _loadOnce(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppColors.primaryBlue),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  const Icon(
-                    Icons.cloud_off_rounded,
-                    size: 56,
-                    color: AppColors.error,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'تعذر تحميل قائمة الأسهم للبحث',
-                    style: AppTextStyles.bodyLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      _future = null;
-                      _all = <StockModel>[];
-                      showSuggestions(context);
-                    },
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('إعادة المحاولة'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        final items = snapshot.data ?? _all;
-        final filtered = _filter(items);
-
-        if (showEmptyHint && _normalizedQuery.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(
-                    Icons.search_rounded,
-                    size: 64,
-                    color: AppColors.border,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'اكتب اسم السهم أو الرمز للبحث السريع',
-                    style: AppTextStyles.headingSmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        if (filtered.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(
-                    Icons.search_off_rounded,
-                    size: 64,
-                    color: AppColors.border,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'لا توجد نتائج مطابقة',
-                    style: AppTextStyles.headingSmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          itemCount: filtered.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, i) {
-            final stock = filtered[i];
-            final monogram = (stock.symbol.isNotEmpty
-                    ? (stock.symbol.length > 2
-                        ? stock.symbol.substring(0, 2)
-                        : stock.symbol)
-                    : (stock.id.length > 2
-                        ? stock.id.substring(0, 2)
-                        : stock.id))
-                .toUpperCase();
-
-            return Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () => close(context, stock),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          monogram,
-                          style: const TextStyle(
-                            fontFamily: 'Tajawal',
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              stock.displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.bodyLarge.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _stockSecondaryLabel(stock.symbol, stock.id),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textSecondary
-                                    .withValues(alpha: 0.85),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.textSecondary.withValues(alpha: 0.70),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}

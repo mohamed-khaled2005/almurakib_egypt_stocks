@@ -1,4 +1,4 @@
-import 'package:firebase_analytics/firebase_analytics.dart';
+﻿import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -65,7 +65,6 @@ class _MyAppState extends State<MyApp> {
   }
 
   static ThemeData _buildTheme(Brightness brightness) {
-    final background = AppColors.backgroundFor(brightness);
     final card = AppColors.cardFor(brightness);
     final cardSoft = AppColors.cardSoftFor(brightness);
     final border = AppColors.borderFor(brightness);
@@ -89,7 +88,7 @@ class _MyAppState extends State<MyApp> {
         onSurfaceVariant: textSecondary,
         outline: border,
       ),
-      scaffoldBackgroundColor: background,
+      scaffoldBackgroundColor: const Color(0xFFFEFEFE),
       cardColor: card,
       cardTheme: CardThemeData(
         color: card,

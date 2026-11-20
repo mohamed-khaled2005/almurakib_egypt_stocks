@@ -1,4 +1,4 @@
-class AppPreferencesModel {
+﻿class AppPreferencesModel {
   final String? selectedCurrency;
   final List<String> favoriteItems;
   final List<String> watchedSymbols;

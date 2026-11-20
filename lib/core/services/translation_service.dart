@@ -1,8 +1,40 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
-import '../api/api_client.dart';
-import '../api/api_keys.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+class ManagedIndexData {
+  final String symbol;
+  final String nameEn;
+  final String nameAr;
+
+  const ManagedIndexData({
+    required this.symbol,
+    required this.nameEn,
+    required this.nameAr,
+  });
+
+  /// The preferred display name: Arabic if present, else English, else symbol
+  String get preferredName {
+    if (nameAr.trim().isNotEmpty) return nameAr.trim();
+    if (nameEn.trim().isNotEmpty) return nameEn.trim();
+    return symbol;
+  }
+
+  factory ManagedIndexData.fromJson(Map<String, dynamic> json) {
+    return ManagedIndexData(
+      symbol: (json['symbol'] ?? '').toString().trim(),
+      nameEn: (json['name_en'] ?? '').toString().trim(),
+      nameAr: (json['name_ar'] ?? '').toString().trim(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'symbol': symbol,
+    'name_en': nameEn,
+    'name_ar': nameAr,
+  };
+}
 
 class StockTranslations {
   final Map<String, Map<String, String>> byId;
@@ -70,10 +102,35 @@ class StockTranslations {
       if (v7 != null) return v7;
     }
 
+    // 6. Built-in fallback for known symbols
+    final cleanSym = sym.replaceAll('EGX:', '').trim();
+    final cleanSid = sid.replaceAll('EGX:', '').trim();
+    const fallbacks = {
+      'BQDC': 'بنك القاهرة',
+      'APPF': 'الأمل الشريف للبلاستيك',
+      'EGS3A0Y1C018': 'الأمل الشريف للبلاستيك',
+      'GBIM': 'جي بي كورب',
+    };
+    if (fallbacks.containsKey(cleanSym)) return fallbacks[cleanSym];
+    if (fallbacks.containsKey(cleanSid)) return fallbacks[cleanSid];
+
     return null;
   }
 
   String? getArabicIndexName({required String ticker, required String name}) {
+    // 1. Check in managed indices list first
+    for (final m in TranslationService.managedIndices) {
+      if (TranslationService.matchIndexSymbols(m.symbol, ticker) ||
+          TranslationService.matchIndexSymbols(m.symbol, name)) {
+        if (m.nameAr.trim().isNotEmpty) {
+          return m.nameAr.trim();
+        }
+        if (m.nameEn.trim().isNotEmpty) {
+          return m.nameEn.trim();
+        }
+      }
+    }
+
     final normalizedTicker = _norm(ticker);
     final normalizedName = _norm(name);
 
@@ -95,11 +152,22 @@ class StockTranslations {
       if (byShortName != null) return byShortName;
     }
 
+    final normTickerKey = TranslationService.normalizeIndexKey(ticker);
+    if (normTickerKey.isNotEmpty) {
+      final byNorm = _getAr(normTickerKey);
+      if (byNorm != null) return byNorm;
+    }
+
     return null;
   }
 }
 
 class TranslationService {
+  static const String _prefsKey = 'manager_cached_stock_translations';
+  static const String _blockedPrefsKey = 'manager_blocked_symbols';
+  static const String _indicesPrefsKey = 'manager_allowed_indices';
+  static const String _managedIndicesJsonPrefsKey = 'manager_managed_indices_json';
+
   /// ✅ Session cache فقط (طول ما التطبيق شغال)
   static StockTranslations? _cache;
 
@@ -108,74 +176,311 @@ class TranslationService {
 
   static bool isTranslationAvailable = false;
 
-  /// ✅ لا TTL — لا 24 ساعة — لا أي صلاحية زمنية
+  static final Set<String> _blockedSymbols = <String>{};
+  static List<ManagedIndexData> _managedIndicesList = <ManagedIndexData>[];
+
+  static List<ManagedIndexData> get managedIndices =>
+      List<ManagedIndexData>.unmodifiable(_managedIndicesList);
+
+  static bool get hasManagedIndices => _managedIndicesList.isNotEmpty;
+
+  /// تطبيع رمز المؤشر للمقارنة بدون بادئات أو لواحق
+  static String normalizeIndexKey(String s) {
+    var norm = s.trim().toUpperCase();
+    try {
+      norm = Uri.decodeComponent(norm);
+    } catch (_) {}
+    if (norm.contains(':')) {
+      norm = norm.split(':').last.trim();
+    }
+    norm = norm.replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    if (norm.endsWith('EWI')) {
+      norm = norm.substring(0, norm.length - 3);
+    }
+    return norm;
+  }
+
+  /// فحص تطابق رمزي مؤشر بذكاء ومرونة
+  static bool matchIndexSymbols(String a, String b) {
+    final na = normalizeIndexKey(a);
+    final nb = normalizeIndexKey(b);
+    if (na.isEmpty || nb.isEmpty) return false;
+    if (na == nb) return true;
+    if (na.contains('SHARIAH') && nb.contains('SHARIAH')) return true;
+    if (na.contains('ESG') && nb.contains('ESG')) return true;
+    return false;
+  }
+
+  /// فحص إذا كان السهم أو المؤشر محظوراً
+  static bool isBlocked(String? symbol, [String? id]) {
+    if (_blockedSymbols.isEmpty) return false;
+    String norm(String s) {
+      String out = s.trim().toUpperCase();
+      try {
+        out = Uri.decodeComponent(out);
+      } catch (_) {}
+      return out;
+    }
+
+    for (final b in _blockedSymbols) {
+      if (symbol != null && symbol.trim().isNotEmpty) {
+        final s = norm(symbol);
+        if (s == b || matchIndexSymbols(s, b)) return true;
+        if (s.contains(':')) {
+          final short = s.split(':').last.trim();
+          if (short == b || matchIndexSymbols(short, b)) return true;
+        }
+      }
+      if (id != null && id.trim().isNotEmpty) {
+        final i = norm(id);
+        if (i == b || matchIndexSymbols(i, b)) return true;
+        if (i.contains(':')) {
+          final short = i.split(':').last.trim();
+          if (short == b || matchIndexSymbols(short, b)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// فحص إذا كان المؤشر مسموحاً به
+  static bool isIndexAllowed(String ticker) {
+    if (_managedIndicesList.isEmpty) return true;
+    return _managedIndicesList.any((m) => matchIndexSymbols(m.symbol, ticker));
+  }
+
+  /// حل الاسم المعروض للمؤشر مع إعطاء الأولوية للترجمة المرفوعة بالمانجر
+  static String resolveIndexDisplayName({
+    required String ticker,
+    String? fallbackName,
+  }) {
+    // 1. فحص في قائمة المؤشرات المدارة بالمانجر
+    for (final m in _managedIndicesList) {
+      if (matchIndexSymbols(m.symbol, ticker) ||
+          (fallbackName != null && matchIndexSymbols(m.symbol, fallbackName))) {
+        return m.preferredName;
+      }
+    }
+
+    // 2. فحص في قاموس الترجمات المخزن
+    final direct = _cache?.getArabicIndexName(
+      ticker: ticker,
+      name: fallbackName ?? '',
+    );
+    if (direct != null && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+
+    // 3. الاسم الافتراضي
+    if (fallbackName != null && fallbackName.trim().isNotEmpty) {
+      return fallbackName.trim();
+    }
+
+    return ticker;
+  }
+
+  static String? getArabicNameDirect({required String id, required String symbol}) {
+    return _cache?.getArabicName(id: id, symbol: symbol);
+  }
+
+  static String? getArabicIndexNameDirect({required String ticker, required String name}) {
+    return _cache?.getArabicIndexName(ticker: ticker, name: name);
+  }
+
+  /// ✅ إرجاع التعريب المحفوظ من المانجر مع تحميله إن لم يكن موجوداً
   static Future<StockTranslations?> getTranslations(
       {bool forceRefresh = false}) async {
-    if (!forceRefresh && _cache != null) return _cache;
+    if (!forceRefresh && _cache != null && _managedIndicesList.isNotEmpty) {
+      return _cache;
+    }
     if (!forceRefresh && _inFlight != null) return _inFlight;
 
-    _inFlight = _load();
+    _inFlight = _load(forceRefresh: forceRefresh);
     final res = await _inFlight;
     _inFlight = null;
     return res;
   }
 
-  static Future<StockTranslations?> _load() async {
+  /// مزامنة مباشرة وديناميكية مع المانجر
+  static Future<void> syncWithManager({bool force = false}) async {
     try {
-      final map = <String, Map<String, String>>{};
+      final uri = Uri.parse(
+        'https://amanager.almurakib.com/api/v1/ui/config?app_slug=almurakib_egypt_stocks',
+      );
+      final resp = await http.get(uri, headers: {
+        'Accept': 'application/json',
+      }).timeout(const Duration(seconds: 10));
 
-      // 1. Load local bundled Egyptian stock translations asset first (Guaranteed instant offline data)
-      try {
-        final localJsonStr =
-            await rootBundle.loadString('assets/data/egx_stocks_ar.json');
-        final localData = jsonDecode(localJsonStr);
-        final rawLocal =
-            localData['stocks_by_id'] ?? localData['stocksById'] ?? localData;
-        if (rawLocal is Map) {
-          _populateMap(map, rawLocal);
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is Map<String, dynamic>) {
+          final rawTrans = data['stock_translations'] is Map
+              ? Map<String, dynamic>.from(data['stock_translations'] as Map)
+              : <String, dynamic>{};
+          final blocked = data['blocked_symbols'] is List
+              ? (data['blocked_symbols'] as List).map((e) => e.toString()).toList()
+              : <String>[];
+          final managed = data['managed_indices'] is List
+              ? (data['managed_indices'] as List)
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+                  .toList()
+              : <Map<String, dynamic>>[];
+
+          await applyManagerTranslations(
+            rawTrans,
+            blocked: blocked,
+            managedIndices: managed,
+          );
         }
-      } catch (e) {
-        // Local asset fallback failed, will try remote
+      }
+    } catch (_) {
+      // Keep cached data
+    }
+  }
+
+  static Future<StockTranslations?> _load({bool forceRefresh = false}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // تحميل الرموز المحظورة
+      final cachedBlocked = prefs.getStringList(_blockedPrefsKey);
+      if (cachedBlocked != null && cachedBlocked.isNotEmpty) {
+        _blockedSymbols.clear();
+        _blockedSymbols.addAll(cachedBlocked);
       }
 
-      // 2. Try to fetch remote translations (from Manager or API server)
-      try {
-        final url = ApiKeys.translationUrl;
-        if (url.isNotEmpty) {
-          final remoteData = await ApiClient.get(url);
-          final rawRemote = remoteData['stocks_by_id'] ??
-              remoteData['stocksById'] ??
-              remoteData;
+      // تحميل المؤشرات المدارة بصيغتها الكاملة
+      final cachedManagedJson = prefs.getString(_managedIndicesJsonPrefsKey);
+      if (cachedManagedJson != null && cachedManagedJson.trim().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(cachedManagedJson);
+          if (decoded is List) {
+            _managedIndicesList = decoded
+                .whereType<Map>()
+                .map((e) => ManagedIndexData.fromJson(Map<String, dynamic>.from(e)))
+                .where((e) => e.symbol.isNotEmpty)
+                .toList();
+          }
+        } catch (_) {}
+      }
 
-          if (rawRemote is Map && rawRemote.isNotEmpty) {
-            // Check if remote data has Egyptian stocks or EGX tickers
-            final hasEgyptianData = rawRemote.keys.any((k) {
-              final keyStr = k.toString().toUpperCase();
-              return keyStr.contains('EGX') ||
-                  keyStr.contains('COMI') ||
-                  !keyStr.contains('TADAWUL');
-            });
+      if (_managedIndicesList.isEmpty) {
+        final cachedIndices = prefs.getStringList(_indicesPrefsKey);
+        if (cachedIndices != null && cachedIndices.isNotEmpty) {
+          _managedIndicesList = cachedIndices
+              .map((s) => ManagedIndexData(symbol: s, nameEn: s, nameAr: ''))
+              .toList();
+        }
+      }
 
-            if (hasEgyptianData) {
-              _populateMap(map, rawRemote);
-            }
+      // تحميل قاموس التعريب المخزن محلياً
+      final cachedJsonStr = prefs.getString(_prefsKey);
+      if (cachedJsonStr != null && cachedJsonStr.trim().isNotEmpty) {
+        final decoded = jsonDecode(cachedJsonStr);
+        if (decoded is Map && decoded.isNotEmpty) {
+          final map = <String, Map<String, String>>{};
+          _populateMap(map, decoded);
+          for (final m in _managedIndicesList) {
+            final sym = m.symbol.toUpperCase();
+            final payload = {'ar': m.nameAr, 'en': m.nameEn};
+            map[sym] = payload;
+            map['EGX:$sym'] = payload;
+            final norm = normalizeIndexKey(sym);
+            if (norm.isNotEmpty) map[norm] = payload;
+          }
+          if (map.isNotEmpty) {
+            _cache = StockTranslations(map);
+            isTranslationAvailable = true;
           }
         }
-      } catch (e) {
-        // Remote fetch failed, fallback already in map
       }
 
-      if (map.isEmpty) {
-        isTranslationAvailable = false;
-        return null;
+      // إذا كان مطلوب تحديث إجباري أو الكاش فارغ، نجلب فوراً من المانجر
+      if (forceRefresh || _cache == null || _managedIndicesList.isEmpty) {
+        await syncWithManager(force: forceRefresh);
       }
 
-      _cache = StockTranslations(map);
-      isTranslationAvailable = true;
       return _cache;
-    } catch (e) {
+    } catch (_) {
       isTranslationAvailable = false;
       return null;
+    }
+  }
+
+  /// ✅ تطبيق وحفظ تعريب الشركات والمؤشرات والصناديق مباشرة من المانجر
+  static Future<void> applyManagerTranslations(
+    Map<String, dynamic> rawTranslations, {
+    List<String>? blocked,
+    List<Map<String, dynamic>>? managedIndices,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (blocked != null) {
+      _blockedSymbols.clear();
+      for (final b in blocked) {
+        final s = b.trim().toUpperCase();
+        if (s.isNotEmpty) {
+          _blockedSymbols.add(s);
+          if (s.contains(':')) {
+            _blockedSymbols.add(s.split(':').last.trim());
+          }
+        }
+      }
+      try {
+        await prefs.setStringList(_blockedPrefsKey, _blockedSymbols.toList());
+      } catch (_) {}
+    }
+
+    if (managedIndices != null) {
+      _managedIndicesList = managedIndices
+          .map((m) => ManagedIndexData.fromJson(m))
+          .where((m) => m.symbol.isNotEmpty)
+          .toList();
+      try {
+        final encoded = jsonEncode(
+          _managedIndicesList.map((m) => m.toJson()).toList(),
+        );
+        await prefs.setString(_managedIndicesJsonPrefsKey, encoded);
+        await prefs.setStringList(
+          _indicesPrefsKey,
+          _managedIndicesList.map((m) => m.symbol).toList(),
+        );
+      } catch (_) {}
+    }
+
+    final map = <String, Map<String, String>>{};
+    _populateMap(map, rawTranslations);
+
+    // دمج المؤشرات المدارة لضمان إمكانية قراءتها فوراً
+    for (final m in _managedIndicesList) {
+      final sym = m.symbol.toUpperCase();
+      final payload = {
+        'ar': m.nameAr,
+        'en': m.nameEn,
+      };
+      map[sym] = payload;
+      map['EGX:$sym'] = payload;
+      if (sym.contains(':')) {
+        map[sym.split(':').last.trim()] = payload;
+      }
+      final normKey = normalizeIndexKey(sym);
+      if (normKey.isNotEmpty) {
+        map[normKey] = payload;
+      }
+    }
+
+    if (map.isNotEmpty) {
+      _cache = StockTranslations(map);
+      isTranslationAvailable = true;
+
+      try {
+        await prefs.setString(_prefsKey, jsonEncode(rawTranslations));
+      } catch (_) {}
+    } else {
+      _cache = null;
+      isTranslationAvailable = false;
+      await prefs.remove(_prefsKey);
     }
   }
 

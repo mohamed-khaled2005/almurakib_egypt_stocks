@@ -53,10 +53,10 @@ class _MarketTodayScreenState extends State<MarketTodayScreen>
       final allStocks = results[0] as List<StockModel>;
       final favs = (results[1] as List<String>).toSet();
 
-      final gainers = allStocks.where((s) => s.changePercent > 0).toList()
+      final gainers = allStocks.where((s) => s.price > 0 && s.changePercent > 0).toList()
         ..sort((a, b) => b.changePercent.compareTo(a.changePercent));
 
-      final losers = allStocks.where((s) => s.changePercent < 0).toList()
+      final losers = allStocks.where((s) => s.price > 0 && s.changePercent < 0).toList()
         ..sort((a, b) => a.changePercent.compareTo(b.changePercent));
 
       setState(() {

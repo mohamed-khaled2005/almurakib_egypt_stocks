@@ -1,316 +1,290 @@
 import 'package:flutter/material.dart';
-import '../core/utils/constants.dart';
-import '../animations/fade_animation.dart';
-import '../animations/slide_animation.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../widgets/chevron_right_icon.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
+  static const String _websiteUrl = 'https://almurakib.com';
+
+  Future<void> _launchWebsite() async {
+    try {
+      final uri = Uri.parse(_websiteUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ✅ نفس موضع الهيدنج زي باقي الصفحات (Top=16 بدل 24)
-    const padding = EdgeInsets.fromLTRB(20, 16, 20, 24);
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFEFEFE),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: const ChevronRightIcon(
+              color: Color(0xFF374151),
+              size: 20,
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          centerTitle: true,
+          title: const Text(
+            'عن التطبيق',
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 17.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
+            ),
+          ),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          children: [
+            const SizedBox(height: 12),
 
-    return Scaffold(
-      // سيبنا الخلفية زي ما هي (انت طلبت توحيد الهيدنج فقط)
-      backgroundColor: const Color(0xFFF8F9FC),
-      body: SafeArea(
-        child: FadeAnimation(
-          child: ListView(
-            padding: padding,
-            physics: const BouncingScrollPhysics(),
-            children: [
-              // ✅ الهيدر الموحد (نفس المقاس/الستايل/الموضع)
-              const _UnifiedHeader(title: 'حول التطبيق'),
-
-              const SizedBox(height: 24),
-
-              // 1. كارت النبذة التعريفية
-              SlideAnimation(
-                delay: const Duration(milliseconds: 100),
-                child: _buildInfoCard(
-                  title: 'مراقب الأسهم المصرية',
-                  content:
-                      'هو التطبيق الرسمي لمنصة المراقب، تم تصميمه ليمنحك رؤية شاملة وسريعة لسوق الأسهم المصرية وتحديثات الأسعار لحظة بلحظة.',
-                  icon: Icons.info_outline_rounded,
+            // 1. App Logo
+            Center(
+              child: Image.asset(
+                'assets/images/Icon.png',
+                width: 115,
+                height: 115,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 100,
+                  height: 100,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFFC1121F),
+                  ),
+                  child: const Icon(Icons.assessment_rounded, size: 50, color: Colors.white),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 32),
+            const SizedBox(height: 16),
 
-              // ✅ عنوان المميزات (موحد مع باقي التطبيق)
-              const SlideAnimation(
-                delay: Duration(milliseconds: 150),
-                child: _UnifiedSectionTitle(title: "مميزات التطبيق"),
-              ),
-              const SizedBox(height: 16),
-
-              // 2. قائمة المميزات (3 فقط - عمودية)
-              SlideAnimation(
-                delay: const Duration(milliseconds: 200),
-                child: _buildFeaturesList(),
-              ),
-
-              const SizedBox(height: 32),
-
-              // 3. كارت المنصة
-              SlideAnimation(
-                delay: const Duration(milliseconds: 300),
-                child: _buildInfoCard(
-                  title: 'عن منصة المراقب',
-                  content:
-                      'Almurakib.com هي منصة مالية رائدة تهدف لتبسيط البيانات المالية للمستثمر العربي، ومساعدته على اتخاذ قرارات استثمارية مدروسة.',
-                  icon: Icons.language_rounded,
-                  isPrimary: true,
+            // App Name
+            const Center(
+              child: Text(
+                'مراقب الأسهم المصرية',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF111827),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 40),
+            const SizedBox(height: 16),
 
-              // 4. حقوق الملكية
-              SlideAnimation(
-                delay: const Duration(milliseconds: 400),
-                child: Center(
-                  child: Text(
-                    '© 2024 جميع الحقوق محفوظة لمنصة المراقب',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Tajawal',
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+            // Intro Description
+            const Center(
+              child: Text(
+                'هو التطبيق الرسمي لمنصة المراقب، تم تصميمه\nليمنحك رؤية شاملة وسريعة لسوق الأسهم المصرية\nوتحديثات الأسعار لحظة بلحظة.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF4B5563),
+                  height: 1.5,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // 2. Section: مميزات التطبيق
+            const Text(
+              'مميزات التطبيق',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  _buildFeatureItem(
+                    title: 'بيانات لحظية',
+                    subtitle:
+                        'نوفر أسعار الأسهم المصرية والمؤشرات بتحديثات مستمرة لحظة بلحظة لمساعدتك على اتخاذ قراراتك الاستثمارية.',
+                  ),
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+                  _buildFeatureItem(
+                    title: 'المفضلة',
+                    subtitle:
+                        'أضف الشركات التي تهمك إلى قائمة المفضلة وتابع أداءها بسهولة وسرعة من مكان واحد.',
+                  ),
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+                  _buildFeatureItem(
+                    title: 'الموثوقية',
+                    subtitle:
+                        'نعتمد على مصادر بيانات معتمدة ونلتزم بعرض معلومات شفافة ودقيقة لتعزيز ثقتك أثناء متابعة السوق.',
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // 3. Section: عن منصة المراقب
+            const Text(
+              'عن منصة المراقب',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Text(
+                      'هي منصة مالية رائدة تهدف لتبسيط البيانات المالية للمستثمر العربي، ومساعدته على اتخاذ قرارات استثمارية مدروسة.',
+                      style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF4B5563),
+                        height: 1.45,
+                      ),
                     ),
                   ),
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+                  InkWell(
+                    onTap: _launchWebsite,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        textDirection: TextDirection.rtl,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'الموقع الإلكتروني',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Almurakib.com',
+                                style: TextStyle(
+                                  fontFamily: 'Tajawal',
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFDC2626),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Transform.flip(
+                                flipX: true,
+                                child: const Icon(
+                                  Icons.open_in_new_rounded,
+                                  color: Color(0xFFDC2626),
+                                  size: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // 4. Copyright
+            const Center(
+              child: Text(
+                'جميع الحقوق محفوظة لمنصة المراقب 2026',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF64748B),
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );
   }
 
-  // ======================= Info Card =======================
-  Widget _buildInfoCard({
+  Widget _buildFeatureItem({
     required String title,
-    required String content,
-    required IconData icon,
-    bool isPrimary = false,
+    required String subtitle,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isPrimary ? AppColors.primaryBlue : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: isPrimary
-                ? AppColors.primaryBlue.withOpacity(0.3)
-                : Colors.black.withOpacity(0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                color: isPrimary ? Colors.white : AppColors.primaryBlue,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontFamily: 'Tajawal',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: isPrimary ? Colors.white : AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
           Text(
-            content,
-            style: TextStyle(
+            title,
+            style: const TextStyle(
               fontFamily: 'Tajawal',
-              fontSize: 13,
-              height: 1.6,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 12.5,
               fontWeight: FontWeight.w500,
-              color: isPrimary
-                  ? Colors.white.withOpacity(0.9)
-                  : AppColors.textSecondary,
+              color: Color(0xFF64748B),
+              height: 1.45,
             ),
           ),
         ],
       ),
     );
   }
-
-  // ======================= Features List =======================
-  Widget _buildFeaturesList() {
-    final features = <_FeatureItem>[
-      const _FeatureItem(
-        icon: Icons.bolt_rounded,
-        title: 'بيانات لحظية',
-        desc:
-            'نوفر أسعار الأسهم المصرية والمؤشرات بتحديثات مستمرة لحظة بلحظة لمساعدتك على اتخاذ قراراتك الاستثمارية.',
-      ),
-      const _FeatureItem(
-        icon: Icons.star_rounded,
-        title: 'المفضلة',
-        desc:
-            'أضف الشركات التي تهمك إلى قائمة المفضلة وتابع أداءها بسهولة وسرعة من مكان واحد.',
-      ),
-      const _FeatureItem(
-        icon: Icons.security_rounded,
-        title: 'الموثوقية',
-        desc:
-            'نعتمد على مصادر بيانات معتمدة ونلتزم بعرض معلومات شفافة ودقيقة لتعزيز ثقتك أثناء متابعة السوق.',
-      ),
-    ];
-
-    return Column(
-      children: features.map((item) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.withOpacity(0.1)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withOpacity(0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(item.icon, size: 22, color: AppColors.primaryBlue),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: TextStyle(
-                        fontFamily: 'Tajawal',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      item.desc,
-                      style: TextStyle(
-                        fontFamily: 'Tajawal',
-                        fontSize: 13,
-                        height: 1.5,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-// ✅ عنوان الأقسام (موحد)
-class _UnifiedSectionTitle extends StatelessWidget {
-  final String title;
-  const _UnifiedSectionTitle({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 24,
-          decoration: BoxDecoration(
-            color: AppColors.primaryBlue,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: AppTextStyles.headingSmall.copyWith(
-            fontWeight: FontWeight.w900,
-            fontSize: 20,
-            color: Colors.black87,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ✅ هيدر الصفحة (موحد: نفس المقاس/الستايل)
-class _UnifiedHeader extends StatelessWidget {
-  final String title;
-  const _UnifiedHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 24,
-          decoration: BoxDecoration(
-            color: AppColors.primaryBlue,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: AppTextStyles.headingSmall.copyWith(
-            fontWeight: FontWeight.w900,
-            fontSize: 20,
-            color: Colors.black87,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _FeatureItem {
-  final IconData icon;
-  final String title;
-  final String desc;
-
-  const _FeatureItem({
-    required this.icon,
-    required this.title,
-    required this.desc,
-  });
 }

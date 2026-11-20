@@ -1,4 +1,4 @@
-class StockIndicatorModel {
+﻿class StockIndicatorModel {
   final Map<String, IndicatorValue> indicators;
   final String overallSummary;
   final int totalBuy;
@@ -23,8 +23,41 @@ class StockIndicatorModel {
     );
   }
 
-  IndicatorValue? get rsi => indicators['RSI14'] ?? indicators['rsi'] ?? indicators['RSI'];
+  IndicatorValue? get rsi => getIndicator('RSI14');
+  IndicatorValue? get macd => getIndicator('MACD12_26');
+  IndicatorValue? get stoch => getIndicator('STOCH9_6');
+  IndicatorValue? get adx => getIndicator('ADX14');
+  IndicatorValue? get atr => getIndicator('ATR14');
+  IndicatorValue? get cci => getIndicator('CCI14');
+  IndicatorValue? get parabolicSar => getIndicator('ParabolicSAR');
+  IndicatorValue? get williamsR => getIndicator('WilliamsR');
+  IndicatorValue? get uo => getIndicator('UltimateOscillator');
+  IndicatorValue? get roc => getIndicator('ROC');
+  IndicatorValue? get bullBearPower => getIndicator('BullBearPower');
+
   String get summaryRecommendation => overallSummary;
+
+  IndicatorValue? getIndicator(String nameOrKey) {
+    final norm = normalizeKey(nameOrKey);
+    return indicators[norm] ?? indicators[nameOrKey];
+  }
+
+  static String normalizeKey(String k) {
+    final clean = k.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    if (clean.contains('stochrsi')) return 'STOCHRSI14';
+    if (clean.contains('stoch')) return 'STOCH9_6';
+    if (clean.contains('rsi')) return 'RSI14';
+    if (clean.contains('macd')) return 'MACD12_26';
+    if (clean.contains('williams')) return 'WilliamsR';
+    if (clean.contains('cci')) return 'CCI14';
+    if (clean.contains('atr')) return 'ATR14';
+    if (clean.contains('uo') || clean.contains('ultimate')) return 'UltimateOscillator';
+    if (clean.contains('roc')) return 'ROC';
+    if (clean.contains('bull') || clean.contains('bear')) return 'BullBearPower';
+    if (clean.contains('adx')) return 'ADX14';
+    if (clean.contains('sar') || clean.contains('psar')) return 'ParabolicSAR';
+    return k;
+  }
 
   factory StockIndicatorModel.fromJson(Map<String, dynamic> json) {
     final resp = json['response'];
@@ -55,25 +88,6 @@ class StockIndicatorModel {
         }
       }
 
-      String normKey(String k) {
-        final kk = k.toLowerCase();
-        const map = {
-          'rsi': 'RSI14',
-          'stoch': 'STOCH9_6',
-          'stochrsi': 'STOCHRSI14',
-          'macd': 'MACD12_26',
-          'williamsr': 'WilliamsR',
-          'cci': 'CCI14',
-          'atr': 'ATR14',
-          'uo': 'UltimateOscillator',
-          'roc': 'ROC',
-          'bullbearpower': 'BullBearPower',
-          'adx': 'ADX14',
-          'psar': 'ParabolicSAR',
-        };
-        return map[kk] ?? k;
-      }
-
       void extract(dynamic group) {
         if (group is! Map) return;
         final g = Map<String, dynamic>.from(group);
@@ -82,7 +96,7 @@ class StockIndicatorModel {
           if (v is Map) {
             final m = Map<String, dynamic>.from(v);
             if (m.containsKey('v') && m.containsKey('s')) {
-              final key = normKey(entry.key.toString());
+              final key = normalizeKey(entry.key.toString());
               final val = _parseDouble(m['v']);
               final sig = m['s']?.toString() ?? 'Neutral';
               parsed[key] = IndicatorValue(value: val, signal: sig);
@@ -126,32 +140,43 @@ class StockIndicatorModel {
     }
 
     final parsedIndicators = <String, IndicatorValue>{};
+    int bCount = 0, sCount = 0, nCount = 0;
 
     indicatorsData.forEach((key, value) {
       if (value is Map) {
         final m = Map<String, dynamic>.from(value);
         if (m.containsKey('v') && m.containsKey('s')) {
-          parsedIndicators[key.toString()] = IndicatorValue(
+          final norm = normalizeKey(key.toString());
+          final sig = m['s']?.toString() ?? 'Neutral';
+          final sLower = sig.toLowerCase().trim();
+          if (sLower.contains('buy')) {
+            bCount++;
+          } else if (sLower.contains('sell')) {
+            sCount++;
+          } else {
+            nCount++;
+          }
+          parsedIndicators[norm] = IndicatorValue(
             value: _parseDouble(m['v']),
-            signal: m['s']?.toString() ?? 'Neutral',
+            signal: sig,
           );
         }
       }
     });
 
-    int pickCount(List<String> keys) {
+    int pickCount(List<String> keys, int fallback) {
       for (final k in keys) {
         if (count.containsKey(k)) return _parseInt(count[k]);
       }
-      return 0;
+      return fallback;
     }
 
     return StockIndicatorModel(
       indicators: parsedIndicators,
       overallSummary: overall,
-      totalBuy: pickCount(['Total_Buy', 'total_buy', 'BUY', 'buy', 'totalBuy']),
-      totalSell: pickCount(['Total_Sell', 'total_sell', 'SELL', 'sell', 'totalSell']),
-      totalNeutral: pickCount(['Total_Neutral', 'total_neutral', 'NEUTRAL', 'neutral', 'totalNeutral']),
+      totalBuy: pickCount(['Total_Buy', 'total_buy', 'BUY', 'buy', 'totalBuy'], bCount),
+      totalSell: pickCount(['Total_Sell', 'total_sell', 'SELL', 'sell', 'totalSell'], sCount),
+      totalNeutral: pickCount(['Total_Neutral', 'total_neutral', 'NEUTRAL', 'neutral', 'totalNeutral'], nCount),
     );
   }
 

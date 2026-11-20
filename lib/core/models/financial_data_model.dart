@@ -1,4 +1,4 @@
-class FinancialMetricItem {
+﻿class FinancialMetricItem {
   final String id;
   final String name;
   final String group;

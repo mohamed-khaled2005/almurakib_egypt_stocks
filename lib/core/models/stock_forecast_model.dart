@@ -1,4 +1,4 @@
-class StockForecast {
+﻿class StockForecast {
   final String ticker;
   final double? highTarget;
   final double? avgTarget;

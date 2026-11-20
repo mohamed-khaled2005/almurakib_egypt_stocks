@@ -1,4 +1,4 @@
-class TradingStatusOption {
+﻿class TradingStatusOption {
   const TradingStatusOption({
     required this.value,
     required this.label,

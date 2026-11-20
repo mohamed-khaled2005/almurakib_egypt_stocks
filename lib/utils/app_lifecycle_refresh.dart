@@ -1,4 +1,4 @@
-// lib/core/utils/app_lifecycle_refresh.dart
+﻿// lib/core/utils/app_lifecycle_refresh.dart
 import 'package:flutter/widgets.dart';
 
 /// إشارات دورة حياة التطبيق (Resume/Foreground) لاستخدامها داخل أي شاشة.

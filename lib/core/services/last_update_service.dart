@@ -1,4 +1,4 @@
-// lib/core/services/last_update_service.dart
+﻿// lib/core/services/last_update_service.dart
 import 'package:flutter/foundation.dart';
 import '../utils/server_time_parser.dart';
 

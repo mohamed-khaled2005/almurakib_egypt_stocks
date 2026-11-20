@@ -13,6 +13,8 @@ import '../models/app_preferences_model.dart';
 import '../models/educational_article_model.dart';
 import '../models/managed_app_user.dart';
 import '../core/api/api_keys.dart';
+import '../core/services/stock_service.dart';
+import '../core/services/translation_service.dart';
 import '../models/manual_ad_model.dart';
 import '../models/remote_ui_config_model.dart';
 import '../services/app_manager_api_service.dart';
@@ -72,10 +74,8 @@ class AppManagerProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated =>
       _token != null && _token!.isNotEmpty && _user != null;
-  bool get canUseGoogleSignIn =>
-      kIsWeb || defaultTargetPlatform != TargetPlatform.iOS;
-  bool get canUseAppleSignIn =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  bool get canUseGoogleSignIn => true;
+  bool get canUseAppleSignIn => true;
   String? get token => _token;
   ManagedAppUser? get user => _user;
   AppPreferencesModel get preferences => _preferences;
@@ -369,12 +369,6 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<bool> loginWithGoogle() async {
-    if (!canUseGoogleSignIn) {
-      _errorMessage = 'تسجيل Google غير متاح على iOS.';
-      notifyListeners();
-      return false;
-    }
-
     _setBusy(true);
     _errorMessage = null;
 
@@ -420,16 +414,17 @@ class AppManagerProvider with ChangeNotifier {
   }
 
   Future<bool> loginWithApple() async {
-    if (!canUseAppleSignIn) {
-      _errorMessage = 'تسجيل Apple متاح على iPhone وiPad فقط.';
-      notifyListeners();
-      return false;
-    }
-
     _setBusy(true);
     _errorMessage = null;
 
     try {
+      if (defaultTargetPlatform != TargetPlatform.iOS &&
+          defaultTargetPlatform != TargetPlatform.macOS) {
+        _errorMessage = 'تسجيل الدخول عبر Apple متاح على أجهزة Apple فقط.';
+        notifyListeners();
+        return false;
+      }
+
       final credential = await SignInWithApple.getAppleIDCredential(
         scopes: <AppleIDAuthorizationScopes>[
           AppleIDAuthorizationScopes.email,
@@ -645,6 +640,17 @@ class AppManagerProvider with ChangeNotifier {
       }
       if (_remoteUiConfig.translationUrl != null && _remoteUiConfig.translationUrl!.isNotEmpty) {
         ApiKeys.setTranslationUrl(_remoteUiConfig.translationUrl);
+      }
+      if (_remoteUiConfig.stockTranslations != null || _remoteUiConfig.blockedSymbols.isNotEmpty || _remoteUiConfig.managedIndices.isNotEmpty) {
+        await TranslationService.applyManagerTranslations(
+          _remoteUiConfig.stockTranslations ?? <String, dynamic>{},
+          blocked: _remoteUiConfig.blockedSymbols,
+          managedIndices: _remoteUiConfig.managedIndices,
+        );
+        StockService.clearIndicesCache();
+      }
+      if (_remoteUiConfig.apiEndpoints != null) {
+        ApiKeys.setEndpoints(_remoteUiConfig.apiEndpoints);
       }
 
       notifyListeners();
@@ -1152,7 +1158,7 @@ class AppManagerProvider with ChangeNotifier {
     if (normalized.contains('apiexception: 10') ||
         normalized.contains('sign_in_failed')) {
       return 'فشل تسجيل الدخول عبر Google لأن إعداد OAuth لهذا التطبيق غير مكتمل أو غير مطابق. '
-          'تأكد من أن ملف google-services.json الخاص بالإمارات يحتوي OAuth clients، '
+          'تأكد من أن ملف google-services.json يحتوي OAuth clients، '
           'وأن SHA-1 وSHA-256 الصحيحين مضافتان في Firebase.';
     }
 

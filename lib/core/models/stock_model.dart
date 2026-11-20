@@ -1,4 +1,5 @@
 import '../services/live_socket_service.dart';
+import '../services/translation_service.dart';
 
 class StockModel {
   final String id;
@@ -244,6 +245,10 @@ class StockModel {
       change: update.change ?? change,
       changePercent: update.changePercent ?? changePercent,
       previousClose: update.previousClose ?? previousClose,
+      open: update.open ?? open,
+      high: update.high ?? high,
+      low: update.low ?? low,
+      volume: update.volume ?? volume,
       bid: update.bid ?? bid,
       ask: update.ask ?? ask,
     );
@@ -254,14 +259,36 @@ class StockModel {
   double? get spreadPercent =>
       hasSpread && bid! > 0 ? (((ask! - bid!) / bid!) * 100.0) : null;
 
-  String get displayName =>
-      (arabicName != null && arabicName!.isNotEmpty) ? arabicName! : name;
-  bool get hasArabicName => arabicName != null && arabicName!.isNotEmpty;
+  String get displayName {
+    if (arabicName != null && arabicName!.trim().isNotEmpty) {
+      return arabicName!.trim();
+    }
+    final direct = TranslationService.getArabicNameDirect(id: id, symbol: symbol);
+    if (direct != null && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+    return name;
+  }
+  bool get hasArabicName => (arabicName != null && arabicName!.trim().isNotEmpty) ||
+      (TranslationService.getArabicNameDirect(id: id, symbol: symbol) != null);
   bool get isGain => change >= 0;
 
   bool get isReit => subType.toLowerCase() == 'reit';
   bool get isEtf => subType.toLowerCase() == 'etf';
   bool get isFund => type.toLowerCase() == 'fund';
+  bool get isIndex => type.toLowerCase() == 'index';
+
+  /// ✅ عرض الرمز بدون بادئة البورصة EGX:
+  String get displaySymbol {
+    if (id.isNotEmpty && !id.contains(':')) return id;
+    if (symbol.contains(':')) return symbol.split(':').last.trim();
+    return symbol;
+  }
+
+  /// ✅ فقط الأسهم العادية مسموح لها استقبال بيانات الويب سوكيت
+  /// صناديق الريت، صناديق الاستثمار، والمؤشرات تعتمد كلياً على Rest API
+  bool get canUseWebSocket =>
+      type.toLowerCase() == 'stock' && !isFund && !isReit && !isEtf && !isIndex;
 
   @override
   String toString() {

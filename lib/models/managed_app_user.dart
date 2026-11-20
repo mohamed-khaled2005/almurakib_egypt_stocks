@@ -1,4 +1,4 @@
-class ManagedAppUser {
+﻿class ManagedAppUser {
   const ManagedAppUser({
     required this.id,
     required this.email,

@@ -11,8 +11,19 @@ class Formatters {
 
   /// ✅ تنسيق النسبة المئوية
   static String formatPercent(double percent) {
-    final sign = percent >= 0 ? '+' : '';
-    return '$sign${formatNumber(percent)}%';
+    if (percent == 0) return '0.00%';
+    final absVal = percent.abs().toStringAsFixed(2);
+    final sign = percent > 0 ? '+' : '-';
+    return '$sign$absVal%';
+  }
+
+  /// ✅ تنسيق النسبة المئوية لكبسولات التغيير (+2.65% أو -24.44%)
+  /// تضع الإشارة (+ أو -) قبل الرقم بدقة مطابقة للصورة 100%
+  static String formatPillPercent(double percent) {
+    if (percent == 0) return '0.00%';
+    final absVal = percent.abs().toStringAsFixed(2);
+    final sign = percent > 0 ? '+' : '-';
+    return '$sign$absVal%';
   }
 
   /// ✅ تنسيق التغيير (رقم فقط مع الإشارة)

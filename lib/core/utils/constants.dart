@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class AppColors {
   // ==========================================================
@@ -19,12 +19,12 @@ class AppColors {
   static const Color lightAccentGold = Color(0xFFD7B24A); // Light Gold tint
 
   // ✅ درجات الوضع الفاتح (Light Mode) - مطابقة 100% للتصميم الحالي
-  static const Color _lightBackground = Color(0xFFFFF7F8); // Warm light background
-  static const Color _lightCard = Color(0xFFFFFFFF); // Card أبيض
-  static const Color _lightCardSoft = Color(0xFFFFE9EC); // Surface فاتح أحمر
-  static const Color _lightBorder = Color(0xFFF2C9CF);
-  static const Color _lightTextPrimary = Color(0xFF1A0B0D);
-  static const Color _lightTextSecondary = Color(0xFF6B4B50);
+  static const Color _lightBackground = Color(0xFFFEFEFE); // Clean neutral off-white #FEFEFE
+  static const Color _lightCard = Color(0xFFFFFFFF); // Card أبيض نقي
+  static const Color _lightCardSoft = Color(0xFFF1F5F9); // Surface رمادي فاتح
+  static const Color _lightBorder = Color(0xFFE5E7EB); // Neutral grey border
+  static const Color _lightTextPrimary = Color(0xFF111827); // Dark charcoal text
+  static const Color _lightTextSecondary = Color(0xFF64748B); // Slate grey text
 
   static Color background = _lightBackground;
   static Color get scaffold => background;

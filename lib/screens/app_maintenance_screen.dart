@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../core/utils/constants.dart';
 import '../providers/app_manager_provider.dart';
 
 class AppMaintenanceScreen extends StatelessWidget {
@@ -21,84 +20,75 @@ class AppMaintenanceScreen extends StatelessWidget {
     final provider = context.watch<AppManagerProvider>();
     final displayTitle = title?.trim().isNotEmpty == true
         ? title!
-        : 'قيد التحديث والصيانة';
+        : 'التطبيق تحت الصيانة';
     final displayMessage = message?.trim().isNotEmpty == true
         ? message!
-        : (provider.marketClosedMessage.isNotEmpty
-            ? provider.marketClosedMessage
-            : 'التطبيق قيد الصيانة والتحديث حالياً، يرجى المحاولة بعد قليل.');
+        : 'نقوم حالياً بتحسين الخدمة وسنعود قريباً.';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFEFEFE),
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue.withOpacity(0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.engineering_rounded,
-                      size: 48,
-                      color: AppColors.primaryBlue,
+        child: InkWell(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          onTap: () async {
+            if (onRetry != null) {
+              onRetry!();
+            } else {
+              await provider.refreshRemoteUiConfig();
+            }
+          },
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Circular Icon Container (Matches Image 1)
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE2E8F0),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.build_rounded,
+                        size: 32,
+                        color: Color(0xFF475569),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  displayTitle,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  displayMessage,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 15,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    if (onRetry != null) {
-                      onRetry!();
-                    } else {
-                      await provider.refreshRemoteUiConfig();
-                    }
-                  },
-                  icon: const Icon(Icons.refresh_rounded, size: 20),
-                  label: const Text(
-                    'إعادة المحاولة',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 36,
-                      vertical: 14,
+                  const SizedBox(height: 20),
+
+                  // Title (Matches Image 1)
+                  Text(
+                    displayTitle,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF111827),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+
+                  // Subtitle (Matches Image 1)
+                  Text(
+                    displayMessage,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -184,6 +184,26 @@ class AppUpdateConfig {
     this.storeUrl,
   });
 
+  AppUpdateConfig copyWith({
+    bool? updateAvailable,
+    bool? forceUpdate,
+    String? latestVersion,
+    String? minVersion,
+    String? title,
+    String? message,
+    String? storeUrl,
+  }) {
+    return AppUpdateConfig(
+      updateAvailable: updateAvailable ?? this.updateAvailable,
+      forceUpdate: forceUpdate ?? this.forceUpdate,
+      latestVersion: latestVersion ?? this.latestVersion,
+      minVersion: minVersion ?? this.minVersion,
+      title: title ?? this.title,
+      message: message ?? this.message,
+      storeUrl: storeUrl ?? this.storeUrl,
+    );
+  }
+
   factory AppUpdateConfig.none() => const AppUpdateConfig();
 
   factory AppUpdateConfig.fromJson(Map<String, dynamic> json) {
@@ -213,6 +233,10 @@ class RemoteUiConfigModel {
     this.fcsApiKey,
     this.translationUrl,
     this.liveSocketKey,
+    this.stockTranslations,
+    this.apiEndpoints,
+    this.blockedSymbols = const <String>[],
+    this.managedIndices = const <Map<String, dynamic>>[],
   });
 
   final ManagedMenuCta? menuCta;
@@ -227,6 +251,10 @@ class RemoteUiConfigModel {
   final String? fcsApiKey;
   final String? translationUrl;
   final String? liveSocketKey;
+  final Map<String, dynamic>? stockTranslations;
+  final Map<String, dynamic>? apiEndpoints;
+  final List<String> blockedSymbols;
+  final List<Map<String, dynamic>> managedIndices;
 
   factory RemoteUiConfigModel.empty() {
     return RemoteUiConfigModel(
@@ -299,6 +327,18 @@ class RemoteUiConfigModel {
       fcsApiKey: json['fcs_api_key']?.toString() ?? json['api_key']?.toString(),
       translationUrl: json['translation_url']?.toString() ?? json['arabic_names_url']?.toString(),
       liveSocketKey: json['livesocket_key']?.toString() ?? json['socket_key']?.toString(),
+      stockTranslations: json['stock_translations'] is Map
+          ? Map<String, dynamic>.from(json['stock_translations'] as Map)
+          : null,
+      apiEndpoints: json['api_endpoints'] is Map
+          ? Map<String, dynamic>.from(json['api_endpoints'] as Map)
+          : null,
+      blockedSymbols: json['blocked_symbols'] is List
+          ? (json['blocked_symbols'] as List).map((e) => e.toString().trim().toUpperCase()).where((e) => e.isNotEmpty).toList()
+          : const <String>[],
+      managedIndices: json['managed_indices'] is List
+          ? (json['managed_indices'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+          : const <Map<String, dynamic>>[],
     );
   }
 
@@ -315,6 +355,10 @@ class RemoteUiConfigModel {
     String? fcsApiKey,
     String? translationUrl,
     String? liveSocketKey,
+    Map<String, dynamic>? stockTranslations,
+    Map<String, dynamic>? apiEndpoints,
+    List<String>? blockedSymbols,
+    List<Map<String, dynamic>>? managedIndices,
     bool clearMenuCta = false,
     bool clearPopupAd = false,
   }) {
@@ -331,6 +375,10 @@ class RemoteUiConfigModel {
       fcsApiKey: fcsApiKey ?? this.fcsApiKey,
       translationUrl: translationUrl ?? this.translationUrl,
       liveSocketKey: liveSocketKey ?? this.liveSocketKey,
+      stockTranslations: stockTranslations ?? this.stockTranslations,
+      apiEndpoints: apiEndpoints ?? this.apiEndpoints,
+      blockedSymbols: blockedSymbols ?? this.blockedSymbols,
+      managedIndices: managedIndices ?? this.managedIndices,
     );
   }
 }

@@ -1,4 +1,4 @@
-class StockPerformanceModel {
+﻿class StockPerformanceModel {
   final String ticker;
   final Map<String, dynamic> perf;
   final String? serverTime;

@@ -11,6 +11,8 @@ import '../models/stock_forecast_model.dart';
 import '../models/financial_data_model.dart';
 import '../models/market_status_model.dart';
 import '../models/currency_conversion_model.dart';
+import '../models/stock_pivot_points_model.dart';
+import '../models/company_profile_model.dart';
 import 'translation_service.dart';
 import 'last_update_service.dart';
 import 'live_socket_service.dart';
@@ -45,9 +47,17 @@ class StockService {
     );
   }
 
+  static void clearIndicesCache() {
+    _marketIndicesCache = null;
+  }
+
   static Future<List<MarketIndexModel>> getMarketIndices({
     bool forceRefresh = false,
   }) async {
+    if (forceRefresh) {
+      _marketIndicesCache = null;
+    }
+
     if (!forceRefresh && _marketIndicesCache != null) {
       return _marketIndicesCache!;
     }
@@ -67,81 +77,145 @@ class StockService {
   }
 
   static Future<List<MarketIndexModel>> _loadMarketIndices() async {
-    final listData = await ApiClient.get(
-      ApiEndpoints.indicesList(country: ApiKeys.defaultCountry),
-    );
+    // 1. Ensure latest translations and managed indices are loaded from Manager
+    await TranslationService.getTranslations();
 
-    LastUpdateService.updateFromApi(listData);
-
-    final listResponse = listData['response'];
-    if (listResponse is! List) {
-      throw Exception('صيغة المؤشرات غير متوقعة');
-    }
-
-    final seenTickers = <String>{};
-    final listedIndices = <MarketIndexModel>[];
-    for (final entry in listResponse.whereType<Map>()) {
-      final index = MarketIndexModel.fromJson(
-        Map<String, dynamic>.from(entry),
-      );
-      final normalizedTicker = _normalizeTicker(index.ticker);
-      if (normalizedTicker.isEmpty || !seenTickers.add(normalizedTicker)) {
-        continue;
-      }
-      listedIndices.add(index);
-    }
-
-    if (listedIndices.isEmpty) return <MarketIndexModel>[];
-
-    final latestByTicker = <String, MarketIndexModel>{};
+    // 2. Fetch live quotes from API Gateway
+    final liveByNormalizedKey = <String, MarketIndexModel>{};
     try {
       final latestData = await ApiClient.get(
-        ApiEndpoints.indicesLatest(
-          symbol: listedIndices.map((item) => item.ticker).join(','),
-        ),
+        ApiEndpoints.indicesLatest(exchange: ApiKeys.egyptExchange),
       );
       LastUpdateService.updateFromApi(latestData);
 
       final latestResponse = latestData['response'];
       if (latestResponse is List) {
         for (final entry in latestResponse.whereType<Map>()) {
-          final index = MarketIndexModel.fromJson(
-            Map<String, dynamic>.from(entry),
-          );
-          final normalizedTicker = _normalizeTicker(index.ticker);
-          if (normalizedTicker.isEmpty) continue;
-          latestByTicker[normalizedTicker] = index;
+          final m = MarketIndexModel.fromJson(Map<String, dynamic>.from(entry));
+          final key = TranslationService.normalizeIndexKey(m.ticker);
+          if (key.isNotEmpty) {
+            liveByNormalizedKey[key] = m;
+          }
         }
       }
     } catch (_) {
-      // Keep the index list visible even if live prices are temporarily unavailable.
+      // Proceed gracefully even if live prices endpoint is temporarily down
     }
 
-    var indices = listedIndices.map((listed) {
-      final latest = latestByTicker[_normalizeTicker(listed.ticker)];
-      if (latest == null) return listed;
-
-      return latest.copyWith(
-        ticker: listed.ticker,
-        name: listed.name.isNotEmpty ? listed.name : latest.name,
-      );
-    }).toList();
-
-    final translations = await TranslationService.getTranslations();
-    if (translations != null) {
-      indices = indices.map((item) {
-        final arabicName = translations.getArabicIndexName(
-          ticker: item.ticker,
-          name: item.name,
-        );
-        if (arabicName == null || arabicName.trim().isEmpty) {
-          return item;
+    // 3. Dynamic binding with Manager: If manager indices exist, they are the single source of truth
+    if (TranslationService.hasManagedIndices) {
+      final result = <MarketIndexModel>[];
+      for (final managed in TranslationService.managedIndices) {
+        // Skip any blocked index
+        if (TranslationService.isBlocked(managed.symbol)) {
+          continue;
         }
-        return item.copyWith(name: arabicName.trim());
-      }).toList();
+
+        // Match live market data
+        MarketIndexModel? matchedLive;
+        for (final entry in liveByNormalizedKey.entries) {
+          if (TranslationService.matchIndexSymbols(managed.symbol, entry.key)) {
+            matchedLive = entry.value;
+            break;
+          }
+        }
+
+        final preferredName = managed.preferredName;
+        final canonicalTicker = matchedLive?.ticker.isNotEmpty == true
+            ? matchedLive!.ticker
+            : (managed.symbol.startsWith('EGX:') ? managed.symbol : 'EGX:${managed.symbol}');
+
+        if (matchedLive != null && matchedLive.value > 0) {
+          result.add(
+            matchedLive.copyWith(
+              ticker: canonicalTicker,
+              name: preferredName,
+              hasMarketData: true,
+            ),
+          );
+        } else {
+          result.add(
+            MarketIndexModel(
+              ticker: canonicalTicker,
+              name: preferredName,
+              value: 0.0,
+              change: 0.0,
+              changePercent: 0.0,
+              hasMarketData: false,
+            ),
+          );
+        }
+      }
+      return result;
     }
 
-    return indices;
+    // 4. Fallback if manager has no index config: use Gateway indices list
+    final listData = await ApiClient.get(
+      ApiEndpoints.indicesList(
+        country: ApiKeys.defaultCountry,
+        exchange: ApiKeys.egyptExchange,
+      ),
+    );
+    LastUpdateService.updateFromApi(listData);
+
+    final listResponse = listData['response'];
+    if (listResponse is! List) {
+      return <MarketIndexModel>[];
+    }
+
+    final seenTickers = <String>{};
+    final fallbackIndices = <MarketIndexModel>[];
+
+    for (final entry in listResponse.whereType<Map>()) {
+      final rawExchange = (entry['exchange'] ?? '').toString().trim().toUpperCase();
+      if (rawExchange.isNotEmpty && !rawExchange.contains('EGX')) {
+        continue;
+      }
+      final rawSymbol = (entry['symbol'] ?? entry['ticker'] ?? '').toString().trim().toUpperCase();
+      if (rawSymbol.startsWith('FTSE:') ||
+          rawSymbol.contains('AIM') ||
+          rawSymbol.contains('MIB') ||
+          rawSymbol.contains('ITMC')) {
+        continue;
+      }
+      final index = MarketIndexModel.fromJson(Map<String, dynamic>.from(entry));
+      final normKey = TranslationService.normalizeIndexKey(index.ticker);
+      if (normKey.isEmpty || !seenTickers.add(normKey)) {
+        continue;
+      }
+      if (TranslationService.isBlocked(index.ticker)) {
+        continue;
+      }
+
+      MarketIndexModel? matchedLive;
+      for (final liveEntry in liveByNormalizedKey.entries) {
+        if (TranslationService.matchIndexSymbols(index.ticker, liveEntry.key)) {
+          matchedLive = liveEntry.value;
+          break;
+        }
+      }
+
+      final resolvedName = TranslationService.resolveIndexDisplayName(
+        ticker: index.ticker,
+        fallbackName: index.name,
+      );
+
+      if (matchedLive != null && matchedLive.value > 0) {
+        fallbackIndices.add(
+          matchedLive.copyWith(
+            ticker: index.ticker,
+            name: resolvedName,
+            hasMarketData: true,
+          ),
+        );
+      } else {
+        fallbackIndices.add(
+          index.copyWith(name: resolvedName),
+        );
+      }
+    }
+
+    return fallbackIndices;
   }
 
   static bool _tickerMatches(String actual, String expected) {
@@ -169,10 +243,13 @@ class StockService {
 
     final stocks = _parseStocks(data);
     final attached = await attachArabicNames(stocks);
+    final unblocked = attached
+        .where((s) => !TranslationService.isBlocked(s.symbol, s.id) && s.price > 0 && s.changePercent > 0)
+        .toList();
 
     // Auto-subscribe to live quotes
-    LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
-    return attached;
+    LiveSocketService.instance.subscribeBatch(unblocked.map((s) => s.symbol).toList());
+    return unblocked;
   }
 
   static Future<List<StockModel>> getTopLosers({int limit = 10}) async {
@@ -192,15 +269,21 @@ class StockService {
 
     final stocks = _parseStocks(data);
     final attached = await attachArabicNames(stocks);
+    final unblocked = attached
+        .where((s) => !TranslationService.isBlocked(s.symbol, s.id) && s.price > 0 && s.changePercent < 0)
+        .toList();
 
     // Auto-subscribe to live quotes
-    LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
-    return attached;
+    LiveSocketService.instance.subscribeBatch(unblocked.map((s) => s.symbol).toList());
+    return unblocked;
   }
 
   static Future<List<StockModel>> getBySymbols(List<String> symbols) async {
     if (symbols.isEmpty) return [];
-    final joined = symbols.join(',');
+    final unblockedSymbols = symbols.where((s) => !TranslationService.isBlocked(s)).toList();
+    if (unblockedSymbols.isEmpty) return [];
+
+    final joined = unblockedSymbols.join(',');
     final data = await ApiClient.get(
       ApiEndpoints.latest(
         symbol: joined,
@@ -214,9 +297,10 @@ class StockService {
 
     final stocks = _parseStocks(data);
     final attached = await attachArabicNames(stocks);
+    final unblocked = attached.where((s) => !TranslationService.isBlocked(s.symbol, s.id)).toList();
 
-    LiveSocketService.instance.subscribeBatch(symbols);
-    return attached;
+    LiveSocketService.instance.subscribeBatch(unblocked.map((s) => s.symbol).toList());
+    return unblocked;
   }
 
   static String _norm(String s) {
@@ -308,49 +392,59 @@ class StockService {
     }).toList();
 
     final result = await attachArabicNames(merged);
-    _stocksCache = result;
+    final unblocked = result
+        .where((s) => !TranslationService.isBlocked(s.symbol, s.id))
+        .toList();
+
+    _stocksCache = unblocked;
     _lastStocksCacheFetch = DateTime.now();
 
     // Subscribe all stocks in batch
-    LiveSocketService.instance.subscribeBatch(result.map((s) => s.symbol).toList());
+    LiveSocketService.instance.subscribeBatch(unblocked.map((s) => s.symbol).toList());
 
-    return result;
+    return unblocked;
   }
 
-  /// ✅ Fetch REITs, ETFs, or Stocks Category
+  /// ✅ Fetch Investment Funds (صناديق الاستثمار - تشمل كافة الصناديق والريت في البورصة المصرية مثل EGX:EGREF)
+  /// CRITICAL ARCHITECTURAL RULE: Funds/REITs are strictly REST API only (never WebSocket).
   static Future<List<StockModel>> getAssetsByCategory(String category) async {
     final cat = category.toLowerCase().trim();
-    if (cat == 'reits' || cat == 'reit') {
-      final data = await ApiClient.get(
-        ApiEndpoints.latest(
-          country: ApiKeys.defaultCountry,
-          getProfile: true,
-          type: 'fund',
-          subType: 'reit',
-          perPage: 100,
-        ),
-      );
-      final stocks = _parseStocks(data);
-      final attached = await attachArabicNames(stocks);
-      LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
-      return attached;
-    } else if (cat == 'etfs' || cat == 'etf') {
+    if (cat == 'funds' || cat == 'fund' || cat == 'reits' || cat == 'reit' || cat == 'etfs' || cat == 'etf') {
       try {
         final data = await ApiClient.get(
           ApiEndpoints.latest(
             country: ApiKeys.defaultCountry,
+            exchange: ApiKeys.egyptExchange,
             getProfile: true,
             type: 'fund',
-            subType: 'etf',
             perPage: 100,
           ),
         );
         final stocks = _parseStocks(data);
         final attached = await attachArabicNames(stocks);
-        LiveSocketService.instance.subscribeBatch(attached.map((s) => s.symbol).toList());
-        return attached;
+        final unblocked = attached
+            .where((s) => !TranslationService.isBlocked(s.symbol, s.id))
+            .toList();
+
+        if (unblocked.isNotEmpty) return unblocked;
+
+        // Fallback: query with subType: 'reit' in case upstream API requires specific subType
+        final fallbackData = await ApiClient.get(
+          ApiEndpoints.latest(
+            country: ApiKeys.defaultCountry,
+            exchange: ApiKeys.egyptExchange,
+            getProfile: true,
+            type: 'fund',
+            subType: 'reit',
+            perPage: 100,
+          ),
+        );
+        final fbStocks = _parseStocks(fallbackData);
+        final fbAttached = await attachArabicNames(fbStocks);
+        return fbAttached
+            .where((s) => !TranslationService.isBlocked(s.symbol, s.id))
+            .toList();
       } catch (_) {
-        // Upstream provider may not have ETF funds for this market
         return <StockModel>[];
       }
     }
@@ -377,21 +471,33 @@ class StockService {
     final translated = await attachArabicNames([list.first]);
     final result = translated.first;
 
-    // Subscribe single symbol for fast streaming
-    LiveSocketService.instance.subscribe(result.symbol);
+    // Subscribe single symbol for fast streaming ONLY if it is a common stock
+    if (result.canUseWebSocket) {
+      LiveSocketService.instance.subscribe(result.symbol);
+    }
 
     return result;
   }
 
-  static Future<StockIndicatorModel> getIndicators(String symbol) async {
-    final data = await ApiClient.get(ApiEndpoints.indicators(symbol: symbol));
+  static Future<StockIndicatorModel> getIndicators(
+    String symbol, {
+    bool isIndex = false,
+  }) async {
+    final data = await ApiClient.get(
+      ApiEndpoints.indicators(symbol: symbol, isIndex: isIndex),
+    );
     LastUpdateService.updateFromApi(data);
     return StockIndicatorModel.fromJson(data);
   }
 
-  static Future<StockPerformanceModel> getPerformance(String symbol) async {
+  static Future<StockPerformanceModel> getPerformance(
+    String symbol, {
+    bool isIndex = false,
+  }) async {
     try {
-      final data = await ApiClient.get(ApiEndpoints.performance(symbol: symbol));
+      final data = await ApiClient.get(
+        ApiEndpoints.performance(symbol: symbol, isIndex: isIndex),
+      );
       LastUpdateService.updateFromApi(data);
       return StockPerformanceModel.fromJson(data);
     } catch (_) {
@@ -520,6 +626,58 @@ class StockService {
       to: to,
       amount: amount,
     );
+  }
+
+  // ===================================================================
+  // ✅ Pivot Points / Support & Resistance (الدعم والمقاومة للأسهم)
+  // ===================================================================
+  static Future<StockPivotPointsModel> getPivotPoints({
+    required String symbol,
+    String period = '1d',
+    bool isIndex = false,
+  }) async {
+    try {
+      final url = ApiEndpoints.pivotPoints(
+        symbol: symbol,
+        period: period,
+        isIndex: isIndex,
+      );
+      final data = await ApiClient.get(url);
+      LastUpdateService.updateFromApi(data);
+      return StockPivotPointsModel.fromJson(data, symbol: symbol, period: period);
+    } catch (_) {
+      return StockPivotPointsModel.fallback(symbol: symbol, period: period);
+    }
+  }
+
+  // ===================================================================
+  // ✅ Company Profile (بروفايل الشركة)
+  // ===================================================================
+  static Future<CompanyProfileModel> getCompanyProfile(
+    String symbol, {
+    String? nameAr,
+  }) async {
+    // 1. Try getProfile endpoint first
+    try {
+      final url = ApiEndpoints.getProfile(symbol: symbol);
+      final data = await ApiClient.get(url);
+      if (data['status'] == true && data['response'] != null) {
+        LastUpdateService.updateFromApi(data);
+        return CompanyProfileModel.fromJson(data, symbol: symbol, nameAr: nameAr);
+      }
+    } catch (_) {}
+
+    // 2. Fallback to latest with getProfile = true
+    try {
+      final fallbackUrl = ApiEndpoints.latest(symbol: symbol, getProfile: true);
+      final data = await ApiClient.get(fallbackUrl);
+      if (data['status'] == true && data['response'] != null) {
+        LastUpdateService.updateFromApi(data);
+        return CompanyProfileModel.fromJson(data, symbol: symbol, nameAr: nameAr);
+      }
+    } catch (_) {}
+
+    return CompanyProfileModel.fallback(symbol, nameAr: nameAr);
   }
 
   static Future<List<StockModel>> attachArabicNames(List<StockModel> stocks) async {

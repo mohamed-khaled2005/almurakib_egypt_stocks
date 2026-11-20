@@ -1,4 +1,4 @@
-class TranslationModel {
+﻿class TranslationModel {
   final Map<String, String> stocksById;
   final Map<String, String> stocksBySymbol;
   final String version;

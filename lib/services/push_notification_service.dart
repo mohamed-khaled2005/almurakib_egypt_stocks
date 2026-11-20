@@ -112,6 +112,63 @@ class PushNotificationService {
 
   Stream<String> get onTokenRefresh => _messaging.onTokenRefresh;
 
+  /// فحص حالة تفعيل الإشعارات على مستوى النظام بمرونة ودقة
+  Future<bool> areNotificationsEnabled() async {
+    try {
+      if (kIsWeb) return true;
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _initializeLocalNotifications();
+        final androidPlugin = _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        final enabled = await androidPlugin?.areNotificationsEnabled();
+        if (enabled != null) {
+          return enabled;
+        }
+      }
+
+      final settings = await _messaging.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// طلب صلاحية الإشعارات مباشرة من النظام
+  Future<bool> requestNotificationPermission() async {
+    try {
+      if (kIsWeb) return true;
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _initializeLocalNotifications();
+        final androidPlugin = _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        final granted = await androidPlugin?.requestNotificationsPermission();
+        if (granted != null && granted) {
+          return true;
+        }
+      }
+
+      final permission = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      final fcmGranted = permission.authorizationStatus == AuthorizationStatus.authorized ||
+          permission.authorizationStatus == AuthorizationStatus.provisional;
+
+      if (fcmGranted && defaultTargetPlatform == TargetPlatform.android) {
+        return await areNotificationsEnabled();
+      }
+      return fcmGranted;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _initializeLocalNotifications() async {
     if (_localNotificationsReady || kIsWeb) return;
 

@@ -1,4 +1,4 @@
-// lib/widgets/tasi_card.dart
+﻿// lib/widgets/tasi_card.dart
 import 'package:flutter/material.dart';
 import '../core/models/tasi_index_model.dart';
 import '../core/utils/formatters.dart';

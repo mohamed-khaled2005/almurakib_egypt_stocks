@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/models/stock_model.dart';
 import '../core/utils/formatters.dart';
-import '../core/utils/constants.dart';
+import 'live_price_flash_container.dart';
+import 'triangle_arrow.dart';
+import 'chevron_left_icon.dart';
 
 class StockListItem extends StatelessWidget {
   final StockModel stock;
@@ -11,17 +13,24 @@ class StockListItem extends StatelessWidget {
   final bool showFavoriteButton;
   final bool isFavorite;
   final VoidCallback? onFavoriteTap;
+  final String? customBadgeText;
+  final Color? customBadgeColor;
+  final Color? customBadgeBgColor;
+  final IconData? customBadgeIcon;
 
   const StockListItem({
     super.key,
     required this.stock,
     this.onTap,
-    this.showFavoriteButton = false,
+    this.showFavoriteButton = true,
     this.isFavorite = false,
     this.onFavoriteTap,
+    this.customBadgeText,
+    this.customBadgeColor,
+    this.customBadgeBgColor,
+    this.customBadgeIcon,
   });
 
-  // ✅ عملة السوق المصري
   static const String _currency = 'ج.م';
 
   bool _isSvg(String url) => url.toLowerCase().contains('.svg');
@@ -41,7 +50,7 @@ class StockListItem extends StatelessWidget {
         style: const TextStyle(
           fontFamily: 'Tajawal',
           fontWeight: FontWeight.w900,
-          color: AppColors.primaryBlue,
+          color: Color(0xFFC1121F),
           fontSize: 16,
         ),
       ),
@@ -55,14 +64,14 @@ class StockListItem extends StatelessWidget {
     if (_isSvg(url)) {
       return SvgPicture.network(
         url,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         placeholderBuilder: (_) => const Center(
           child: SizedBox(
-            width: 18,
-            height: 18,
+            width: 16,
+            height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: AppColors.primaryBlue,
+              color: Color(0xFFC1121F),
             ),
           ),
         ),
@@ -71,17 +80,17 @@ class StockListItem extends StatelessWidget {
 
     return Image.network(
       url,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
       errorBuilder: (_, __, ___) => _buildLogoFallback(),
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
         return const Center(
           child: SizedBox(
-            width: 18,
-            height: 18,
+            width: 16,
+            height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: AppColors.primaryBlue,
+              color: Color(0xFFC1121F),
             ),
           ),
         );
@@ -89,206 +98,286 @@ class StockListItem extends StatelessWidget {
     );
   }
 
+  Widget _buildBadge() {
+    if (customBadgeText != null && customBadgeText!.isNotEmpty) {
+      final color = customBadgeColor ?? const Color(0xFF9333EA);
+      final bg = customBadgeBgColor ?? const Color(0xFFF3E8FF);
+      return Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              customBadgeText!,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+            if (customBadgeIcon != null) ...[
+              const SizedBox(width: 4),
+              Icon(customBadgeIcon, size: 12, color: color),
+            ],
+          ],
+        ),
+      );
+    }
+
+    if (stock.isReit) {
+      return Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE0F2FE),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFFBAE6FD)),
+        ),
+        child: const Row(
+          textDirection: TextDirection.rtl,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'ريت',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0284C7),
+              ),
+            ),
+            SizedBox(width: 4),
+            Icon(Icons.apartment_rounded, size: 12, color: Color(0xFF0284C7)),
+          ],
+        ),
+      );
+    }
+
+    if (stock.isEtf || stock.isFund) {
+      return Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3E8FF),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFFD8B4FE)),
+        ),
+        child: const Row(
+          textDirection: TextDirection.rtl,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'يتبع EGX 30',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF9333EA),
+              ),
+            ),
+            SizedBox(width: 4),
+            Icon(Icons.trending_up_rounded, size: 12, color: Color(0xFF9333EA)),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isGain = stock.isGain;
-    final changeColor = isGain ? AppColors.gain : AppColors.loss;
+    final isGain = stock.changePercent > 0;
+    final isZero = stock.changePercent == 0;
+    final changeBg = isZero
+        ? const Color(0xFFF1F5F9)
+        : (isGain ? const Color(0xFFDCFCE7) : const Color(0xFFFDE8E8));
+    final changeColor = isZero
+        ? const Color(0xFF64748B)
+        : (isGain ? const Color(0xFF15803D) : const Color(0xFF991B1B));
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: LivePriceFlashContainer(
+            price: stock.price,
+            enabled: stock.canUseWebSocket,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                // 1. Right: Company Logo Container
+                Container(
+                  width: 48,
+                  height: 48,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _buildCompanyLogo(),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: _buildCompanyLogo(),
-              ),
 
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      stock.displayName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
-                        height: 1.15,
+                // 2. Middle: Name, Symbol, and optional Badge
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        stock.displayName,
+                        maxLines: 5,
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.5,
+                          color: Color(0xFF111827),
+                          height: 1.25,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          stock.symbol,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (stock.isReit)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.teal.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.teal.withOpacity(0.3)),
-                            ),
-                            child: const Text(
-                              'ريت',
-                              style: TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.teal,
-                              ),
-                            ),
-                          ),
-                        if (stock.isEtf)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.purple.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.purple.withOpacity(0.3)),
-                            ),
-                            child: const Text(
-                              'ETF',
-                              style: TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.purple,
-                              ),
-                            ),
-                          ),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Text(
-                          isGain ? 'مرتفع' : 'منخفض',
-                          style: TextStyle(
-                            fontFamily: 'Tajawal',
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: changeColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (stock.hasSpread) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'طلب: ${stock.bid!.toStringAsFixed(2)} | عرض: ${stock.ask!.toStringAsFixed(2)}',
-                        style: TextStyle(
+                        stock.displaySymbol,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                           fontFamily: 'Tajawal',
-                          fontSize: 10,
-                          color: AppColors.textSecondary.withOpacity(0.85),
                           fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
                         ),
                       ),
+                      _buildBadge(),
                     ],
-                  ],
-                ),
-              ),
-
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // ✅ السعر بالمصري
-                  Text(
-                    '${Formatters.formatNumber(stock.price)} $_currency',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                    ),
                   ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: changeColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
+                ),
+
+                const SizedBox(width: 10),
+
+                // 3. Left: Price and Change Pill
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          isGain ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
-                          size: 16,
-                          color: changeColor,
-                        ),
                         Text(
-                          // ✅ النسبة كما هي
-                          Formatters.formatPercent(stock.changePercent),
+                          Formatters.formatNumber(stock.price),
+                          style: const TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        const Text(
+                          _currency,
                           style: TextStyle(
                             fontFamily: 'Tajawal',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: changeColor,
-                            height: 1.2,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 11,
+                            color: Color(0xFF6B7280),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-
-              if (showFavoriteButton) ...[
-                const SizedBox(width: 12),
-                InkWell(
-                  onTap: onFavoriteTap,
-                  borderRadius: BorderRadius.circular(50),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
-                      color: isFavorite ? AppColors.primaryGold : AppColors.border,
-                      size: 24,
+                    const SizedBox(height: 3),
+                    // Pill under price: capsule rounded with bold solid triangle and percentage (e.g. 5.06%-)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: changeBg,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        textDirection: TextDirection.ltr,
+                        children: [
+                          if (!isZero) ...[
+                            TriangleArrow(
+                              isUp: isGain,
+                              color: changeColor,
+                              width: 10,
+                              height: 8,
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          Text(
+                            Formatters.formatPillPercent(stock.changePercent),
+                            textDirection: TextDirection.ltr,
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: changeColor,
+                              height: 1.15,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+
+                // 4. Far Left: Favorite button & chevron pointing strictly LEFT
+                const SizedBox(width: 10),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showFavoriteButton)
+                      InkWell(
+                        onTap: onFavoriteTap,
+                        borderRadius: BorderRadius.circular(50),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Icon(
+                            isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                            color: isFavorite ? const Color(0xFFF59E0B) : const Color(0xFF9CA3AF),
+                            size: 20,
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox(height: 20),
+                    const SizedBox(height: 6),
+                    // Chevron pointing strictly to the LEFT (الشمال) <
+                    const ChevronLeftIcon(
+                      color: Color(0xFF9CA3AF),
+                      size: 18,
+                    ),
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
         ),
       ),

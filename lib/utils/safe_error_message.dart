@@ -1,4 +1,4 @@
-class SafeErrorMessage {
+﻿class SafeErrorMessage {
   static const String serviceUpdating = 'قيد التحديث ويرجى المحاولة بعد قليل.';
 
   static const String operationFailed =

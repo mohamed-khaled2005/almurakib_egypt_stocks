@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../data/country_options.dart';
 
@@ -65,7 +65,7 @@ class CountryPickerFormField extends FormField<String> {
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
-                builder: (_) => _CountrySearchSheet(
+                builder: (_) => CountrySearchSheet(
                   selectedCode: field.value,
                   accentColor: accentColor,
                   backgroundColor: sheetBackgroundColor,
@@ -143,8 +143,9 @@ class CountryPickerFormField extends FormField<String> {
         );
 }
 
-class _CountrySearchSheet extends StatefulWidget {
-  const _CountrySearchSheet({
+class CountrySearchSheet extends StatefulWidget {
+  const CountrySearchSheet({
+    super.key,
     required this.selectedCode,
     required this.accentColor,
     required this.backgroundColor,
@@ -155,10 +156,10 @@ class _CountrySearchSheet extends StatefulWidget {
   final Color backgroundColor;
 
   @override
-  State<_CountrySearchSheet> createState() => _CountrySearchSheetState();
+  State<CountrySearchSheet> createState() => _CountrySearchSheetState();
 }
 
-class _CountrySearchSheetState extends State<_CountrySearchSheet> {
+class _CountrySearchSheetState extends State<CountrySearchSheet> {
   final TextEditingController _searchController = TextEditingController();
 
   @override

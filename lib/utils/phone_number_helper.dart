@@ -1,4 +1,4 @@
-import 'package:dlibphonenumber/dlibphonenumber.dart';
+﻿import 'package:dlibphonenumber/dlibphonenumber.dart';
 
 class NormalizedPhoneNumber {
   const NormalizedPhoneNumber({

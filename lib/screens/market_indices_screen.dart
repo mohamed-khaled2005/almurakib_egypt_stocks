@@ -1,74 +1,62 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../core/models/market_index_model.dart';
+import '../core/models/stock_model.dart';
 import '../core/services/stock_service.dart';
+import '../core/services/translation_service.dart';
 import '../core/utils/constants.dart';
-import '../widgets/app_section_header.dart';
+import '../core/utils/formatters.dart';
+import '../providers/app_manager_provider.dart';
+import '../widgets/ad_banner_card.dart';
+import '../widgets/chevron_left_icon.dart';
+import '../widgets/stock_logo_widget.dart';
+import '../widgets/triangle_arrow.dart';
+import 'stock_detail_screen.dart';
 
 const String _currency = 'ج.م';
 const String _unavailable = 'غير متاح';
 
-String _formatIndexDate(DateTime? value) {
-  if (value == null) {
-    return '';
+enum _IndexFilterType { all, gainers, losers }
+
+enum _IndexSortType { nameAsc, nameDesc, valueDesc, valueAsc, changeDesc, changeAsc }
+
+class MarketIndexItem {
+  final String name;
+  final String ticker;
+  final String category; // 'EGX'
+  final MarketIndexModel? model;
+
+  const MarketIndexItem({
+    required this.name,
+    required this.ticker,
+    required this.category,
+    this.model,
+  });
+
+  String get displayTicker {
+    if (ticker.contains(':')) return ticker.split(':').last.trim();
+    return ticker;
   }
 
-  final local = value.toLocal();
-  String twoDigits(int item) => item.toString().padLeft(2, '0');
-  return '${local.year}/${twoDigits(local.month)}/${twoDigits(local.day)} '
-      '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
-}
-
-String _formatSignedValue(double value) {
-  return '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)}';
-}
-
-String _formatSignedPercent(double value) {
-  return '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)}%';
-}
-
-Color _trendColor(MarketIndexModel index) {
-  if (!index.hasMarketData) return AppColors.textSecondary;
-  return index.isGain ? AppColors.gain : AppColors.loss;
-}
-
-IconData _trendIcon(MarketIndexModel index) {
-  if (!index.hasMarketData) return Icons.remove_rounded;
-  return index.isGain ? Icons.trending_up_rounded : Icons.trending_down_rounded;
-}
-
-String _formatIndexValue(MarketIndexModel index) {
-  if (!index.hasMarketData) return _unavailable;
-  return '${index.value.toStringAsFixed(2)} $_currency';
-}
-
-String _formatIndexMainValue(MarketIndexModel index) {
-  if (!index.hasMarketData) return _unavailable;
-  return index.value.toStringAsFixed(2);
-}
-
-String _formatIndexChange(MarketIndexModel index) {
-  if (!index.hasMarketData) return _unavailable;
-  return '${_formatSignedValue(index.change)} $_currency';
-}
-
-String _formatIndexPercent(MarketIndexModel index) {
-  if (!index.hasMarketData) return _unavailable;
-  return _formatSignedPercent(index.changePercent);
-}
-
-String _formatTrendLabel(MarketIndexModel index) {
-  if (!index.hasMarketData) return _unavailable;
-  return index.isGain ? 'صاعد' : 'هابط';
-}
-
-String _formatTrendDescription(MarketIndexModel index) {
-  if (!index.hasMarketData) {
-    return 'بيانات التداول غير متاحة حاليًا لهذا المؤشر.';
+  String get displayName {
+    if (model != null && model!.displayName.isNotEmpty) {
+      return model!.displayName;
+    }
+    return TranslationService.resolveIndexDisplayName(
+      ticker: ticker,
+      fallbackName: name,
+    );
   }
-  return index.isGain
-      ? 'المؤشر يتحرك حاليًا في نطاق إيجابي.'
-      : 'المؤشر يتحرك حاليًا في نطاق ضاغط أو هابط.';
+
+  MarketIndexItem copyWith({MarketIndexModel? model, String? name}) {
+    return MarketIndexItem(
+      name: name ?? this.name,
+      ticker: ticker,
+      category: category,
+      model: model ?? this.model,
+    );
+  }
 }
 
 class MarketIndicesScreen extends StatefulWidget {
@@ -79,118 +67,786 @@ class MarketIndicesScreen extends StatefulWidget {
 }
 
 class _MarketIndicesScreenState extends State<MarketIndicesScreen> {
-  List<MarketIndexModel> _indices = <MarketIndexModel>[];
+  List<MarketIndexItem> _allIndices = [];
+  List<StockModel> _allStocks = [];
   bool _loading = true;
-  String? _error;
+
+  final TextEditingController _searchController = TextEditingController();
+  _IndexFilterType _filterType = _IndexFilterType.all;
+  _IndexSortType _sortType = _IndexSortType.nameAsc;
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _load();
   }
 
-  Future<void> _load({bool forceRefresh = false}) async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
+  Future<void> _load({bool forceRefresh = false}) async {
+    setState(() => _loading = true);
     try {
-      final items = await StockService.getMarketIndices(
-        forceRefresh: forceRefresh,
-      );
+      if (forceRefresh) {
+        await TranslationService.getTranslations(forceRefresh: true);
+      }
+      final results = await Future.wait([
+        StockService.getMarketIndices(forceRefresh: forceRefresh),
+        StockService.getStocksList(perPage: 500, page: 1)
+            .catchError((_) => <StockModel>[]),
+      ]);
+
       if (!mounted) return;
+
+      final apiIndices = results[0] as List<MarketIndexModel>;
+      final apiStocks = results[1] as List<StockModel>;
+
+      final updatedList = apiIndices.map((idx) {
+        return MarketIndexItem(
+          name: idx.displayName,
+          ticker: idx.ticker,
+          category: 'EGX',
+          model: idx,
+        );
+      }).toList();
+
       setState(() {
-        _indices = items;
+        _allIndices = updatedList;
+        _allStocks = apiStocks;
         _loading = false;
       });
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });
     }
   }
 
-  void _openDetail(MarketIndexModel index) {
+  List<MarketIndexItem> _getFilteredIndices() {
+    final q = _searchController.text.trim().toLowerCase();
+    var list = _allIndices.where((item) {
+      if (_filterType == _IndexFilterType.gainers) {
+        if (item.model == null || item.model!.changePercent <= 0) return false;
+      } else if (_filterType == _IndexFilterType.losers) {
+        if (item.model == null || item.model!.changePercent >= 0) return false;
+      }
+      if (q.isEmpty) return true;
+      return item.displayName.toLowerCase().contains(q) ||
+          item.displayTicker.toLowerCase().contains(q) ||
+          item.ticker.toLowerCase().contains(q) ||
+          (item.model?.name.toLowerCase().contains(q) ?? false);
+    }).toList();
+
+    switch (_sortType) {
+      case _IndexSortType.nameAsc:
+        list.sort((a, b) => a.displayName.compareTo(b.displayName));
+        break;
+      case _IndexSortType.nameDesc:
+        list.sort((a, b) => b.displayName.compareTo(a.displayName));
+        break;
+      case _IndexSortType.valueDesc:
+        list.sort((a, b) => (b.model?.value ?? 0).compareTo(a.model?.value ?? 0));
+        break;
+      case _IndexSortType.valueAsc:
+        list.sort((a, b) => (a.model?.value ?? 0).compareTo(b.model?.value ?? 0));
+        break;
+      case _IndexSortType.changeDesc:
+        list.sort((a, b) =>
+            (b.model?.changePercent ?? -9999).compareTo(a.model?.changePercent ?? -9999));
+        break;
+      case _IndexSortType.changeAsc:
+        list.sort((a, b) =>
+            (a.model?.changePercent ?? 9999).compareTo(b.model?.changePercent ?? 9999));
+        break;
+    }
+
+    return list;
+  }
+
+  List<StockModel> _getMatchingStocks() {
+    final q = _searchController.text.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    return _allStocks
+        .where((s) =>
+            s.displayName.toLowerCase().contains(q) ||
+            s.displaySymbol.toLowerCase().contains(q) ||
+            s.symbol.toLowerCase().contains(q) ||
+            s.name.toLowerCase().contains(q))
+        .take(15)
+        .toList();
+  }
+
+  void _showSortBottomSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final options = <Map<String, dynamic>>[
+          {'type': _IndexSortType.nameAsc, 'title': 'الاسم (أ-ي)'},
+          {'type': _IndexSortType.nameDesc, 'title': 'الاسم (ي-أ)'},
+          {'type': _IndexSortType.valueDesc, 'title': 'القيمة (الأعلى أولاً)'},
+          {'type': _IndexSortType.valueAsc, 'title': 'القيمة (الأقل أولاً)'},
+          {'type': _IndexSortType.changeDesc, 'title': 'الأكثر ارتفاعاً'},
+          {'type': _IndexSortType.changeAsc, 'title': 'الأكثر انخفاضاً'},
+        ];
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF94A3B8),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'ترتيب المؤشرات حسب',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...List.generate(options.length, (i) {
+                  final opt = options[i];
+                  final type = opt['type'] as _IndexSortType;
+                  final title = opt['title'] as String;
+                  final isSelected = _sortType == type;
+                  final isLast = i == options.length - 1;
+
+                  return Column(
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          setState(() => _sortType = type);
+                          Navigator.pop(ctx);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: Row(
+                            textDirection: TextDirection.rtl,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  fontFamily: 'Tajawal',
+                                  fontSize: 14.5,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                  color: isSelected
+                                      ? const Color(0xFFC1121F)
+                                      : const Color(0xFF1F2937),
+                                ),
+                              ),
+                              if (isSelected)
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: Color(0xFFC1121F),
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (!isLast)
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: Color(0xFFF1F5F9),
+                        ),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openDetail(MarketIndexItem item) {
+    final model = item.model ??
+        MarketIndexModel(
+          ticker: item.ticker,
+          name: item.displayName,
+          value: 0,
+          change: 0,
+          changePercent: 0,
+          hasMarketData: false,
+        );
+
     Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => MarketIndexDetailScreen(index: index),
+        builder: (_) => StockDetailScreen(stock: model.toStockModel()),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.scaffold,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => _load(forceRefresh: true),
-          color: AppColors.primaryBlue,
-          child: _loading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryBlue,
-                  ),
-                )
-              : _error != null
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(24),
-                      children: <Widget>[
-                        _ErrorState(
-                          message: _error!,
-                          onRetry: () => _load(forceRefresh: true),
-                        ),
-                      ],
-                    )
-                  : ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                      children: <Widget>[
-                        const AppSectionHeader(title: 'المؤشرات الرئيسية'),
-                        const SizedBox(height: 12),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            const spacing = 10.0;
-                            final width = constraints.maxWidth;
-                            final crossAxisCount = width >= 980
-                                ? 3
-                                : width >= 560
-                                    ? 2
-                                    : 1;
-                            final cardWidth =
-                                (width - ((crossAxisCount - 1) * spacing)) /
-                                    crossAxisCount;
+    context.watch<AppManagerProvider>();
+    final filteredIndices = _getFilteredIndices();
+    final matchingStocks = _getMatchingStocks();
 
-                            return Wrap(
-                              spacing: spacing,
-                              runSpacing: spacing,
-                              children: _indices
-                                  .map(
-                                    (item) => SizedBox(
-                                      width: cardWidth,
-                                      child: _IndexCard(
-                                        index: item,
-                                        onTap: () => _openDetail(item),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                            );
-                          },
-                        ),
-                      ],
+    return Column(
+      children: [
+        // Top Header + Search + Filter Pills (matching AllStocksScreen layout)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 1. Section Header: Title on right, Count on left
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                textDirection: TextDirection.rtl,
+                children: [
+                  const Text(
+                    'مؤشرات البورصة المصرية',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF111827),
                     ),
+                  ),
+                  Text(
+                    '${filteredIndices.length} مؤشر',
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // 2. Search and Sort Row (searches both indices and stocks!)
+              Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        textDirection: TextDirection.rtl,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF111827),
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'ابحث باسم المؤشر أو السهم أو الرمز',
+                          hintTextDirection: TextDirection.rtl,
+                          hintStyle: const TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 13,
+                            color: Color(0xFF94A3B8),
+                          ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    color: Color(0xFF94A3B8),
+                                    size: 18,
+                                  ),
+                                  onPressed: () => _searchController.clear(),
+                                )
+                              : const Icon(
+                                  Icons.search_rounded,
+                                  color: Color(0xFF94A3B8),
+                                  size: 20,
+                                ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  InkWell(
+                    onTap: _showSortBottomSheet,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: const Icon(
+                        Icons.tune_rounded,
+                        color: Color(0xFF64748B),
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // 3. Secondary Filter Pills (الكل / الأكثر ارتفاعاً / الأكثر انخفاضاً)
+              Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  _buildFilterPill('الكل', _IndexFilterType.all),
+                  const SizedBox(width: 8),
+                  _buildFilterPill('الأكثر ارتفاعاً', _IndexFilterType.gainers),
+                  const SizedBox(width: 8),
+                  _buildFilterPill('الأكثر انخفاضاً', _IndexFilterType.losers),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+
+        // List Section
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => _load(forceRefresh: true),
+            color: const Color(0xFFC1121F),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 16),
+              children: [
+                if (_loading && _allIndices.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Center(
+                      child: CircularProgressIndicator(color: Color(0xFFC1121F)),
+                    ),
+                  )
+                else if (filteredIndices.isEmpty && matchingStocks.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _searchController.text.trim().isNotEmpty
+                          ? 'لا توجد نتائج مطابقة للبحث'
+                          : 'لا توجد مؤشرات مسجلة حالياً',
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 14,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  )
+                else ...[
+                  if (filteredIndices.isNotEmpty)
+                    ...filteredIndices.map((item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _buildIndexCardItem(item),
+                        )),
+
+                  // Matching Stocks Section when user searches for a stock
+                  if (matchingStocks.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        'نتائج الأسهم المطابقة',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...matchingStocks.map((stock) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _buildStockSearchResultCard(stock),
+                        )),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterPill(String label, _IndexFilterType type) {
+    final isSelected = _filterType == type;
+    return InkWell(
+      onTap: () => setState(() => _filterType = type),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFEF2F2) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFFECACA) : Colors.transparent,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Tajawal',
+            fontSize: 12.5,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? const Color(0xFFC1121F) : const Color(0xFF64748B),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // Index Card Item (Ordered like AllStocksScreen with Uniform Default Icon)
+  // ==========================================
+  Widget _buildIndexCardItem(MarketIndexItem item) {
+    final model = item.model;
+    final hasData = model != null && model.hasMarketData && model.value > 0;
+    final isGain = (model?.changePercent ?? 0) > 0;
+    final isZero = (model?.changePercent ?? 0) == 0;
+    final changeBg = isZero
+        ? const Color(0xFFF1F5F9)
+        : (isGain ? const Color(0xFFDCFCE7) : const Color(0xFFFDE8E8));
+    final changeColor = isZero
+        ? const Color(0xFF64748B)
+        : (isGain ? const Color(0xFF15803D) : const Color(0xFF991B1B));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.015),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openDetail(item),
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                // 1. Right: Uniform Default Index Icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.show_chart_rounded,
+                    size: 22,
+                    color: Color(0xFFC1121F),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                // 2. Middle: Arabic Name & Ticker
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item.displayName,
+                        softWrap: true,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF111827),
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.displayTicker,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // 3. Left: Value & Change Pill
+                if (hasData)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        textDirection: TextDirection.rtl,
+                        children: [
+                          Text(
+                            Formatters.formatNumber(model.value),
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Text(
+                            'نقطة',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: changeBg,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          textDirection: TextDirection.ltr,
+                          children: [
+                            if (!isZero) ...[
+                              TriangleArrow(
+                                isUp: isGain,
+                                color: changeColor,
+                                width: 9,
+                                height: 7,
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              Formatters.formatPillPercent(model.changePercent),
+                              textDirection: TextDirection.ltr,
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: changeColor,
+                                height: 1.15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  const Text(
+                    _unavailable,
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+
+                const SizedBox(width: 6),
+
+                const ChevronLeftIcon(
+                  size: 18,
+                  color: Color(0xFF94A3B8),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStockSearchResultCard(StockModel stock) {
+    final isGain = stock.changePercent > 0;
+    final isZero = stock.changePercent == 0;
+    final changeBg = isZero
+        ? const Color(0xFFF1F5F9)
+        : (isGain ? const Color(0xFFDCFCE7) : const Color(0xFFFDE8E8));
+    final changeColor = isZero
+        ? const Color(0xFF64748B)
+        : (isGain ? const Color(0xFF15803D) : const Color(0xFF991B1B));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => StockDetailScreen(stock: stock),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                StockLogoWidget(stock: stock, size: 42, borderRadius: 10),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        stock.displayName,
+                        softWrap: true,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF111827),
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        stock.displaySymbol,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${Formatters.formatNumber(stock.price)} ج.م',
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: changeBg,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        Formatters.formatPillPercent(stock.changePercent),
+                        textDirection: TextDirection.ltr,
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: changeColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 6),
+                const ChevronLeftIcon(size: 18, color: Color(0xFF94A3B8)),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
+// ============================================================================
+// Market Index Detail Screen
+// ============================================================================
 class MarketIndexDetailScreen extends StatelessWidget {
   const MarketIndexDetailScreen({
     super.key,
@@ -199,367 +855,200 @@ class MarketIndexDetailScreen extends StatelessWidget {
 
   final MarketIndexModel index;
 
+  Color _trendColor(MarketIndexModel model) {
+    if (!model.hasMarketData) return AppColors.textSecondary;
+    return model.isGain ? AppColors.gain : AppColors.loss;
+  }
+
+  IconData _trendIcon(MarketIndexModel model) {
+    if (!model.hasMarketData) return Icons.remove_rounded;
+    return model.isGain
+        ? Icons.trending_up_rounded
+        : Icons.trending_down_rounded;
+  }
+
   @override
   Widget build(BuildContext context) {
     final trendColor = _trendColor(index);
-    final formattedDate = _formatIndexDate(index.updateTimeUtc);
-    final title = index.name.isEmpty ? index.ticker : index.name;
+    final title = index.displayName;
 
     return Scaffold(
-      backgroundColor: AppColors.scaffold,
+      backgroundColor: const Color(0xFFFEFEFE),
       appBar: AppBar(
-        backgroundColor: AppColors.cardDark,
+        backgroundColor: const Color(0xFFFEFEFE),
         surfaceTintColor: Colors.transparent,
-        foregroundColor: AppColors.textPrimary,
+        foregroundColor: const Color(0xFF111827),
         elevation: 0,
+        centerTitle: true,
         title: Text(
           title,
-          style: TextStyle(
+          maxLines: 2,
+          softWrap: true,
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
             fontFamily: 'Tajawal',
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary,
+            color: Color(0xFF111827),
           ),
         ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: <Widget>[
-          _DetailHeroCard(
-            index: index,
-            trendColor: trendColor,
-            formattedDate: formattedDate,
-          ),
-          const SizedBox(height: 18),
-          const _SectionLabel(title: 'تفاصيل المؤشر'),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cardWidth = (constraints.maxWidth - 10) / 2;
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: <Widget>[
-                  SizedBox(
-                    width: cardWidth,
-                    child: _MetricTile(
-                      label: 'القيمة الحالية',
-                      value: _formatIndexValue(index),
-                      icon: Icons.show_chart_rounded,
-                      accentColor: AppColors.primaryBlue,
-                    ),
-                  ),
-                  SizedBox(
-                    width: cardWidth,
-                    child: _MetricTile(
-                      label: 'التغير بالنقاط',
-                      value: _formatIndexChange(index),
-                      icon: _trendIcon(index),
-                      accentColor: trendColor,
-                    ),
-                  ),
-                  SizedBox(
-                    width: cardWidth,
-                    child: _MetricTile(
-                      label: 'نسبة التغير',
-                      value: _formatIndexPercent(index),
-                      icon: Icons.percent_rounded,
-                      accentColor: trendColor,
-                    ),
-                  ),
-                  SizedBox(
-                    width: cardWidth,
-                    child: _MetricTile(
-                      label: formattedDate.isEmpty ? 'رمز المؤشر' : 'آخر تحديث',
-                      value:
-                          formattedDate.isEmpty ? index.ticker : formattedDate,
-                      icon: formattedDate.isEmpty
-                          ? Icons.tag_rounded
-                          : Icons.schedule_rounded,
-                      accentColor: AppColors.accentGold,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IndexCard extends StatelessWidget {
-  const _IndexCard({
-    required this.index,
-    required this.onTap,
-  });
-
-  final MarketIndexModel index;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final trendColor = _trendColor(index);
-    final trendIcon = _trendIcon(index);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: trendColor.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Icon(trendIcon, color: trendColor, size: 18),
-                  ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          index.name.isEmpty ? index.ticker : index.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'Tajawal',
-                            fontSize: 14.2,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          index.ticker,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            fontSize: 10.8,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.chevron_left_rounded,
-                    size: 18,
-                    color: AppColors.textSecondary.withValues(alpha: 0.7),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _MetricTile(
-                      label: 'القيمة',
-                      value: _formatIndexValue(index),
-                      icon: Icons.show_chart_rounded,
-                      accentColor: AppColors.primaryBlue,
-                      compact: true,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _MetricTile(
-                      label: 'التغير',
-                      value: _formatIndexChange(index),
-                      icon: trendIcon,
-                      accentColor: trendColor,
-                      compact: true,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
         ),
       ),
-    );
-  }
-}
-
-class _DetailHeroCard extends StatelessWidget {
-  const _DetailHeroCard({
-    required this.index,
-    required this.trendColor,
-    required this.formattedDate,
-  });
-
-  final MarketIndexModel index;
-  final Color trendColor;
-  final String formattedDate;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = index.name.isEmpty ? index.ticker : index.name;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFFFF1F3)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: <Widget>[
-          Positioned(
-            left: -18,
-            bottom: -12,
-            child: Icon(
-              Icons.multiline_chart_rounded,
-              size: 118,
-              color: trendColor.withValues(alpha: 0.08),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+          // Hero Summary Card
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF6F9),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    _DetailChip(
-                      icon: Icons.tag_rounded,
-                      label: index.ticker,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        index.displayTicker,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
                     ),
-                    if (formattedDate.isNotEmpty)
-                      _DetailChip(
-                        icon: Icons.schedule_rounded,
-                        label: formattedDate,
+                    if (index.hasMarketData)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: trendColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${index.change >= 0 ? '+' : ''}${index.changePercent.toStringAsFixed(2)}%',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: trendColor,
+                          ),
+                        ),
                       ),
                   ],
                 ),
                 const SizedBox(height: 14),
                 Text(
                   title,
-                  style: TextStyle(
+                  softWrap: true,
+                  style: const TextStyle(
                     fontFamily: 'Tajawal',
-                    fontSize: 24,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                    height: 1.35,
+                    color: Color(0xFF111827),
+                    height: 1.3,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  _formatTrendDescription(index),
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w700,
-                    height: 1.6,
-                  ),
-                ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: <Widget>[
-                          Text(
-                            _formatIndexMainValue(index),
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontSize: index.hasMarketData ? 30 : 18,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.textPrimary,
-                              height: 1.0,
-                            ),
-                          ),
-                          if (index.hasMarketData) ...<Widget>[
-                            const SizedBox(width: 6),
-                            Text(
-                              _currency,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ],
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      index.hasMarketData && index.value > 0
+                          ? index.value.toStringAsFixed(2)
+                          : _unavailable,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF111827),
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: trendColor.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        _formatIndexPercent(index),
+                    if (index.hasMarketData && index.value > 0) ...[
+                      const SizedBox(width: 6),
+                      const Text(
+                        _currency,
                         style: TextStyle(
                           fontFamily: 'Tajawal',
-                          fontWeight: FontWeight.w900,
-                          color: trendColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF64748B),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _HeroMetricPill(
-                        icon: _trendIcon(index),
-                        label: 'التغير',
-                        value: _formatIndexChange(index),
-                        accentColor: trendColor,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _HeroMetricPill(
-                        icon: Icons.show_chart_rounded,
-                        label: 'اتجاه المؤشر',
-                        value: _formatTrendLabel(index),
-                        accentColor: trendColor,
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Metrics Grid
+          Row(
+            children: [
+              Expanded(
+                child: _MetricCard(
+                  label: 'التغير بالنقاط',
+                  value: index.hasMarketData
+                      ? '${index.change >= 0 ? '+' : ''}${index.change.toStringAsFixed(2)}'
+                      : _unavailable,
+                  icon: _trendIcon(index),
+                  accentColor: trendColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _MetricCard(
+                  label: 'نسبة التغير',
+                  value: index.hasMarketData
+                      ? '${index.change >= 0 ? '+' : ''}${index.changePercent.toStringAsFixed(2)}%'
+                      : _unavailable,
+                  icon: Icons.percent_rounded,
+                  accentColor: trendColor,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+              ],
+            ),
+          ),
+          const SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: AdBannerCard(),
             ),
           ),
         ],
@@ -568,333 +1057,54 @@ class _DetailHeroCard extends StatelessWidget {
   }
 }
 
-class _HeroMetricPill extends StatelessWidget {
-  const _HeroMetricPill({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.accentColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color accentColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: accentColor, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  label,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w900,
-                    color: accentColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
     required this.label,
     required this.value,
     required this.icon,
     required this.accentColor,
-    this.compact = false,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final Color accentColor;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    if (compact) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: accentColor,
-                size: 14,
-              ),
-            ),
-            const SizedBox(width: 7),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'Tajawal',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: accentColor,
-              size: 20,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: AppTextStyles.bodySmall.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontFamily: 'Tajawal',
-              fontSize: 16.5,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-              height: 1.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Container(
-          width: 4,
-          height: 20,
-          decoration: BoxDecoration(
-            color: AppColors.primaryBlue,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontFamily: 'Tajawal',
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DetailChip extends StatelessWidget {
-  const _DetailChip({
-    required this.icon,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(
-            icon,
-            size: 14,
-            color: AppColors.primaryBlue,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Tajawal',
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: <Widget>[
-          const Icon(
-            Icons.cloud_off_rounded,
-            size: 52,
-            color: AppColors.error,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'تعذر تحميل المؤشرات',
-            style: TextStyle(
-              fontFamily: 'Tajawal',
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-            ),
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: accentColor),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodyMedium.copyWith(height: 1.7),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: onRetry,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBlue,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text(
-              'إعادة المحاولة',
-              style: TextStyle(
-                fontFamily: 'Tajawal',
-                fontWeight: FontWeight.w800,
-              ),
+            value,
+            style: TextStyle(
+              fontFamily: 'Tajawal',
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: accentColor,
             ),
           ),
         ],

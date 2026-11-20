@@ -1,4 +1,4 @@
-class StockHistoryCandle {
+﻿class StockHistoryCandle {
   final DateTime time;
   final double open;
   final double high;

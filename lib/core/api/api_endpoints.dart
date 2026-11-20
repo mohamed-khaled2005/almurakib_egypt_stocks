@@ -1,54 +1,71 @@
-import 'api_keys.dart';
+﻿import 'api_keys.dart';
 
 class ApiEndpoints {
-  static String _build(String endpoint, Map<String, String> params) {
+  static String _build(String endpointKey, Map<String, String> params) {
+    final endpoint = ApiKeys.resolveEndpoint(endpointKey);
+    final baseUrl = ApiKeys.almurakibBaseUrl.trim();
+    final token = ApiKeys.almurakibToken.trim();
+
     final qp = <String, String>{
-      'token': ApiKeys.almurakibToken,
-      'endpoint': endpoint,
+      if (token.isNotEmpty) 'api_key': token,
+      if (baseUrl.contains('.php')) 'endpoint': endpoint,
       ...params,
     };
 
-    return Uri.parse(ApiKeys.almurakibBaseUrl)
-        .replace(queryParameters: qp)
-        .toString();
+    if (baseUrl.contains('.php')) {
+      return Uri.parse(baseUrl).replace(queryParameters: qp).toString();
+    }
+
+    // Modern Smart API gateway format e.g. https://data.almurakib.com/api/v1/smart/stock/{endpoint}
+    final cleanBase =
+        baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final path = endpoint.startsWith('/') ? endpoint : '/$endpoint';
+    return Uri.parse('$cleanBase$path').replace(queryParameters: qp).toString();
   }
 
-  /// ✅ Indices Latest
-  /// المؤكد أنه شغال: exchange=EGX
-  /// ويدعم symbol (مفرد) حسب support_params
-  /// تركنا symbols للتوافق فقط (لو السيرفر عنده نسخة تانية بتقرأها)
+  /// ✅ Indices Latest - Always filtered by exchange=EGX
   static String indicesLatest({
     String? exchange,
     String? symbol,
-    String? symbols, // compatibility only
+    String? symbols,
   }) {
-    final params = <String, String>{};
+    final safeExchange = (exchange != null && exchange.trim().isNotEmpty)
+        ? exchange.trim()
+        : ApiKeys.egyptExchange;
 
-    if (exchange != null && exchange.trim().isNotEmpty) {
-      params['exchange'] = exchange.trim();
-    }
+    final params = <String, String>{
+      'exchange': safeExchange,
+    };
 
     if (symbol != null && symbol.trim().isNotEmpty) {
       params['symbol'] = symbol.trim();
-    }
-
-    // compatibility فقط (مش معتمد عليه)
-    if (symbols != null && symbols.trim().isNotEmpty) {
-      params['symbols'] = symbols.trim();
+    } else if (symbols != null && symbols.trim().isNotEmpty) {
+      params['symbol'] = symbols.trim();
     }
 
     return _build('indices_latest', params);
   }
 
-  static String indicesList({String? country}) {
+  /// ✅ Indices List - Always filtered by exchange=EGX & country=egypt
+  static String indicesList({String? country, String? exchange}) {
     final safeCountry = (country == null || country.trim().isEmpty)
         ? ApiKeys.defaultCountry
         : country.trim();
 
-    return _build('indices', {'country': safeCountry});
+    final safeExchange = (exchange != null && exchange.trim().isNotEmpty)
+        ? exchange.trim()
+        : ApiKeys.egyptExchange;
+
+    return _build('indices', {
+      'country': safeCountry,
+      'exchange': safeExchange,
+    });
   }
 
-  /// ✅ Stocks Latest
+  /// ✅ Stocks & REITs Latest / Advance
+  /// In Smart API:
+  /// - When symbol is passed: uses `/latest` for specific quotes.
+  /// - When symbol is absent: uses `/advance` with `merge=latest,profile` for market sorting/listing.
   static String latest({
     String? symbol,
     String? country,
@@ -61,37 +78,83 @@ class ApiEndpoints {
     String type = 'stock',
     String? subType,
   }) {
-    final params = <String, String>{
-      'get_profile': getProfile ? '1' : '0',
-      'type': type,
-    };
+    final safeExchange = (exchange != null && exchange.trim().isNotEmpty)
+        ? exchange.trim()
+        : ApiKeys.egyptExchange;
 
-    if (subType != null && subType.isNotEmpty) params['sub_type'] = subType;
-    if (symbol != null && symbol.isNotEmpty) params['symbol'] = symbol;
-
-    // ✅ default country = egypt
     final safeCountry = (country == null || country.trim().isEmpty)
         ? ApiKeys.defaultCountry
         : country.trim();
-    params['country'] = safeCountry;
 
-    if (exchange != null && exchange.isNotEmpty) params['exchange'] = exchange;
+    // Specific symbol(s) quote
+    if (symbol != null && symbol.trim().isNotEmpty) {
+      final params = <String, String>{
+        'symbol': symbol.trim(),
+        'period': '1d',
+        if (getProfile) 'get_profile': '1',
+      };
+      return _build('latest', params);
+    }
+
+    // Market query (Advance): all stocks, gainers, losers, REITs
+    final params = <String, String>{
+      'exchange': safeExchange,
+      'country': safeCountry,
+      'merge': 'latest,profile',
+    };
+
+    if (type == 'fund' || subType == 'reit' || subType == 'etf') {
+      params['type'] = 'fund';
+    }
+    if (subType != null && subType.trim().isNotEmpty) {
+      params['sub_type'] = subType.trim();
+    }
+
+    if (sortBy != null && sortBy.trim().isNotEmpty) {
+      final s = sortBy.trim();
+      if (s == 'chp_desc') {
+        params['sort_by'] = 'active.chp_desc';
+      } else if (s == 'chp_asc') {
+        params['sort_by'] = 'active.chp_asc';
+      } else if (s.contains('.')) {
+        params['sort_by'] = s;
+      } else {
+        params['sort_by'] = 'active.$s';
+      }
+    }
+
     if (sector != null && sector.isNotEmpty) params['sector'] = sector;
-    if (sortBy != null && sortBy.isNotEmpty) params['sort_by'] = sortBy;
     if (page != null) params['page'] = page.toString();
     if (perPage != null) params['per_page'] = perPage.toString();
 
-    return _build('latest', params);
+    // If using legacy .php proxy, pass endpoint=latest
+    if (ApiKeys.almurakibBaseUrl.contains('.php')) {
+      params['type'] = type;
+      if (subType != null) params['sub_type'] = subType;
+      return _build('latest', params);
+    }
+
+    return _build('advance', params);
   }
 
-  /// ✅ Stock List
-  static String list({String? country, int perPage = 500, int page = 1}) {
+  /// ✅ Stock List - Always filtered by exchange=EGX
+  static String list({
+    String? country,
+    String? exchange,
+    int perPage = 500,
+    int page = 1,
+  }) {
     final safeCountry = (country == null || country.trim().isEmpty)
         ? ApiKeys.defaultCountry
         : country.trim();
 
+    final safeExchange = (exchange != null && exchange.trim().isNotEmpty)
+        ? exchange.trim()
+        : ApiKeys.egyptExchange;
+
     return _build('list', {
       'country': safeCountry,
+      'exchange': safeExchange,
       'per_page': perPage.toString(),
       'page': page.toString(),
     });
@@ -129,76 +192,136 @@ class ApiEndpoints {
     return '1d';
   }
 
-  /// ✅ History
+  /// ✅ History (Candles)
   static String history({
     required String symbol,
     String period = '1d',
     int length = 300,
+    bool isIndex = false,
   }) {
+    final cleanSymbol = symbol.trim().replaceFirst(RegExp(r'^(EGX|egx):'), '');
     final safePeriod = _sanitizeHistoryPeriod(period);
+    final sym = cleanSymbol.isNotEmpty ? cleanSymbol : symbol.trim();
     return _build('history', {
-      'symbol': symbol,
+      'symbol': isIndex ? '${ApiKeys.egyptExchange}:$sym' : sym,
       'period': safePeriod,
       'length': length.toString(),
+      if (isIndex) 'type': 'index',
     });
   }
 
-  static String indicators({required String symbol}) {
-    return _build('indicators', {'symbol': symbol});
+  static String indicators({required String symbol, bool isIndex = false}) {
+    final cleanSymbol = symbol.trim().replaceFirst(RegExp(r'^(EGX|egx):'), '');
+    final sym = cleanSymbol.isNotEmpty ? cleanSymbol : symbol.trim();
+    return _build('indicators', {
+      'symbol': isIndex ? '${ApiKeys.egyptExchange}:$sym' : sym,
+      if (isIndex) 'type': 'index',
+    });
   }
 
-  static String performance({required String symbol}) {
-    return _build('performance', {'symbol': symbol});
+  static String performance({required String symbol, bool isIndex = false}) {
+    final cleanSymbol = symbol.trim().replaceFirst(RegExp(r'^(EGX|egx):'), '');
+    final sym = cleanSymbol.isNotEmpty ? cleanSymbol : symbol.trim();
+    return _build('performance', {
+      'symbol': isIndex ? '${ApiKeys.egyptExchange}:$sym' : sym,
+      if (isIndex) 'type': 'index',
+    });
   }
-
-  // ===================================================================
-  // ✅ AlMurakib Mediated Endpoints (Profile, Financials, Converter)
-  // All endpoints route through AlMurakib proxy, NEVER third-party directly.
-  // ===================================================================
 
   static String profile({required String symbol}) {
-    return _build('profile', {'symbol': symbol.trim()});
+    final cleanSymbol = symbol.trim().replaceFirst(RegExp(r'^(EGX|egx):'), '');
+    return _build('profile', {
+      'symbol': cleanSymbol.isNotEmpty ? cleanSymbol : symbol.trim(),
+    });
+  }
+
+  /// ✅ Company Profile - endpoints: get_profile / profile
+  static String getProfile({required String symbol}) {
+    final cleanSymbol = symbol.trim().replaceFirst(RegExp(r'^(EGX|egx):'), '');
+    final sym = cleanSymbol.isNotEmpty ? cleanSymbol : symbol.trim();
+    final endpointKey = ApiKeys.endpoints.containsKey('get_profile')
+        ? 'get_profile'
+        : (ApiKeys.endpoints.containsKey('profile') ? 'profile' : 'get_profile');
+    return _build(endpointKey, {
+      'symbol': sym,
+      'get_profile': '1',
+      'merge': 'latest,profile',
+    });
+  }
+
+  /// ✅ Pivot Points (الدعم والمقاومة للأسهم) - endpoint: pivot_points
+  static String pivotPoints({
+    required String symbol,
+    String period = '1d',
+    bool isIndex = false,
+  }) {
+    final cleanSymbol = symbol.trim().replaceFirst(RegExp(r'^(EGX|egx):'), '');
+    final sym = cleanSymbol.isNotEmpty ? cleanSymbol : symbol.trim();
+    final endpointKey = ApiKeys.endpoints.containsKey('pivot_points')
+        ? 'pivot_points'
+        : (ApiKeys.endpoints.containsKey('pivot')
+            ? 'pivot'
+            : (ApiKeys.endpoints.containsKey('support_resistance')
+                ? 'support_resistance'
+                : 'pivot_points'));
+    return _build(endpointKey, {
+      'symbol': isIndex ? '${ApiKeys.egyptExchange}:$sym' : sym,
+      'period': period,
+      if (isIndex) 'type': 'index',
+    });
   }
 
   static String dividend({required String symbol}) {
-    return _build('dividends', {'symbol': symbol.trim()});
+    return _build('dividend', {
+      'symbol': symbol.trim(),
+    });
   }
 
   static String forecast({required String symbol}) {
-    return _build('forecast', {'symbol': symbol.trim()});
+    return _build('forecast', {
+      'symbol': symbol.trim(),
+    });
   }
 
   static String statistics({required String symbol}) {
-    return _build('statistics', {'symbol': symbol.trim()});
+    return _build('statistics', {
+      'symbol': symbol.trim(),
+    });
   }
 
   static String balanceSheet({required String symbol}) {
-    return _build('balance_sheet', {'symbol': symbol.trim()});
+    return _build('balance_sheet', {
+      'symbol': symbol.trim(),
+    });
   }
 
   static String incomeStatements({required String symbol}) {
-    return _build('income_statements', {'symbol': symbol.trim()});
+    return _build('income_statements', {
+      'symbol': symbol.trim(),
+    });
   }
 
   static String cashFlow({required String symbol}) {
-    return _build('cash_flow', {'symbol': symbol.trim()});
+    return _build('cash_flow', {
+      'symbol': symbol.trim(),
+    });
   }
 
-  /// ✅ Currency Converter via AlMurakib Mediator
+  /// ✅ Currency Converter via Smart Forex Gateway
   static String currencyConverter({
     required String from,
     required String to,
     required double amount,
   }) {
+    final token = ApiKeys.almurakibToken.trim();
     final qp = <String, String>{
-      'token': ApiKeys.almurakibToken,
-      'endpoint': 'converter',
+      if (token.isNotEmpty) 'api_key': token,
       'pair1': from.trim().toUpperCase(),
       'pair2': to.trim().toUpperCase(),
       'amount': amount.toString(),
     };
 
-    return Uri.parse(ApiKeys.currencyBaseUrl)
+    return Uri.parse('${ApiKeys.forexBaseUrl}/converter')
         .replace(queryParameters: qp)
         .toString();
   }

@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../core/utils/constants.dart';
 import '../data/country_options.dart';
 import '../data/trading_status_options.dart';
 import '../providers/app_manager_provider.dart';
@@ -13,9 +12,11 @@ class ProfileCompletionScreen extends StatefulWidget {
   const ProfileCompletionScreen({
     super.key,
     this.mandatory = true,
+    this.isDialog = true,
   });
 
   final bool mandatory;
+  final bool isDialog;
 
   static Future<bool> ensureCompleted(
     BuildContext context, {
@@ -26,9 +27,13 @@ class ProfileCompletionScreen extends StatefulWidget {
       return true;
     }
 
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => ProfileCompletionScreen(mandatory: mandatory),
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: !mandatory,
+      barrierColor: Colors.black.withValues(alpha: 0.54),
+      builder: (_) => ProfileCompletionScreen(
+        mandatory: mandatory,
+        isDialog: true,
       ),
     );
 
@@ -59,10 +64,19 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     final manager = context.read<AppManagerProvider>();
     final user = manager.user;
     _selectedCountryCode = countryOptionByCode(user?.countryCode)?.code ??
-        countryOptionByCode(manager.suggestedCountryCode)?.code;
+        countryOptionByCode(manager.suggestedCountryCode)?.code ??
+        'EG';
     _selectedTradingStatus =
         tradingStatusOptionByValue(user?.tradingStatus)?.value;
-    _phoneController.text = (user?.phoneNumber ?? '').trim();
+
+    final rawPhone = (user?.phoneNumber ?? '').trim();
+    final country = _selectedCountry();
+    if (country != null && rawPhone.startsWith(country.dialCode)) {
+      _phoneController.text =
+          rawPhone.substring(country.dialCode.length).trim();
+    } else {
+      _phoneController.text = rawPhone;
+    }
   }
 
   @override
@@ -72,7 +86,7 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   }
 
   CountryOption? _selectedCountry() =>
-      countryOptionByCode(_selectedCountryCode);
+      countryOptionByCode(_selectedCountryCode) ?? countryOptionByCode('EG');
 
   void _syncSuggestedCountry(AppManagerProvider manager) {
     if (_didManuallySelectCountry) {
@@ -88,34 +102,68 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     }
   }
 
-  String? _validatePhone(String? value) {
-    final manager = context.read<AppManagerProvider>();
-    final input = (value ?? '').trim();
-
-    if (input.isEmpty) {
-      return manager.shouldRequirePhoneNumberForCurrentUser
-          ? 'أدخل رقم الهاتف.'
-          : null;
-    }
-
-    final country = _selectedCountry();
-    if (country == null) {
-      return 'اختر الدولة أولًا.';
-    }
-
-    final normalized = PhoneNumberHelper.tryNormalize(
-      rawInput: input,
-      regionCode: country.code,
+  Future<void> _openCountryPicker() async {
+    final result = await showModalBottomSheet<CountryOption>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => CountrySearchSheet(
+        selectedCode: _selectedCountryCode,
+        accentColor: const Color(0xFFC1121F),
+        backgroundColor: Colors.white,
+      ),
     );
 
-    return normalized == null ? 'أدخل رقم هاتف صحيحًا.' : null;
+    if (result != null) {
+      setState(() {
+        _didManuallySelectCountry = true;
+        _selectedCountryCode = result.code;
+      });
+    }
+  }
+
+  Widget _buildFlagWidget(CountryOption country) {
+    if (country.code == 'EG') {
+      return Container(
+        width: 22,
+        height: 22,
+        clipBehavior: Clip.antiAlias,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+        ),
+        child: Column(
+          children: [
+            Expanded(child: Container(color: const Color(0xFFCE1126))),
+            Expanded(
+              child: Container(
+                color: Colors.white,
+                child: Center(
+                  child: Container(
+                    width: 5,
+                    height: 4,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFC09300),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(child: Container(color: Colors.black)),
+          ],
+        ),
+      );
+    }
+    return Text(
+      country.flagEmoji,
+      style: const TextStyle(fontSize: 18),
+    );
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
     final manager = context.read<AppManagerProvider>();
     final country = _selectedCountry();
     if (country == null) {
@@ -125,17 +173,26 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
       return;
     }
 
-    final normalizedPhone = _phoneController.text.trim().isEmpty
-        ? null
-        : PhoneNumberHelper.tryNormalize(
-            rawInput: _phoneController.text.trim(),
-            regionCode: country.code,
-          );
+    final rawPhone = _phoneController.text.trim();
+    String? normalizedE164;
+    if (rawPhone.isNotEmpty) {
+      final normalized = PhoneNumberHelper.tryNormalize(
+        rawInput: rawPhone.startsWith('+') ? rawPhone : '${country.dialCode}$rawPhone',
+        regionCode: country.code,
+      );
+      if (normalized == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('أدخل رقم هاتف صحيحًا.')),
+        );
+        return;
+      }
+      normalizedE164 = normalized.e164;
+    }
 
     final ok = await manager.updateProfile(
       countryCode: country.code,
       countryName: country.name,
-      phoneNumber: normalizedPhone?.e164,
+      phoneNumber: normalizedE164,
       tradingStatus: AppManagerConfig.supportsTradingStatus
           ? _selectedTradingStatus
           : null,
@@ -167,38 +224,355 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
     Navigator.of(context).pop(false);
   }
 
-  InputDecoration _fieldDecoration({
-    required String label,
-    required IconData icon,
-  }) {
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: AppColors.border),
-    );
+  Widget _buildCardContent(BuildContext context, AppManagerProvider manager) {
+    final country = _selectedCountry() ?? const CountryOption(code: 'EG', name: 'مصر', dialCode: '+20');
 
-    return InputDecoration(
-      labelText: label,
-      labelStyle: AppTextStyles.bodySmall.copyWith(
-        color: AppColors.textSecondary,
-        fontWeight: FontWeight.w700,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      filled: true,
-      fillColor: AppColors.cardDark,
-      prefixIcon: Icon(icon, color: AppColors.primaryBlue, size: 20),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: border,
-      enabledBorder: border,
-      focusedBorder: border.copyWith(
-        borderSide: const BorderSide(
-          color: AppColors.primaryBlue,
-          width: 1.2,
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Top Row: Title + Shield Icon Badge (Matches Image 4)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              textDirection: TextDirection.rtl,
+              children: [
+                const Text(
+                  'استكمال بيانات الحساب',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFDE8E8),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.shield_outlined,
+                      color: Color(0xFFC1121F),
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Subtitle
+            const Text(
+              'أكمل الدولة وبيانات التداول. يمكنك إضافة الهاتف الآن أو لاحقاً.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF64748B),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Field 1: رقم الهاتف (اختياري)
+            Row(
+              textDirection: TextDirection.rtl,
+              children: const [
+                Text(
+                  'رقم الهاتف',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                SizedBox(width: 4),
+                Text(
+                  '(اختياري)',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            // Phone Input Box with Integrated Country Flag & Dial Code (Matches Image 4)
+            Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                textDirection: TextDirection.ltr,
+                children: [
+                  // Flag Button + Chevron (Leftmost in LTR)
+                  InkWell(
+                    onTap: manager.isBusy ? null : _openCountryPicker,
+                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildFlagWidget(country),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: Color(0xFF64748B),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Dial Code (+20)
+                  Text(
+                    country.dialCode,
+                    textDirection: TextDirection.ltr,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF475569),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Phone Number Input with Placeholder
+                  Expanded(
+                    child: TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      textDirection: TextDirection.ltr,
+                      textAlign: TextAlign.left,
+                      enabled: !manager.isBusy,
+                      style: const TextStyle(
+                        fontFamily: 'Tajawal',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        hintText: country.code == 'EG' ? '1x xxxx xxxx' : 'xx xxx xxxx',
+                        hintStyle: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 5),
+
+            // Helper text under phone
+            const Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'اختر العلم لتغيير كود الدولة تلقائياً.',
+                textDirection: TextDirection.rtl,
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Field 2: ما الذي يصفك بشكل أفضل؟ (اختياري)
+            if (AppManagerConfig.supportsTradingStatus) ...[
+              Row(
+                textDirection: TextDirection.rtl,
+                children: const [
+                  Text(
+                    'ما الذي يصفك بشكل أفضل؟',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '(اختياري)',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+
+              // Dropdown Box (Matches Image 4)
+              Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedTradingStatus,
+                    isExpanded: true,
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: Color(0xFF64748B),
+                    ),
+                    hint: const Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        'اختر الوصف المناسب',
+                        textDirection: TextDirection.rtl,
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ),
+                    items: kTradingStatusOptions
+                        .map(
+                          (opt) => DropdownMenuItem(
+                            value: opt.value,
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                opt.label,
+                                textDirection: TextDirection.rtl,
+                                style: const TextStyle(
+                                  fontFamily: 'Tajawal',
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF111827),
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: manager.isBusy
+                        ? null
+                        : (val) {
+                            setState(() {
+                              _selectedTradingStatus = val;
+                            });
+                          },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // Submit Button: حفظ والمتابعة (Matches Image 4)
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: manager.isBusy ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFC1121F),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: manager.isBusy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'حفظ والمتابعة',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Logout Button (Matches Image 4)
+            Center(
+              child: InkWell(
+                onTap: manager.isBusy ? null : _logout,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'تسجيل الخروج',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                      Icon(
+                        Icons.logout_rounded,
+                        size: 18,
+                        color: Color(0xFF475569),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-      ),
-      errorBorder: border.copyWith(
-        borderSide: const BorderSide(color: AppColors.error, width: 1.2),
-      ),
-      focusedErrorBorder: border.copyWith(
-        borderSide: const BorderSide(color: AppColors.error, width: 1.3),
       ),
     );
   }
@@ -207,209 +581,42 @@ class _ProfileCompletionScreenState extends State<ProfileCompletionScreen> {
   Widget build(BuildContext context) {
     final manager = context.watch<AppManagerProvider>();
     _syncSuggestedCountry(manager);
-    final requiresPhone = manager.shouldRequirePhoneNumberForCurrentUser;
+
+    if (widget.isDialog) {
+      return PopScope(
+        canPop: !widget.mandatory,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: _buildCardContent(context, manager),
+          ),
+        ),
+      );
+    }
 
     return PopScope(
       canPop: !widget.mandatory,
-      child: Directionality(
-        textDirection: TextDirection.rtl,
-        child: Scaffold(
-          backgroundColor: AppColors.scaffold,
-          body: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.border),
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
-                          blurRadius: 24,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
-                          Row(
-                            children: <Widget>[
-                              Container(
-                                width: 52,
-                                height: 52,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryBlue
-                                      .withValues(alpha: 0.10),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.verified_user_outlined,
-                                  color: AppColors.primaryBlue,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text(
-                                      'استكمال بيانات الحساب',
-                                      style: AppTextStyles.bodyMedium.copyWith(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      requiresPhone
-                                          ? 'أكمل الدولة ورقم الهاتف وبيانات التداول للمتابعة.'
-                                          : 'أكمل الدولة وبيانات التداول. يمكنك إضافة الهاتف الآن أو لاحقًا.',
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.textSecondary,
-                                        height: 1.5,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          CountryPickerFormField(
-                            key: ValueKey(
-                              'profile-country-${_selectedCountryCode ?? "none"}',
-                            ),
-                            initialValue: _selectedCountryCode,
-                            enabled: !manager.isBusy,
-                            showLabel: false,
-                            label: 'الدولة',
-                            hintText: 'ابحث واختر الدولة',
-                            sheetBackgroundColor: Colors.white,
-                            accentColor: AppColors.primaryBlue,
-                            decoration: _fieldDecoration(
-                              label: 'الدولة',
-                              icon: Icons.public_rounded,
-                            ),
-                            validator: (value) {
-                              if ((value ?? '').trim().isEmpty) {
-                                return 'اختر الدولة.';
-                              }
-                              return null;
-                            },
-                            onChanged: (value) {
-                              setState(() {
-                                _didManuallySelectCountry = true;
-                                _selectedCountryCode = value;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            textInputAction: TextInputAction.next,
-                            decoration: _fieldDecoration(
-                              label: requiresPhone
-                                  ? 'رقم الهاتف'
-                                  : 'رقم الهاتف (اختياري)',
-                              icon: Icons.phone_android_rounded,
-                            ),
-                            validator: _validatePhone,
-                          ),
-                          if (AppManagerConfig.supportsTradingStatus) ...<Widget>[
-                            const SizedBox(height: 12),
-                            DropdownButtonFormField<String>(
-                              initialValue: _selectedTradingStatus,
-                              decoration: _fieldDecoration(
-                                label: kTradingStatusQuestionLabel,
-                                icon: Icons.query_stats_rounded,
-                              ),
-                              dropdownColor: Colors.white,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                              items: kTradingStatusOptions
-                                  .map(
-                                    (option) => DropdownMenuItem<String>(
-                                      value: option.value,
-                                      child: Text(option.label),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: manager.isBusy
-                                  ? null
-                                  : (value) {
-                                      setState(() {
-                                        _selectedTradingStatus = value;
-                                      });
-                                    },
-                              validator: (value) {
-                                if ((value ?? '').trim().isEmpty) {
-                                  return 'اختر إجابة السؤال.';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                          const SizedBox(height: 18),
-                          SizedBox(
-                            height: 48,
-                            child: ElevatedButton(
-                              onPressed: manager.isBusy ? null : _submit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryBlue,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: manager.isBusy
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'حفظ والمتابعة',
-                                      style: TextStyle(
-                                        fontFamily: 'Tajawal',
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                          if (widget.mandatory) ...<Widget>[
-                            const SizedBox(height: 10),
-                            TextButton.icon(
-                              onPressed: manager.isBusy ? null : _logout,
-                              icon: const Icon(Icons.logout_rounded, size: 18),
-                              label: const Text(
-                                'تسجيل الخروج',
-                                style: TextStyle(
-                                  fontFamily: 'Tajawal',
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFEFEFE),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFFEFEFE),
+          elevation: 0,
+          leading: widget.mandatory
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_rounded, color: Color(0xFF111827)),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
+        ),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: _buildCardContent(context, manager),
               ),
             ),
           ),

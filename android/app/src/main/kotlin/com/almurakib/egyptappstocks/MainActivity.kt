@@ -8,17 +8,23 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.activity.enableEdgeToEdge
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val facebookChannel = "com.almurakib.egyptappstocks/facebook_sdk"
     private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        try {
+            enableEdgeToEdge()
+        } catch (e: Throwable) {
+            Log.w("MainActivity", "enableEdgeToEdge notice: ${e.message}")
+        }
         super.onCreate(savedInstanceState)
         createDefaultNotificationChannel()
     }
@@ -72,7 +78,6 @@ class MainActivity : FlutterActivity() {
 
                     // Modern Facebook SDK initialization: must initialize before configuring auto-init
                     try {
-                        FacebookSdk.sdkInitialize(applicationContext)
                         FacebookSdk.fullyInitialize()
                     } catch (e: Exception) {
                         Log.w("FacebookSdk", "initialize notice: ${e.message}")

@@ -65,11 +65,11 @@ android {
                 signingConfigs.getByName("debug")
             }
 
-            // اختياري: لو مش عايز تصغير/ضغط
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // ✅ تمكين الضغط والتصغير والتعتيم لتجاوز متطلبات Google Play (DEX Obfuscation > 25%)
+            isMinifyEnabled = true
+            isShrinkResources = true
 
-            // لو عندك proguard-rules.pro (غالباً موجود في android/app/)
+            // Proguard rules for R8 optimization
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -87,4 +87,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.facebook.android:facebook-android-sdk:18.3.0")
+    // ✅ Edge-to-Edge support for Android 15 (SDK 35) & backward compatibility
+    implementation("androidx.activity:activity-ktx:1.9.3")
 }

@@ -1,5 +1,6 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -8,52 +9,77 @@ import '../api/api_keys.dart';
 
 typedef LiveQuoteUpdate = LivePriceUpdate;
 
+/// Live price update payload adhering to Almurakib LiveSocket v2.0 protocol
 class LivePriceUpdate {
   final String symbol;
+  final String? timeframe;
   final double price;
-  final double? previousClose;
-  final double? change;
-  final double? changePercent;
   final double? bid;
   final double? ask;
-  final int? sourceUpdate;
-  final bool stale;
+  final double? open;
+  final double? high;
+  final double? low;
+  final double? volume;
+  final double? change;
+  final double? changePercent;
+  final double? previousClose;
+  final String source; // 'websocket' or 'rest'
   final bool snapshot;
+  final bool stale;
+  final String freshness; // 'fresh', 'stale', etc.
+  final int? sourceUpdate; // Unix seconds
   final DateTime receivedAt;
 
   const LivePriceUpdate({
     required this.symbol,
+    this.timeframe = '60',
     required this.price,
-    this.previousClose,
-    this.change,
-    this.changePercent,
     this.bid,
     this.ask,
-    this.sourceUpdate,
-    this.stale = false,
+    this.open,
+    this.high,
+    this.low,
+    this.volume,
+    this.change,
+    this.changePercent,
+    this.previousClose,
+    this.source = 'websocket',
     this.snapshot = false,
+    this.stale = false,
+    this.freshness = 'fresh',
+    this.sourceUpdate,
     required this.receivedAt,
   });
 
   factory LivePriceUpdate.fromJson(Map<String, dynamic> json) {
+    final sym = (json['symbol'] ?? json['s'] ?? '').toString().trim();
+    final rawChangePercent = json['changePercent'] ?? json['cp'] ?? json['chp'];
+    final rawChange = json['change'] ?? json['ch'];
+    final rawPrevClose = json['previousClose'] ?? json['pc'];
+
     return LivePriceUpdate(
-      symbol: (json['symbol'] ?? '').toString().trim(),
-      price: _parseDouble(json['price']),
-      previousClose: json['previousClose'] != null
-          ? _parseDouble(json['previousClose'])
-          : null,
-      change: json['change'] != null ? _parseDouble(json['change']) : null,
-      changePercent: json['changePercent'] != null
-          ? _parseDouble(json['changePercent'])
-          : null,
-      bid: json['bid'] != null ? _parseDouble(json['bid']) : null,
-      ask: json['ask'] != null ? _parseDouble(json['ask']) : null,
+      symbol: sym,
+      timeframe: json['timeframe']?.toString() ?? '60',
+      price: _parseDouble(json['price'] ?? json['p'] ?? json['c']),
+      bid: _parseNullableDouble(json['bid'] ?? json['b']),
+      ask: _parseNullableDouble(json['ask'] ?? json['a']),
+      open: _parseNullableDouble(json['open'] ?? json['o']),
+      high: _parseNullableDouble(json['high'] ?? json['h']),
+      low: _parseNullableDouble(json['low'] ?? json['l']),
+      volume: _parseNullableDouble(json['volume'] ?? json['v']),
+      change: _parseNullableDouble(rawChange),
+      changePercent: _parseNullableDouble(rawChangePercent),
+      previousClose: _parseNullableDouble(rawPrevClose),
+      source: (json['source'] ?? 'websocket').toString(),
+      snapshot: json['snapshot'] == true,
+      stale: json['stale'] == true,
+      freshness: (json['freshness'] ?? 'fresh').toString(),
       sourceUpdate: json['sourceUpdate'] is num
           ? (json['sourceUpdate'] as num).toInt()
           : null,
-      stale: json['stale'] == true,
-      snapshot: json['snapshot'] == true,
-      receivedAt: DateTime.now(),
+      receivedAt: json['receivedAt'] is num
+          ? DateTime.fromMillisecondsSinceEpoch((json['receivedAt'] as num).toInt())
+          : DateTime.now(),
     );
   }
 
@@ -67,12 +93,26 @@ class LivePriceUpdate {
     return 0.0;
   }
 
+  static double? _parseNullableDouble(dynamic val) {
+    if (val == null) return null;
+    if (val is num) return val.toDouble();
+    if (val is String) {
+      final clean = val.replaceAll(RegExp(r'[^\d\.-]'), '');
+      return double.tryParse(clean);
+    }
+    return null;
+  }
+
   bool get hasSpread => bid != null && ask != null && bid! > 0 && ask! > 0;
   double? get spread => hasSpread ? (ask! - bid!) : null;
   double? get spreadPercent =>
-      hasSpread && bid! > 0 ? ((ask! - bid!) / bid!) * 100.0 : null;
+      hasSpread && bid! > 0 ? (((ask! - bid!) / bid!) * 100.0) : null;
 }
 
+/// Almurakib LiveSocket v2.0 Client
+///
+/// Implements connection lifecycle, auth handshake, subscription batching,
+/// exponential backoff reconnection, ping keepalives, and event streams.
 class LiveSocketService {
   LiveSocketService._();
   static final LiveSocketService instance = LiveSocketService._();
@@ -85,6 +125,7 @@ class LiveSocketService {
   bool _isConnected = false;
   bool _isAuthenticated = false;
   int _reconnectAttempts = 0;
+  bool _stopped = false;
 
   final Set<String> _subscribedSymbols = <String>{};
   final Map<String, LivePriceUpdate> _latestPrices = <String, LivePriceUpdate>{};
@@ -122,14 +163,15 @@ class LiveSocketService {
   }
 
   void init() {
+    _stopped = false;
     connect();
   }
 
   void connect() {
-    if (_isConnected) return;
+    if (_stopped || _isConnected) return;
     _cancelTimers();
 
-    const url = ApiKeys.liveSocketUrl;
+    final url = ApiKeys.liveSocketUrl;
     try {
       final uri = Uri.parse(url);
       _channel = IOWebSocketChannel.connect(
@@ -148,51 +190,88 @@ class LiveSocketService {
       _authenticate();
     } catch (e) {
       if (kDebugMode) {
-        print('LiveSocket connection failed: $e');
+        print('LiveSocket connection error: $e');
       }
-      _scheduleReconnect();
+      _handleDisconnect();
     }
   }
 
   void _authenticate() {
     if (_channel == null) return;
-    final authMsg = jsonEncode({
-      'type': 'auth',
-      'key': ApiKeys.liveSocketKey,
-    });
-    _channel?.sink.add(authMsg);
+    try {
+      final authMsg = jsonEncode({
+        'type': 'auth',
+        'key': ApiKeys.liveSocketKey,
+      });
+      _channel?.sink.add(authMsg);
+    } catch (_) {}
   }
 
-  void _onMessageReceived(dynamic message) {
+  void _onMessageReceived(dynamic rawMessage) {
     try {
-      final decoded = jsonDecode(message.toString());
+      final decoded = jsonDecode(rawMessage.toString());
       if (decoded is! Map<String, dynamic>) return;
 
       final type = decoded['type']?.toString();
-      if (type == 'authenticated') {
-        _isAuthenticated = true;
-        _reconnectAttempts = 0;
-        _startPingTimer();
-        _resubscribeAll();
-      } else if (type == 'price') {
-        final update = LivePriceUpdate.fromJson(decoded);
-        if (update.symbol.isNotEmpty) {
-          _latestPrices[_normalize(update.symbol)] = update;
-          _latestPrices[_cleanSymbol(update.symbol)] = update;
-          _priceStreamController.add(update);
 
-          for (final listener in _priceAlertListeners) {
-            try {
-              listener(update);
-            } catch (_) {}
+      switch (type) {
+        case 'authenticated':
+          _isAuthenticated = true;
+          _reconnectAttempts = 0;
+          _startPingTimer();
+          _resubscribeAll();
+          break;
+
+        case 'price':
+          final update = LivePriceUpdate.fromJson(decoded);
+          if (update.symbol.isNotEmpty) {
+            final norm = _normalize(update.symbol);
+            final clean = _cleanSymbol(update.symbol);
+
+            _latestPrices[norm] = update;
+            _latestPrices[clean] = update;
+            _priceStreamController.add(update);
+
+            for (final listener in _priceAlertListeners) {
+              try {
+                listener(update);
+              } catch (_) {}
+            }
           }
-        }
-      } else if (type == 'pong') {
-        // Pong received, keepalive ok
+          break;
+
+        case 'subscribed':
+          // Confirmed subscription upstream
+          break;
+
+        case 'unsubscribed':
+          // Confirmed unsubscription upstream
+          break;
+
+        case 'pong':
+          // Keepalive OK
+          break;
+
+        case 'market_status':
+          // Optional market status broadcast
+          break;
+
+        case 'quote_status':
+          // Optional quote quality broadcast
+          break;
+
+        case 'error':
+          if (kDebugMode) {
+            print('LiveSocket server error: ${decoded['message']}');
+          }
+          break;
+
+        default:
+          break;
       }
     } catch (e) {
       if (kDebugMode) {
-        print('LiveSocket parse error: $e');
+        print('LiveSocket message parse error: $e');
       }
     }
   }
@@ -231,10 +310,9 @@ class LiveSocketService {
     if (_isAuthenticated && wasEmpty) {
       try {
         _channel?.sink.add(jsonEncode({
-          'type': 'subscribe_batch',
-          'items': [
-            {'symbol': norm, 'timeframe': '60'}
-          ]
+          'type': 'subscribe',
+          'symbol': norm,
+          'timeframe': '60',
         }));
       } catch (_) {}
     }
@@ -269,10 +347,9 @@ class LiveSocketService {
     if (_subscribedSymbols.remove(norm) && _isAuthenticated) {
       try {
         _channel?.sink.add(jsonEncode({
-          'type': 'unsubscribe_batch',
-          'items': [
-            {'symbol': norm, 'timeframe': '60'}
-          ]
+          'type': 'unsubscribe',
+          'symbol': norm,
+          'timeframe': '60',
         }));
       } catch (_) {}
     }
@@ -302,7 +379,7 @@ class LiveSocketService {
 
   void _onError(dynamic error) {
     if (kDebugMode) {
-      print('LiveSocket error: $error');
+      print('LiveSocket stream error: $error');
     }
     _handleDisconnect();
   }
@@ -315,11 +392,15 @@ class LiveSocketService {
     _isConnected = false;
     _isAuthenticated = false;
     _cancelTimers();
-    _subscription?.cancel();
+    try {
+      _subscription?.cancel();
+    } catch (_) {}
     _subscription = null;
     _channel = null;
 
-    _scheduleReconnect();
+    if (!_stopped) {
+      _scheduleReconnect();
+    }
   }
 
   void _cancelTimers() {
@@ -329,11 +410,16 @@ class LiveSocketService {
     _reconnectTimer = null;
   }
 
+  /// Exponential backoff reconnect formula adhering to LiveSocket v2.0 Guide:
+  /// delay = min(30000, 1000 * 2^min(attempts, 5)) + random(500)
   void _scheduleReconnect() {
-    if (_reconnectTimer != null && _reconnectTimer!.isActive) return;
+    if (_stopped || (_reconnectTimer != null && _reconnectTimer!.isActive)) return;
+
+    final expDelay = 1000 * (1 << math.min(_reconnectAttempts, 5));
     _reconnectAttempts++;
-    final delaySeconds = (_reconnectAttempts * 2).clamp(2, 15);
-    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
+    final delayMs = math.min(30000, expDelay) + math.Random().nextInt(500);
+
+    _reconnectTimer = Timer(Duration(milliseconds: delayMs), () {
       connect();
     });
   }
@@ -355,10 +441,21 @@ class LiveSocketService {
     return str;
   }
 
-  void dispose() {
+  void stop() {
+    _stopped = true;
     _cancelTimers();
     _subscription?.cancel();
-    _channel?.sink.close();
+    _subscription = null;
+    try {
+      _channel?.sink.close();
+    } catch (_) {}
+    _channel = null;
+    _isConnected = false;
+    _isAuthenticated = false;
+  }
+
+  void dispose() {
+    stop();
     _priceStreamController.close();
   }
 }

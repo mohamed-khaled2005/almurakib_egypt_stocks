@@ -1,4 +1,4 @@
-class DividendPayoutItem {
+﻿class DividendPayoutItem {
   final DateTime? exDate;
   final DateTime? recordDate;
   final DateTime? paymentDate;

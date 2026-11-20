@@ -1,3 +1,5 @@
+﻿import 'market_status_model.dart';
+
 class TasiIndexModel {
   final double value;
   final double change;
@@ -55,19 +57,9 @@ class TasiIndexModel {
   /// ✅ مؤشرات البورصة قيمتها "نقاط" مش عملة
   String get unitLabel => 'نقطة';
 
-  /// ✅ سوق مصر: الأحد-الخميس / 09:30-14:30 (وقت الجهاز المفروض Cairo)
+  /// ✅ سوق مصر: حساب مباشر ودقيق لتوقيت القاهرة وجلسة التداول
   bool get isOpen {
-    final now = DateTime.now();
-    final wd = now.weekday; // Mon=1 .. Sun=7
-    final isTradingDay = (wd == DateTime.sunday) ||
-        (wd >= DateTime.monday && wd <= DateTime.thursday);
-
-    if (!isTradingDay) return false;
-
-    final minutes = now.hour * 60 + now.minute;
-    const openMinutes = 9 * 60 + 30;   // 09:30
-    const closeMinutes = 14 * 60 + 30; // 14:30
-    return minutes >= openMinutes && minutes < closeMinutes;
+    return MarketStatusModel.calculateCurrentStatus().isOpen;
   }
 
   static double _parseDouble(dynamic value) {

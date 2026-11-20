@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/models/stock_model.dart';
 import '../core/utils/formatters.dart';
 import '../core/utils/constants.dart';
+import 'live_price_flash_container.dart';
 
 class TopStockCard extends StatelessWidget {
   final StockModel stock;
@@ -93,12 +94,14 @@ class TopStockCard extends StatelessWidget {
     final trendIcon =
         isGainer ? Icons.trending_up_rounded : Icons.trending_down_rounded;
 
-    return Container(
+    return SizedBox(
       width: 156,
-      margin: const EdgeInsets.only(right: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
+      child: LivePriceFlashContainer(
+        price: stock.price,
+        enabled: stock.canUseWebSocket,
+        margin: const EdgeInsets.only(right: 10),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -106,16 +109,14 @@ class TopStockCard extends StatelessWidget {
             offset: const Offset(0, 6),
           ),
         ],
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: onTap,
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -188,13 +189,13 @@ class TopStockCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      stock.symbol,
+                      stock.displaySymbol,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.textSecondary,
                       ),
                     ),
@@ -244,6 +245,7 @@ class TopStockCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

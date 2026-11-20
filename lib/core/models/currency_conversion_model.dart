@@ -1,4 +1,4 @@
-class CurrencyConversionResult {
+﻿class CurrencyConversionResult {
   final String from;
   final String to;
   final double amount;
