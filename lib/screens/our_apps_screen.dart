@@ -142,55 +142,58 @@ class OurAppsScreen extends StatelessWidget {
             ),
           ),
         ),
-        body: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          children: [
-            // 1. Intro Text
-            Text(
-              'تطبيقات المراقب الرسمية. اضغط على أي تطبيق لفتح\nصفحته على $storeName.',
-              style: const TextStyle(
-                fontFamily: 'Tajawal',
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF4B5563),
-                height: 1.45,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+            physics: const BouncingScrollPhysics(),
+            children: [
+              // 1. Intro Text
+              Text(
+                'تطبيقات المراقب الرسمية. اضغط على أي تطبيق لفتح\nصفحته على $storeName.',
+                style: const TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF4B5563),
+                  height: 1.45,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 18),
+              const SizedBox(height: 18),
 
-            // 2. Section: أسهم عربية وعالمية
-            _buildSection(
-              title: 'أسهم عربية وعالمية',
-              items: _stocksApps,
-            ),
+              // 2. Section: أسهم عربية وعالمية
+              _buildSection(
+                title: 'أسهم عربية وعالمية',
+                items: _stocksApps,
+              ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // 3. Section: معادن وطاقة
-            _buildSection(
-              title: 'معادن وطاقة',
-              items: _commoditiesApps,
-            ),
+              // 3. Section: معادن وطاقة
+              _buildSection(
+                title: 'معادن وطاقة',
+                items: _commoditiesApps,
+              ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // 4. Section: عملات
-            _buildSection(
-              title: 'عملات',
-              items: _currenciesApps,
-            ),
+              // 4. Section: عملات
+              _buildSection(
+                title: 'عملات',
+                items: _currenciesApps,
+              ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // 5. Section: حاسبات
-            _buildSection(
-              title: 'حاسبات',
-              items: _calculatorsApps,
-            ),
+              // 5. Section: حاسبات
+              _buildSection(
+                title: 'حاسبات',
+                items: _calculatorsApps,
+              ),
 
-            const SizedBox(height: 24),
-          ],
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );

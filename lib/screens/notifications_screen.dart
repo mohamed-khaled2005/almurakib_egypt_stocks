@@ -77,6 +77,7 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsBindingObserver {
   static const String _storageKey = 'saved_notifications_list_v2';
   static const String _bannerDismissedKey = 'notifications_banner_dismissed_v1';
+  static const String _hasSeededKey = 'notifications_has_seeded_v1';
 
   List<AppNotificationItem> _notifications = [];
   bool _bannerDismissed = false;
@@ -193,9 +194,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
     setState(() => _loading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
+      final hasSeeded = prefs.getBool(_hasSeededKey) ?? false;
       final rawList = prefs.getStringList(_storageKey);
 
-      if (rawList != null && rawList.isNotEmpty) {
+      if (rawList != null) {
         final list = <AppNotificationItem>[];
         for (final item in rawList) {
           try {
@@ -206,8 +208,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
           } catch (_) {}
         }
         _notifications = list;
-      } else {
-        // Seed default initial notifications matching Image 3 & 4
+      } else if (!hasSeeded) {
+        // Seed default initial notifications matching Image 3 & 4 only on first launch
+        await prefs.setBool(_hasSeededKey, true);
         final now = DateTime.now();
         _notifications = [
           AppNotificationItem(
@@ -256,6 +259,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
           ),
         ];
         await _saveNotificationsList();
+      } else {
+        _notifications = [];
       }
     } catch (_) {
     } finally {
@@ -264,6 +269,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
         setState(() => _loading = false);
       }
     }
+  }
+
+  Future<void> _deleteNotification(AppNotificationItem item) async {
+    setState(() {
+      _notifications.removeWhere((n) => n.id == item.id);
+    });
+    _updateUnreadCount();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_hasSeededKey, true);
+    } catch (_) {}
+    await _saveNotificationsList();
   }
 
   Future<void> _saveNotificationsList() async {
@@ -366,6 +383,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
         _notifications.clear();
       });
       _updateUnreadCount();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_hasSeededKey, true);
+      } catch (_) {}
       await _saveNotificationsList();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -966,7 +987,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
 
               return Column(
                 children: [
-                  _buildNotificationItemRow(item),
+                  Dismissible(
+                    key: Key('notif_${item.id}'),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      color: const Color(0xFFDC2626),
+                      child: const Icon(Icons.delete_outline, color: Colors.white),
+                    ),
+                    onDismissed: (_) => _deleteNotification(item),
+                    child: _buildNotificationItemRow(item),
+                  ),
                   if (!isLast)
                     Divider(
                       height: 1,

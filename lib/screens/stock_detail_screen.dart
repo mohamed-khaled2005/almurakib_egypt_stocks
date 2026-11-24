@@ -729,44 +729,48 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFFEFEFE),
       appBar: _buildCustomAppBar(stock),
-      body: Column(
-        children: [
-          // 1. Market Status Header (Compact Style matching Image 2)
-          MarketStatusHeader(
-            compact: true,
-            onRefresh: () {
-              _loadStockFresh();
-              _loadIndicators(forceRefresh: true);
-              _loadYearHistoryOnce(forceRefresh: true);
-              _loadIntraday24hSparkline(forceRefresh: true);
-              _loadPivotPoints(forceRefresh: true);
-              if (!stock.isIndex) {
-                _loadCompanyProfile(forceRefresh: true);
-                _loadDividends(forceRefresh: true);
-                _loadFinancials(forceRefresh: true);
-              }
-            },
-          ),
-
-          // 2. Unified Hero Price, Sparkline & Metrics Card (Matching Image 2)
-          _buildUnifiedHeroCard(stock, changeColor),
-
-          const SizedBox(height: 4),
-
-          // 3. Tab Bar (عامة, الأداء, المؤشرات الفنية, ...)
-          _buildTabs(availableTabs),
-
-          // 4. Tab Views
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              physics: _lockParentGestures
-                  ? const NeverScrollableScrollPhysics()
-                  : const BouncingScrollPhysics(),
-              children: availableTabs.map((t) => t.child).toList(),
+      body: SafeArea(
+        top: false,
+        bottom: stock.isIndex,
+        child: Column(
+          children: [
+            // 1. Market Status Header (Compact Style matching Image 2)
+            MarketStatusHeader(
+              compact: true,
+              onRefresh: () {
+                _loadStockFresh();
+                _loadIndicators(forceRefresh: true);
+                _loadYearHistoryOnce(forceRefresh: true);
+                _loadIntraday24hSparkline(forceRefresh: true);
+                _loadPivotPoints(forceRefresh: true);
+                if (!stock.isIndex) {
+                  _loadCompanyProfile(forceRefresh: true);
+                  _loadDividends(forceRefresh: true);
+                  _loadFinancials(forceRefresh: true);
+                }
+              },
             ),
-          ),
-        ],
+
+            // 2. Unified Hero Price, Sparkline & Metrics Card (Matching Image 2)
+            _buildUnifiedHeroCard(stock, changeColor),
+
+            const SizedBox(height: 4),
+
+            // 3. Tab Bar (عامة, الأداء, المؤشرات الفنية, ...)
+            _buildTabs(availableTabs),
+
+            // 4. Tab Views
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                physics: _lockParentGestures
+                    ? const NeverScrollableScrollPhysics()
+                    : const BouncingScrollPhysics(),
+                children: availableTabs.map((t) => t.child).toList(),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: stock.isIndex ? null : _buildFixedBottomBar(stock),
     );
@@ -1048,11 +1052,11 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                       const SizedBox(height: 4),
                       Text(
                         (stock.open != null && stock.open! > 0)
-                            ? _moneyFmt.format(stock.open!)
+                            ? '${_moneyFmt.format(stock.open!)} ${stock.isIndex ? "نقطة" : "ج.م"}'
                             : '-',
                         style: const TextStyle(
                           fontFamily: 'Tajawal',
-                          fontSize: 13.5,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF111827),
                         ),
@@ -1077,11 +1081,11 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                       const SizedBox(height: 4),
                       Text(
                         (stock.high != null && stock.high! > 0)
-                            ? _moneyFmt.format(stock.high!)
+                            ? '${_moneyFmt.format(stock.high!)} ${stock.isIndex ? "نقطة" : "ج.م"}'
                             : '-',
                         style: const TextStyle(
                           fontFamily: 'Tajawal',
-                          fontSize: 13.5,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF111827),
                         ),
@@ -1106,11 +1110,11 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                       const SizedBox(height: 4),
                       Text(
                         (stock.low != null && stock.low! > 0)
-                            ? _moneyFmt.format(stock.low!)
+                            ? '${_moneyFmt.format(stock.low!)} ${stock.isIndex ? "نقطة" : "ج.م"}'
                             : '-',
                         style: const TextStyle(
                           fontFamily: 'Tajawal',
-                          fontSize: 13.5,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF111827),
                         ),
@@ -1180,7 +1184,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     final maxPrice = _visibleCandles.isNotEmpty ? _visibleCandles.map((c) => c.high).reduce(max) : stock.price * 1.05;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
       physics: _lockParentGestures
           ? const NeverScrollableScrollPhysics()
           : const BouncingScrollPhysics(),
@@ -1567,11 +1571,54 @@ class _StockDetailScreenState extends State<StockDetailScreen>
   }
 
   Widget _buildSessionStatsCard(StockModel stock) {
+    final unit = stock.isIndex ? 'نقطة' : 'ج.م';
     final open = _lastCandle?.open ?? stock.open ?? (stock.price * 0.99);
     final prev = _prevCandle?.close ?? stock.previousClose ?? stock.price;
     final high = _lastCandle?.high ?? stock.high ?? (stock.price * 1.02);
     final low = _lastCandle?.low ?? stock.low ?? (stock.price * 0.98);
     final vol = _lastCandle?.volume ?? stock.volume;
+
+    if (stock.isIndex) {
+      final range = (high - low).abs();
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.01),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            _buildSessionStatRow(
+              labelRight: 'افتتاح المؤشر',
+              valueRight: '${open.toStringAsFixed(2)} $unit',
+              labelLeft: 'الإغلاق السابق',
+              valueLeft: '${prev.toStringAsFixed(2)} $unit',
+            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+            _buildSessionStatRow(
+              labelRight: 'أعلى مستوى',
+              valueRight: '${high.toStringAsFixed(2)} $unit',
+              labelLeft: 'أدنى مستوى',
+              valueLeft: '${low.toStringAsFixed(2)} $unit',
+            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+            _buildSessionStatRow(
+              labelRight: 'نطاق التذبذب',
+              valueRight: '${range.toStringAsFixed(2)} $unit',
+              labelLeft: 'حجم التداول',
+              valueLeft: (vol != null && vol > 0) ? Formatters.formatLargeNumber(vol) : '-',
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -1590,16 +1637,16 @@ class _StockDetailScreenState extends State<StockDetailScreen>
         children: [
           _buildSessionStatRow(
             labelRight: 'الافتتاح',
-            valueRight: '${open.toStringAsFixed(2)} ج.م',
+            valueRight: '${open.toStringAsFixed(2)} $unit',
             labelLeft: 'الإغلاق السابق',
-            valueLeft: '${prev.toStringAsFixed(2)} ج.م',
+            valueLeft: '${prev.toStringAsFixed(2)} $unit',
           ),
           const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
           _buildSessionStatRow(
             labelRight: 'الأعلى',
-            valueRight: '${high.toStringAsFixed(2)} ج.م',
+            valueRight: '${high.toStringAsFixed(2)} $unit',
             labelLeft: 'الأدنى',
-            valueLeft: '${low.toStringAsFixed(2)} ج.م',
+            valueLeft: '${low.toStringAsFixed(2)} $unit',
           ),
           const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
           _buildSessionStatRow(
@@ -1698,7 +1745,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadIndicators());
     }
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
       physics: const BouncingScrollPhysics(),
       children: [
         if (_loadingIndicators || !_indicatorsLoaded)
@@ -1778,7 +1825,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
       physics: const BouncingScrollPhysics(),
       children: [
         // 1. ملخص التوزيعات (يظهر فقط في حال توفرت مؤشرات التوزيع)
@@ -1967,7 +2014,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
             pSet.s3 != null);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
       physics: const BouncingScrollPhysics(),
       children: [
         // 1. Period Selector Pills
@@ -2469,7 +2516,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     ];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
       physics: const BouncingScrollPhysics(),
       children: [
         Container(
@@ -2606,6 +2653,13 @@ class _StockDetailScreenState extends State<StockDetailScreen>
   // TAB 5: البيانات المالية
   // ==========================================
 
+  String? _withCurrency(String? val) {
+    if (val == null || val.trim().isEmpty || val.trim() == '-') return null;
+    final trimmed = val.trim();
+    if (trimmed.endsWith('ج.م') || trimmed.endsWith('جنيه')) return trimmed;
+    return '$trimmed ج.م';
+  }
+
   List<Map<String, String>> _getFinancialSummaryRows() {
     final fd = _financialsData;
     if (fd == null || fd.ratios.isEmpty) return const [];
@@ -2621,7 +2675,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     }
 
     final rawRows = [
-      {'label': 'القيمة السوقية', 'val': findVal('market')},
+      {'label': 'القيمة السوقية', 'val': _withCurrency(findVal('market'))},
       {'label': 'إجمالي الأسهم العادية القائمة', 'val': findVal('share')},
       {'label': 'الأسهم الحرة (Free float)', 'val': findVal('float')},
       {'label': 'مكرر الربحية (P/E)', 'val': findVal('pe')},
@@ -2650,12 +2704,12 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     }
 
     final rawRows = [
-      {'label': 'إجمالي الأصول', 'val': findBs('asset')},
-      {'label': 'إجمالي الالتزامات', 'val': findBs('liabilit')},
-      {'label': 'إجمالي حقوق الملكية', 'val': findBs('equity')},
-      {'label': 'إجمالي الالتزامات و حقوق الملكية', 'val': findBs('total')},
-      {'label': 'القيمة الدفترية الملموسة للسهم', 'val': findBs('book')},
-      {'label': 'صافي الدين', 'val': findBs('debt')},
+      {'label': 'إجمالي الأصول', 'val': _withCurrency(findBs('asset'))},
+      {'label': 'إجمالي الالتزامات', 'val': _withCurrency(findBs('liabilit'))},
+      {'label': 'إجمالي حقوق الملكية', 'val': _withCurrency(findBs('equity'))},
+      {'label': 'إجمالي الالتزامات و حقوق الملكية', 'val': _withCurrency(findBs('total'))},
+      {'label': 'القيمة الدفترية الملموسة للسهم', 'val': _withCurrency(findBs('book'))},
+      {'label': 'صافي الدين', 'val': _withCurrency(findBs('debt'))},
     ];
 
     return rawRows
@@ -2679,12 +2733,12 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     }
 
     final rawRows = [
-      {'label': 'الإيرادات', 'val': findIs('rev')},
-      {'label': 'إجمالي الربح', 'val': findIs('gross')},
-      {'label': 'الدخل التشغيلي', 'val': findIs('oper')},
-      {'label': 'صافي الدخل', 'val': findIs('net')},
-      {'label': 'الأرباح قبل الفوائد والضرائب (EBITDA)', 'val': findIs('ebitda')},
-      {'label': 'ربحية السهم المخففة (EPS)', 'val': findIs('eps')},
+      {'label': 'الإيرادات', 'val': _withCurrency(findIs('rev'))},
+      {'label': 'إجمالي الربح', 'val': _withCurrency(findIs('gross'))},
+      {'label': 'الدخل التشغيلي', 'val': _withCurrency(findIs('oper'))},
+      {'label': 'صافي الدخل', 'val': _withCurrency(findIs('net'))},
+      {'label': 'الأرباح قبل الفوائد والضرائب (EBITDA)', 'val': _withCurrency(findIs('ebitda'))},
+      {'label': 'ربحية السهم المخففة (EPS)', 'val': _withCurrency(findIs('eps'))},
     ];
 
     return rawRows
@@ -2728,7 +2782,7 @@ class _StockDetailScreenState extends State<StockDetailScreen>
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
       physics: const BouncingScrollPhysics(),
       children: [
         // 1. ملخص مالي (يظهر فقط إذا توفرت صفوف فعلية)

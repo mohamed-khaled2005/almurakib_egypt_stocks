@@ -15,7 +15,6 @@ class AdBannerCard extends StatefulWidget {
 }
 
 class _AdBannerCardState extends State<AdBannerCard> {
-  bool _dismissed = false;
   int? _trackedImpressionAdId;
 
   void _trackImpression(ManualAdModel? ad, AppManagerProvider manager) {
@@ -47,21 +46,8 @@ class _AdBannerCardState extends State<AdBannerCard> {
     }
   }
 
-  void _handleAdDismiss(ManualAdModel? ad, AppManagerProvider manager) {
-    setState(() => _dismissed = true);
-    if (ad != null && ad.id > 0) {
-      manager.trackManualAd(
-        ad: ad,
-        eventType: 'dismiss',
-        metadata: <String, dynamic>{'surface': 'ad_banner_card'},
-      );
-    }
-    widget.onClose?.call();
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_dismissed) return const SizedBox.shrink();
 
     final manager = context.watch<AppManagerProvider>();
     final activeAd = manager.activeAd;
@@ -111,27 +97,6 @@ class _AdBannerCardState extends State<AdBannerCard> {
                 width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => _buildTextAd(context, ad, manager),
-              ),
-            ),
-            // Close button top-left
-            Positioned(
-              top: 6,
-              left: 6,
-              child: InkWell(
-                onTap: () => _handleAdDismiss(ad, manager),
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
               ),
             ),
           ],
@@ -263,19 +228,6 @@ class _AdBannerCardState extends State<AdBannerCard> {
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              InkWell(
-                onTap: () => _handleAdDismiss(ad, manager),
-                borderRadius: BorderRadius.circular(20),
-                child: const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.close_rounded,
-                    color: Color(0xFF9CA3AF),
-                    size: 18,
                   ),
                 ),
               ),

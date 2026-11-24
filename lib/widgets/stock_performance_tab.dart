@@ -106,7 +106,7 @@ class _StockPerformanceTabState extends State<StockPerformanceTab> {
     final p = _data;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
       physics: const BouncingScrollPhysics(),
       children: [
         // 1. Top Toggle: السعر vs النسبة المئوية
@@ -135,7 +135,7 @@ class _StockPerformanceTabState extends State<StockPerformanceTab> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'السعر',
+                      widget.stock.isIndex ? 'النقاط' : 'السعر',
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 13,
@@ -237,9 +237,10 @@ class _StockPerformanceTabState extends State<StockPerformanceTab> {
 
         _buildVolatilityCard(p),
 
-        const SizedBox(height: 12),
-
-        _buildBetaCard(p),
+        if (!widget.stock.isIndex) ...[
+          const SizedBox(height: 12),
+          _buildBetaCard(p),
+        ],
       ],
     );
   }
@@ -534,9 +535,11 @@ class _StockPerformanceTabState extends State<StockPerformanceTab> {
             textAlign: TextAlign.right,
           ),
           const SizedBox(height: 4),
-          const Text(
-            'يقيس شدة التغيرات في السعر اليومي',
-            style: TextStyle(
+          Text(
+            widget.stock.isIndex
+                ? 'يقيس شدة التغيرات اليومية في حركة المؤشر'
+                : 'يقيس شدة التغيرات في السعر اليومي',
+            style: const TextStyle(
               fontFamily: 'Tajawal',
               fontSize: 11,
               color: Color(0xFF94A3B8),

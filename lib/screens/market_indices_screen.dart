@@ -14,7 +14,7 @@ import '../widgets/stock_logo_widget.dart';
 import '../widgets/triangle_arrow.dart';
 import 'stock_detail_screen.dart';
 
-const String _currency = 'ج.م';
+const String _currency = 'نقطة';
 const String _unavailable = 'غير متاح';
 
 enum _IndexFilterType { all, gainers, losers }
@@ -454,7 +454,7 @@ class _MarketIndicesScreenState extends State<MarketIndicesScreen> {
             color: const Color(0xFFC1121F),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 40),
               children: [
                 if (_loading && _allIndices.isEmpty)
                   const Padding(

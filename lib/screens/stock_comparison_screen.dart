@@ -654,23 +654,7 @@ class _StockComparisonScreenState extends State<StockComparisonScreen> {
                           rows: _buildTechnicalComparisonRows(),
                         ),
 
-                        const SizedBox(height: 12),
-
-                        // Footnote
-                        const Center(
-                          child: Text(
-                            'المؤشرات الفنية للاسترشاد فقط ولا تعد نصيحة استثمارية.',
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF94A3B8),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         ],
                       ],
                     ),
