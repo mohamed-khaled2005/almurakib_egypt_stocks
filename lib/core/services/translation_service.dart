@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../api/api_keys.dart';
+
 class ManagedIndexData {
   final String symbol;
   final String nameEn;
@@ -165,6 +167,7 @@ class StockTranslations {
 class TranslationService {
   static const String _prefsKey = 'manager_cached_stock_translations';
   static const String _blockedPrefsKey = 'manager_blocked_symbols';
+  static const String _allowedPrefsKey = 'manager_allowed_symbols';
   static const String _indicesPrefsKey = 'manager_allowed_indices';
   static const String _managedIndicesJsonPrefsKey = 'manager_managed_indices_json';
 
@@ -176,13 +179,17 @@ class TranslationService {
 
   static bool isTranslationAvailable = false;
 
+  static int catalogVersion = 0;
+  static DateTime? _lastSyncAt;
   static final Set<String> _blockedSymbols = <String>{};
+  static final Set<String> _allowedStockSymbols = <String>{};
   static List<ManagedIndexData> _managedIndicesList = <ManagedIndexData>[];
 
   static List<ManagedIndexData> get managedIndices =>
       List<ManagedIndexData>.unmodifiable(_managedIndicesList);
 
   static bool get hasManagedIndices => _managedIndicesList.isNotEmpty;
+  static bool get hasManagedStocks => _allowedStockSymbols.isNotEmpty;
 
   /// تطبيع رمز المؤشر للمقارنة بدون بادئات أو لواحق
   static String normalizeIndexKey(String s) {
@@ -249,6 +256,39 @@ class TranslationService {
     return _managedIndicesList.any((m) => matchIndexSymbols(m.symbol, ticker));
   }
 
+  /// فحص إذا كان السهم/الصندوق معتمداً ومفعلاً في المانجر (Single Source of Truth)
+  static bool isStockAllowed(String? symbol, [String? id]) {
+    if (isBlocked(symbol, id)) return false;
+    // If manager catalog hasn't loaded yet (e.g. offline first launch), allow unblocked stocks.
+    if (_allowedStockSymbols.isEmpty) return true;
+
+    bool matchesAllowed(String? raw) {
+      if (raw == null || raw.trim().isEmpty) return false;
+      var norm = raw.trim().toUpperCase();
+      try {
+        norm = Uri.decodeComponent(norm);
+      } catch (_) {}
+      if (_allowedStockSymbols.contains(norm)) return true;
+      if (norm.contains(':')) {
+        final short = norm.split(':').last.trim();
+        if (short.isNotEmpty && _allowedStockSymbols.contains(short)) return true;
+      } else {
+        if (_allowedStockSymbols.contains('EGX:$norm')) return true;
+      }
+      if (norm.contains('-')) {
+        final base = norm.split('-').first.trim();
+        if (base.isNotEmpty &&
+            (_allowedStockSymbols.contains(base) ||
+                _allowedStockSymbols.contains('EGX:$base'))) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    return matchesAllowed(symbol) || matchesAllowed(id);
+  }
+
   /// حل الاسم المعروض للمؤشر مع إعطاء الأولوية للترجمة المرفوعة بالمانجر
   static String resolveIndexDisplayName({
     required String ticker,
@@ -290,7 +330,10 @@ class TranslationService {
   /// ✅ إرجاع التعريب المحفوظ من المانجر مع تحميله إن لم يكن موجوداً
   static Future<StockTranslations?> getTranslations(
       {bool forceRefresh = false}) async {
-    if (!forceRefresh && _cache != null && _managedIndicesList.isNotEmpty) {
+    if (!forceRefresh &&
+        _cache != null &&
+        _managedIndicesList.isNotEmpty &&
+        _allowedStockSymbols.isNotEmpty) {
       return _cache;
     }
     if (!forceRefresh && _inFlight != null) return _inFlight;
@@ -301,9 +344,59 @@ class TranslationService {
     return res;
   }
 
-  /// مزامنة مباشرة وديناميكية مع المانجر
+  /// مزامنة مباشرة وديناميكية مع المانجر (تجلب كتالوج الأسهم الكامل + التعريب + الحظر + المؤشرات)
   static Future<void> syncWithManager({bool force = false}) async {
+    if (!force &&
+        _lastSyncAt != null &&
+        DateTime.now().difference(_lastSyncAt!) < const Duration(seconds: 25) &&
+        _allowedStockSymbols.isNotEmpty) {
+      return;
+    }
+
     try {
+      // 1. Primary source: dedicated Manager stocks catalog & translations endpoint
+      // This returns ALL active stocks/REITs/funds/indices (even untranslated ones).
+      final translationsUri = Uri.parse(ApiKeys.translationUrl);
+      final resp = await http.get(translationsUri, headers: {
+        'Accept': 'application/json',
+      }).timeout(const Duration(seconds: 12));
+
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is Map<String, dynamic>) {
+          final rawCatalog = data['stocks_by_id'] is Map
+              ? Map<String, dynamic>.from(data['stocks_by_id'] as Map)
+              : (data['stock_translations'] is Map
+                  ? Map<String, dynamic>.from(data['stock_translations'] as Map)
+                  : <String, dynamic>{});
+
+          final blocked = data['blocked_symbols'] is List
+              ? (data['blocked_symbols'] as List).map((e) => e.toString()).toList()
+              : <String>[];
+
+          final managed = data['managed_indices'] is List
+              ? (data['managed_indices'] as List)
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+                  .toList()
+              : <Map<String, dynamic>>[];
+
+          await applyManagerTranslations(
+            rawCatalog,
+            blocked: blocked,
+            managedIndices: managed,
+            replaceCatalog: true,
+          );
+          _lastSyncAt = DateTime.now();
+          return;
+        }
+      }
+    } catch (_) {
+      // Fall through to ui/config fallback below
+    }
+
+    try {
+      // 2. Fallback: /ui/config endpoint (has translations, blocked_symbols, managed_indices)
       final uri = Uri.parse(
         'https://amanager.almurakib.com/api/v1/ui/config?app_slug=almurakib_egypt_stocks',
       );
@@ -331,7 +424,9 @@ class TranslationService {
             rawTrans,
             blocked: blocked,
             managedIndices: managed,
+            replaceCatalog: false,
           );
+          _lastSyncAt = DateTime.now();
         }
       }
     } catch (_) {
@@ -348,6 +443,13 @@ class TranslationService {
       if (cachedBlocked != null && cachedBlocked.isNotEmpty) {
         _blockedSymbols.clear();
         _blockedSymbols.addAll(cachedBlocked);
+      }
+
+      // تحميل الرموز المسموحة من المانجر
+      final cachedAllowed = prefs.getStringList(_allowedPrefsKey);
+      if (cachedAllowed != null && cachedAllowed.isNotEmpty) {
+        _allowedStockSymbols.clear();
+        _allowedStockSymbols.addAll(cachedAllowed);
       }
 
       // تحميل المؤشرات المدارة بصيغتها الكاملة
@@ -397,7 +499,10 @@ class TranslationService {
       }
 
       // إذا كان مطلوب تحديث إجباري أو الكاش فارغ، نجلب فوراً من المانجر
-      if (forceRefresh || _cache == null || _managedIndicesList.isEmpty) {
+      if (forceRefresh ||
+          _cache == null ||
+          _managedIndicesList.isEmpty ||
+          _allowedStockSymbols.isEmpty) {
         await syncWithManager(force: forceRefresh);
       }
 
@@ -408,11 +513,29 @@ class TranslationService {
     }
   }
 
+  static void _addAllowedKeyVariants(Set<String> target, String rawKey) {
+    var nk = rawKey.trim().toUpperCase();
+    if (nk.isEmpty) return;
+    try {
+      nk = Uri.decodeComponent(nk);
+    } catch (_) {}
+    nk = nk.trim().toUpperCase();
+    if (nk.isEmpty) return;
+    target.add(nk);
+    if (nk.contains(':')) {
+      final short = nk.split(':').last.trim();
+      if (short.isNotEmpty) target.add(short);
+    } else {
+      target.add('EGX:$nk');
+    }
+  }
+
   /// ✅ تطبيق وحفظ تعريب الشركات والمؤشرات والصناديق مباشرة من المانجر
   static Future<void> applyManagerTranslations(
     Map<String, dynamic> rawTranslations, {
     List<String>? blocked,
     List<Map<String, dynamic>>? managedIndices,
+    bool replaceCatalog = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -450,7 +573,32 @@ class TranslationService {
     }
 
     final map = <String, Map<String, String>>{};
+    if (!replaceCatalog && _cache != null) {
+      // Preserve full active catalog entries when merging partial translations from /ui/config
+      map.addAll(_cache!.byId);
+    }
     _populateMap(map, rawTranslations);
+
+    // تحديث قائمة الرموز المسموحة من المانجر
+    if (replaceCatalog && rawTranslations.isNotEmpty) {
+      _allowedStockSymbols.clear();
+      for (final key in rawTranslations.keys) {
+        _addAllowedKeyVariants(_allowedStockSymbols, key.toString());
+      }
+      for (final m in _managedIndicesList) {
+        _addAllowedKeyVariants(_allowedStockSymbols, m.symbol);
+      }
+      try {
+        await prefs.setStringList(
+          _allowedPrefsKey,
+          _allowedStockSymbols.toList(),
+        );
+      } catch (_) {}
+    } else if (_allowedStockSymbols.isNotEmpty && rawTranslations.isNotEmpty) {
+      for (final key in rawTranslations.keys) {
+        _addAllowedKeyVariants(_allowedStockSymbols, key.toString());
+      }
+    }
 
     // دمج المؤشرات المدارة لضمان إمكانية قراءتها فوراً
     for (final m in _managedIndicesList) {
@@ -470,14 +618,18 @@ class TranslationService {
       }
     }
 
+    catalogVersion++;
+
     if (map.isNotEmpty) {
       _cache = StockTranslations(map);
       isTranslationAvailable = true;
 
-      try {
-        await prefs.setString(_prefsKey, jsonEncode(rawTranslations));
-      } catch (_) {}
-    } else {
+      if (replaceCatalog) {
+        try {
+          await prefs.setString(_prefsKey, jsonEncode(rawTranslations));
+        } catch (_) {}
+      }
+    } else if (replaceCatalog) {
       _cache = null;
       isTranslationAvailable = false;
       await prefs.remove(_prefsKey);
@@ -522,6 +674,7 @@ class TranslationService {
   static void clearCache() {
     _cache = null;
     _inFlight = null;
+    _lastSyncAt = null;
     isTranslationAvailable = false;
   }
 }

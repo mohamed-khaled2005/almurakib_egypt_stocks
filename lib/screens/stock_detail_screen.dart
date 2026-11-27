@@ -12,19 +12,23 @@ import '../core/api/api_endpoints.dart';
 import '../core/models/company_profile_model.dart';
 import '../core/models/dividend_model.dart';
 import '../core/models/financial_data_model.dart';
+import '../core/models/market_index_model.dart';
 import '../core/models/stock_indicator_model.dart';
 import '../core/models/stock_model.dart';
 import '../core/models/stock_pivot_points_model.dart';
 import '../core/services/favorites_service.dart';
 import '../core/services/live_socket_service.dart';
 import '../core/services/stock_service.dart';
+import '../core/services/translation_service.dart';
 import '../core/utils/formatters.dart';
 import '../providers/app_manager_provider.dart';
 
 import 'auth_screen.dart';
 import 'interactive_chart_screen.dart';
+import 'notifications_screen.dart';
 import 'price_alerts_screen.dart';
 import 'stock_comparison_screen.dart';
+import '../widgets/stock_logo_widget.dart';
 import '../widgets/technical_indicators_widget.dart';
 import '../widgets/stock_performance_tab.dart';
 import '../widgets/market_status_header.dart';
@@ -506,9 +510,42 @@ class _StockDetailScreenState extends State<StockDetailScreen>
   }
 
   Future<void> _loadStockFresh() async {
-    if (widget.stock.isIndex) return;
+    if (widget.stock.isIndex) {
+      try {
+        final indices = await StockService.getMarketIndices(forceRefresh: true);
+        final matched = indices.firstWhere(
+          (m) => TranslationService.matchIndexSymbols(m.ticker, widget.stock.symbol),
+          orElse: () => indices.firstWhere(
+            (m) => m.displayTicker == widget.stock.displaySymbol,
+            orElse: () => MarketIndexModel(
+              ticker: widget.stock.symbol,
+              name: widget.stock.name,
+              value: widget.stock.price,
+              change: widget.stock.change,
+              changePercent: widget.stock.changePercent,
+              open: widget.stock.open,
+              high: widget.stock.high,
+              low: widget.stock.low,
+              volume: widget.stock.volume,
+              previousClose: widget.stock.previousClose,
+            ),
+          ),
+        );
+        if (mounted && matched.hasMarketData) {
+          setState(() {
+            _stock = matched.toStockModel();
+          });
+        }
+      } catch (_) {}
+      return;
+    }
     try {
-      final fresh = await StockService.getStockDetail(widget.stock.symbol);
+      var fresh = await StockService.getStockDetail(widget.stock.symbol);
+      if ((fresh.selfLogo == null || fresh.selfLogo!.trim().isEmpty) &&
+          widget.stock.selfLogo != null &&
+          widget.stock.selfLogo!.trim().isNotEmpty) {
+        fresh = fresh.copyWith(selfLogo: widget.stock.selfLogo);
+      }
       if (mounted) {
         setState(() {
           _stock = fresh;
@@ -781,64 +818,141 @@ class _StockDetailScreenState extends State<StockDetailScreen>
   // ==========================================
 
   PreferredSizeWidget _buildCustomAppBar(StockModel stock) {
+    final badgeText = (stock.isin != null && stock.isin!.trim().isNotEmpty)
+        ? stock.isin!.trim()
+        : stock.displaySymbol;
+
+    final cardShadow = [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.05),
+        blurRadius: 8,
+        offset: const Offset(0, 2),
+      ),
+    ];
+
     return AppBar(
       backgroundColor: const Color(0xFFFEFEFE),
       elevation: 0,
       centerTitle: true,
       automaticallyImplyLeading: false,
+      toolbarHeight: 66,
+      titleSpacing: 10,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+          color: const Color(0xFFF1F5F9),
+          height: 1,
+        ),
+      ),
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         textDirection: TextDirection.rtl,
         children: [
-          // 1. Back Button (Far Right in RTL) - Circular button matching image 2
+          // 1. Back Button (Far Right in RTL)
           InkWell(
             onTap: () => Navigator.pop(context),
             borderRadius: BorderRadius.circular(20),
             child: Container(
-              width: 38,
-              height: 38,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: const Color(0xFFEAEEF4)),
+                boxShadow: cardShadow,
               ),
               child: const Icon(
                 Icons.arrow_forward_ios_rounded,
-                size: 18,
+                size: 15,
                 color: Color(0xFF1E293B),
               ),
             ),
           ),
 
-          // 2. Title & Symbol in Center
+          const SizedBox(width: 6),
+
+          // 2. Center Capsule (Stock Name + Symbol Badge on right, Logo on left)
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+            child: Container(
+              height: 50,
+              padding: const EdgeInsets.fromLTRB(5, 4, 12, 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: const Color(0xFFEAEEF4)),
+                boxShadow: cardShadow,
+              ),
+              child: Row(
+                textDirection: TextDirection.rtl,
                 children: [
-                  Text(
-                    stock.displayName,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    softWrap: true,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Tajawal',
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF111827),
-                      height: 1.2,
+                  // Text Block: Full Name (no truncation) + Ticker/ISIN Pill
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.center,
+                          child: Text(
+                            stock.displayName,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF111827),
+                              height: 1.15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 1.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2F6),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            badgeText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              height: 1.15,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    stock.displaySymbol,
-                    style: const TextStyle(
-                      fontFamily: 'Tajawal',
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
+
+                  const SizedBox(width: 8),
+
+                  // Logo Card (single crisp elevated box matching design)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: const Color(0xFFF1F5F9)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: StockLogoWidget(
+                      stock: stock,
+                      size: 40,
+                      borderRadius: 11,
+                      showBorder: false,
                     ),
                   ),
                 ],
@@ -846,22 +960,85 @@ class _StockDetailScreenState extends State<StockDetailScreen>
             ),
           ),
 
-          // 3. Favorite Button (Far Left in RTL) - Circular button matching image 2
+          const SizedBox(width: 6),
+
+          // 3. Thin Vertical Divider
+          Container(
+            width: 1,
+            height: 22,
+            color: const Color(0xFFE2E8F0),
+          ),
+
+          const SizedBox(width: 6),
+
+          // 4. Favorite Star Button
           InkWell(
             onTap: _toggleFavorite,
             borderRadius: BorderRadius.circular(20),
             child: Container(
-              width: 38,
-              height: 38,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: const Color(0xFFEAEEF4)),
+                boxShadow: cardShadow,
               ),
               child: Icon(
                 _isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
-                color: _isFavorite ? const Color(0xFFF59E0B) : const Color(0xFF64748B),
-                size: 20,
+                color: _isFavorite
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF1E293B),
+                size: 19,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 5),
+
+          // 5. Notifications Bell Button
+          InkWell(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFEAEEF4)),
+                boxShadow: cardShadow,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Color(0xFF1E293B),
+                    size: 19,
+                  ),
+                  ValueListenableBuilder<int>(
+                    valueListenable: NotificationsScreen.unreadCountNotifier,
+                    builder: (_, count, __) {
+                      if (count <= 0) return const SizedBox.shrink();
+                      return Positioned(
+                        top: 7,
+                        right: 7,
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFDC2626),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
@@ -907,6 +1084,24 @@ class _StockDetailScreenState extends State<StockDetailScreen>
             : '-$changeVal (-$changePct%)');
 
     final sparkData = _getSparklineData(stock);
+
+    final effectiveOpen = (stock.open != null && stock.open! > 0)
+        ? stock.open
+        : (_yearCandles.isNotEmpty && _yearCandles.last.open > 0
+            ? _yearCandles.last.open
+            : (stock.price > 0 && stock.change != 0 ? stock.price - stock.change : null));
+
+    final effectiveHigh = (stock.high != null && stock.high! > 0)
+        ? stock.high
+        : (_yearCandles.isNotEmpty && _yearCandles.last.high > 0
+            ? _yearCandles.last.high
+            : (effectiveOpen != null && stock.price > 0 ? max(effectiveOpen, stock.price) : null));
+
+    final effectiveLow = (stock.low != null && stock.low! > 0)
+        ? stock.low
+        : (_yearCandles.isNotEmpty && _yearCandles.last.low > 0
+            ? _yearCandles.last.low
+            : (effectiveOpen != null && stock.price > 0 ? min(effectiveOpen, stock.price) : null));
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -1040,9 +1235,9 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                 Expanded(
                   child: Column(
                     children: [
-                      const Text(
-                        'سعر الافتتاح',
-                        style: TextStyle(
+                      Text(
+                        stock.isIndex ? 'الافتتاح' : 'سعر الافتتاح',
+                        style: const TextStyle(
                           fontFamily: 'Tajawal',
                           fontSize: 11.5,
                           fontWeight: FontWeight.w500,
@@ -1051,8 +1246,8 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        (stock.open != null && stock.open! > 0)
-                            ? '${_moneyFmt.format(stock.open!)} ${stock.isIndex ? "نقطة" : "ج.م"}'
+                        effectiveOpen != null
+                            ? '${_moneyFmt.format(effectiveOpen)} ${stock.isIndex ? "نقطة" : "ج.م"}'
                             : '-',
                         style: const TextStyle(
                           fontFamily: 'Tajawal',
@@ -1069,9 +1264,9 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                 Expanded(
                   child: Column(
                     children: [
-                      const Text(
-                        'أعلى سعر',
-                        style: TextStyle(
+                      Text(
+                        stock.isIndex ? 'أعلى قيمة' : 'أعلى سعر',
+                        style: const TextStyle(
                           fontFamily: 'Tajawal',
                           fontSize: 11.5,
                           fontWeight: FontWeight.w500,
@@ -1080,8 +1275,8 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        (stock.high != null && stock.high! > 0)
-                            ? '${_moneyFmt.format(stock.high!)} ${stock.isIndex ? "نقطة" : "ج.م"}'
+                        effectiveHigh != null
+                            ? '${_moneyFmt.format(effectiveHigh)} ${stock.isIndex ? "نقطة" : "ج.م"}'
                             : '-',
                         style: const TextStyle(
                           fontFamily: 'Tajawal',
@@ -1098,9 +1293,9 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                 Expanded(
                   child: Column(
                     children: [
-                      const Text(
-                        'أدنى سعر',
-                        style: TextStyle(
+                      Text(
+                        stock.isIndex ? 'أدنى قيمة' : 'أدنى سعر',
+                        style: const TextStyle(
                           fontFamily: 'Tajawal',
                           fontSize: 11.5,
                           fontWeight: FontWeight.w500,
@@ -1109,8 +1304,8 @@ class _StockDetailScreenState extends State<StockDetailScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        (stock.low != null && stock.low! > 0)
-                            ? '${_moneyFmt.format(stock.low!)} ${stock.isIndex ? "نقطة" : "ج.م"}'
+                        effectiveLow != null
+                            ? '${_moneyFmt.format(effectiveLow)} ${stock.isIndex ? "نقطة" : "ج.م"}'
                             : '-',
                         style: const TextStyle(
                           fontFamily: 'Tajawal',

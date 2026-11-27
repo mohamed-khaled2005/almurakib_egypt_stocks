@@ -55,6 +55,7 @@ class AppManagerProvider with ChangeNotifier {
   ManagedAppUser? _user;
   AppPreferencesModel _preferences = AppPreferencesModel.empty();
   ManualAdModel? _activeAd;
+  ManualAdModel? _menuAd;
   RemoteUiConfigModel _remoteUiConfig = RemoteUiConfigModel.empty();
   List<EducationalArticleSummary> _articles = <EducationalArticleSummary>[];
   final Map<String, EducationalArticleDetail> _articleCache =
@@ -68,8 +69,10 @@ class AppManagerProvider with ChangeNotifier {
   Timer? _autoRefreshTimer;
   bool _isRefreshingManagedContent = false;
   DateTime? _lastManagedContentRefreshAt;
+  bool _hasLoadedRemoteUiConfig = false;
 
   bool get initialized => _initialized;
+  bool get hasLoadedRemoteUiConfig => _hasLoadedRemoteUiConfig;
   bool get isBusy => _isBusy;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated =>
@@ -80,6 +83,7 @@ class AppManagerProvider with ChangeNotifier {
   ManagedAppUser? get user => _user;
   AppPreferencesModel get preferences => _preferences;
   ManualAdModel? get activeAd => _activeAd;
+  ManualAdModel? get menuAd => _menuAd;
   RemoteUiConfigModel get remoteUiConfig => _remoteUiConfig;
   List<ManagedAppListing> get ourApps => _remoteUiConfig.ourApps;
   FacebookSdkConfig get facebookSdk => _remoteUiConfig.facebookSdk;
@@ -595,13 +599,26 @@ class AppManagerProvider with ChangeNotifier {
 
   Future<void> refreshAd() async {
     try {
-      final ad = await _api.getActiveAd(
-        platform: _platformName(),
-        countryCode: _resolveAudienceCountryCode(),
-        isAuthenticated: isAuthenticated,
-        launchCount: _appLaunchCount,
-      );
-      _activeAd = ad?.placement.trim() == 'rectangle_main' ? ad : null;
+      final results = await Future.wait([
+        _api.getActiveAd(
+          platform: _platformName(),
+          placement: 'rectangle_main',
+          countryCode: _resolveAudienceCountryCode(),
+          isAuthenticated: isAuthenticated,
+          launchCount: _appLaunchCount,
+        ),
+        _api.getActiveAd(
+          platform: _platformName(),
+          placement: 'menu',
+          countryCode: _resolveAudienceCountryCode(),
+          isAuthenticated: isAuthenticated,
+          launchCount: _appLaunchCount,
+        ),
+      ]);
+      final mainAd = results[0];
+      final menuAd = results[1];
+      _activeAd = mainAd?.placement.trim() == 'rectangle_main' ? mainAd : null;
+      _menuAd = menuAd?.placement.trim() == 'menu' ? menuAd : null;
       notifyListeners();
     } catch (_) {
       // Keep the existing ad if refresh fails.
@@ -624,6 +641,7 @@ class AppManagerProvider with ChangeNotifier {
         popupAd: filteredPopupAd,
         clearPopupAd: filteredPopupAd == null,
       );
+      _hasLoadedRemoteUiConfig = true;
 
       // Configure dynamic keys if provided by manager
       if (_remoteUiConfig.almurakibBaseUrl != null && _remoteUiConfig.almurakibBaseUrl!.isNotEmpty) {
@@ -646,9 +664,14 @@ class AppManagerProvider with ChangeNotifier {
           _remoteUiConfig.stockTranslations ?? <String, dynamic>{},
           blocked: _remoteUiConfig.blockedSymbols,
           managedIndices: _remoteUiConfig.managedIndices,
+          replaceCatalog: false,
         );
         StockService.clearIndicesCache();
+        StockService.clearStocksCache();
       }
+      await TranslationService.syncWithManager(
+        force: !TranslationService.hasManagedStocks,
+      );
       if (_remoteUiConfig.apiEndpoints != null) {
         ApiKeys.setEndpoints(_remoteUiConfig.apiEndpoints);
       }
@@ -1197,6 +1220,7 @@ class AppManagerProvider with ChangeNotifier {
     _user = null;
     _currentUserLaunchCount = 0;
     _activeAd = null;
+    _menuAd = null;
     _remoteUiConfig = RemoteUiConfigModel.empty();
     await prefs.remove(_tokenKey);
   }

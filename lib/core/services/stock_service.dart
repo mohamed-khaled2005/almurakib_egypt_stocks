@@ -26,6 +26,13 @@ class StockService {
   // Cached stocks list to avoid redundant API calls
   static List<StockModel>? _stocksCache;
   static DateTime? _lastStocksCacheFetch;
+  static int _stocksCacheCatalogVersion = -1;
+
+  static void clearStocksCache() {
+    _stocksCache = null;
+    _lastStocksCacheFetch = null;
+    _stocksCacheCatalogVersion = -1;
+  }
 
   static Future<TasiIndexModel> getTasiIndex() async {
     final indices = await getMarketIndices();
@@ -227,11 +234,12 @@ class StockService {
   }
 
   static Future<List<StockModel>> getTopGainers({int limit = 10}) async {
+    await TranslationService.getTranslations();
     final data = await ApiClient.get(
       ApiEndpoints.latest(
         country: ApiKeys.defaultCountry,
         sortBy: 'chp_desc',
-        perPage: limit,
+        perPage: limit * 3,
         page: 1,
         getProfile: true,
         type: 'stock',
@@ -243,21 +251,26 @@ class StockService {
 
     final stocks = _parseStocks(data);
     final attached = await attachArabicNames(stocks);
-    final unblocked = attached
-        .where((s) => !TranslationService.isBlocked(s.symbol, s.id) && s.price > 0 && s.changePercent > 0)
+    final allowed = attached
+        .where((s) =>
+            TranslationService.isStockAllowed(s.symbol, s.id) &&
+            s.price > 0 &&
+            s.changePercent > 0)
+        .take(limit)
         .toList();
 
     // Auto-subscribe to live quotes
-    LiveSocketService.instance.subscribeBatch(unblocked.map((s) => s.symbol).toList());
-    return unblocked;
+    LiveSocketService.instance.subscribeBatch(allowed.map((s) => s.symbol).toList());
+    return allowed;
   }
 
   static Future<List<StockModel>> getTopLosers({int limit = 10}) async {
+    await TranslationService.getTranslations();
     final data = await ApiClient.get(
       ApiEndpoints.latest(
         country: ApiKeys.defaultCountry,
         sortBy: 'chp_asc',
-        perPage: limit,
+        perPage: limit * 3,
         page: 1,
         getProfile: true,
         type: 'stock',
@@ -269,21 +282,45 @@ class StockService {
 
     final stocks = _parseStocks(data);
     final attached = await attachArabicNames(stocks);
-    final unblocked = attached
-        .where((s) => !TranslationService.isBlocked(s.symbol, s.id) && s.price > 0 && s.changePercent < 0)
+    final allowed = attached
+        .where((s) =>
+            TranslationService.isStockAllowed(s.symbol, s.id) &&
+            s.price > 0 &&
+            s.changePercent < 0)
+        .take(limit)
         .toList();
 
     // Auto-subscribe to live quotes
-    LiveSocketService.instance.subscribeBatch(unblocked.map((s) => s.symbol).toList());
-    return unblocked;
+    LiveSocketService.instance.subscribeBatch(allowed.map((s) => s.symbol).toList());
+    return allowed;
+  }
+
+  static bool _matchesSymbolOrId(StockModel a, String query) {
+    final q = query.trim().toUpperCase();
+    final nq = _norm(q).toUpperCase();
+    final aSym = a.symbol.trim().toUpperCase();
+    final anSym = _norm(aSym).toUpperCase();
+    final aId = a.id.trim().toUpperCase();
+    final anId = _norm(aId).toUpperCase();
+    return aSym == q || anSym == nq || aId == q || anId == nq || anSym == q || aSym == nq;
   }
 
   static Future<List<StockModel>> getBySymbols(List<String> symbols) async {
     if (symbols.isEmpty) return [];
-    final unblockedSymbols = symbols.where((s) => !TranslationService.isBlocked(s)).toList();
-    if (unblockedSymbols.isEmpty) return [];
+    await TranslationService.getTranslations();
+    final allowedSymbols = symbols
+        .where((s) => TranslationService.isStockAllowed(s))
+        .toList();
+    if (allowedSymbols.isEmpty) return [];
 
-    final joined = unblockedSymbols.join(',');
+    // Ensure stocks cache exists so logos and details are available
+    if (_stocksCache == null || _stocksCache!.isEmpty) {
+      try {
+        await getStocksList();
+      } catch (_) {}
+    }
+
+    final joined = allowedSymbols.join(',');
     final data = await ApiClient.get(
       ApiEndpoints.latest(
         symbol: joined,
@@ -297,10 +334,28 @@ class StockService {
 
     final stocks = _parseStocks(data);
     final attached = await attachArabicNames(stocks);
-    final unblocked = attached.where((s) => !TranslationService.isBlocked(s.symbol, s.id)).toList();
 
-    LiveSocketService.instance.subscribeBatch(unblocked.map((s) => s.symbol).toList());
-    return unblocked;
+    // Enrich with selfLogo from _stocksCache if missing
+    final enriched = attached.map((s) {
+      if (s.selfLogo != null && s.selfLogo!.trim().isNotEmpty) return s;
+      if (_stocksCache != null && _stocksCache!.isNotEmpty) {
+        for (final cached in _stocksCache!) {
+          if (_matchesSymbolOrId(cached, s.symbol) || _matchesSymbolOrId(cached, s.id)) {
+            if (cached.selfLogo != null && cached.selfLogo!.trim().isNotEmpty) {
+              return s.copyWith(selfLogo: cached.selfLogo);
+            }
+          }
+        }
+      }
+      return s;
+    }).toList();
+
+    final allowed = enriched
+        .where((s) => TranslationService.isStockAllowed(s.symbol, s.id))
+        .toList();
+
+    LiveSocketService.instance.subscribeBatch(allowed.map((s) => s.symbol).toList());
+    return allowed;
   }
 
   static String _norm(String s) {
@@ -314,12 +369,17 @@ class StockService {
     int page = 1,
     bool forceRefresh = false,
   }) async {
+    await TranslationService.getTranslations();
     final now = DateTime.now();
     if (!forceRefresh &&
+        page == 1 &&
         _stocksCache != null &&
         _lastStocksCacheFetch != null &&
+        _stocksCacheCatalogVersion == TranslationService.catalogVersion &&
         now.difference(_lastStocksCacheFetch!) < const Duration(minutes: 1)) {
-      return _stocksCache!;
+      return perPage < _stocksCache!.length
+          ? _stocksCache!.take(perPage).toList()
+          : _stocksCache!;
     }
 
     final results = await Future.wait([
@@ -392,17 +452,20 @@ class StockService {
     }).toList();
 
     final result = await attachArabicNames(merged);
-    final unblocked = result
-        .where((s) => !TranslationService.isBlocked(s.symbol, s.id))
+    final allowed = result
+        .where((s) => TranslationService.isStockAllowed(s.symbol, s.id))
         .toList();
 
-    _stocksCache = unblocked;
-    _lastStocksCacheFetch = DateTime.now();
+    if (page == 1 && perPage >= 200) {
+      _stocksCache = allowed;
+      _lastStocksCacheFetch = DateTime.now();
+      _stocksCacheCatalogVersion = TranslationService.catalogVersion;
+    }
 
     // Subscribe all stocks in batch
-    LiveSocketService.instance.subscribeBatch(unblocked.map((s) => s.symbol).toList());
+    LiveSocketService.instance.subscribeBatch(allowed.map((s) => s.symbol).toList());
 
-    return unblocked;
+    return allowed;
   }
 
   /// ✅ Fetch Investment Funds (صناديق الاستثمار - تشمل كافة الصناديق والريت في البورصة المصرية مثل EGX:EGREF)
@@ -411,6 +474,7 @@ class StockService {
     final cat = category.toLowerCase().trim();
     if (cat == 'funds' || cat == 'fund' || cat == 'reits' || cat == 'reit' || cat == 'etfs' || cat == 'etf') {
       try {
+        await TranslationService.getTranslations();
         final data = await ApiClient.get(
           ApiEndpoints.latest(
             country: ApiKeys.defaultCountry,
@@ -422,11 +486,11 @@ class StockService {
         );
         final stocks = _parseStocks(data);
         final attached = await attachArabicNames(stocks);
-        final unblocked = attached
-            .where((s) => !TranslationService.isBlocked(s.symbol, s.id))
+        final allowed = attached
+            .where((s) => TranslationService.isStockAllowed(s.symbol, s.id))
             .toList();
 
-        if (unblocked.isNotEmpty) return unblocked;
+        if (allowed.isNotEmpty) return allowed;
 
         // Fallback: query with subType: 'reit' in case upstream API requires specific subType
         final fallbackData = await ApiClient.get(
@@ -442,7 +506,7 @@ class StockService {
         final fbStocks = _parseStocks(fallbackData);
         final fbAttached = await attachArabicNames(fbStocks);
         return fbAttached
-            .where((s) => !TranslationService.isBlocked(s.symbol, s.id))
+            .where((s) => TranslationService.isStockAllowed(s.symbol, s.id))
             .toList();
       } catch (_) {
         return <StockModel>[];
@@ -469,7 +533,21 @@ class StockService {
     if (list.isEmpty) throw Exception('لم يتم العثور على بيانات السهم');
 
     final translated = await attachArabicNames([list.first]);
-    final result = translated.first;
+    var result = translated.first;
+
+    if ((result.selfLogo == null || result.selfLogo!.trim().isEmpty) &&
+        _stocksCache != null &&
+        _stocksCache!.isNotEmpty) {
+      for (final cached in _stocksCache!) {
+        if (_matchesSymbolOrId(cached, result.symbol) ||
+            _matchesSymbolOrId(cached, result.id)) {
+          if (cached.selfLogo != null && cached.selfLogo!.trim().isNotEmpty) {
+            result = result.copyWith(selfLogo: cached.selfLogo);
+            break;
+          }
+        }
+      }
+    }
 
     // Subscribe single symbol for fast streaming ONLY if it is a common stock
     if (result.canUseWebSocket) {

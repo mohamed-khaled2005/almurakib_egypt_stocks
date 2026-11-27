@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/managed_app_user.dart';
+import '../models/remote_ui_config_model.dart';
 import '../providers/app_manager_provider.dart';
 import '../widgets/chevron_left_icon.dart';
 import 'account_screen.dart';
@@ -384,6 +385,12 @@ class MoreScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (manager.menuCta != null && manager.menuCta!.isUsable)
+            Container(
+              color: const Color(0xFFFEFEFE),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+              child: _MoreMenuCtaBanner(menuCta: manager.menuCta!),
+            ),
         ],
       ),
     );
@@ -1058,4 +1065,130 @@ class _MenuItem {
     required this.assetIcon,
     required this.onTap,
   });
+}
+
+class _MoreMenuCtaBanner extends StatefulWidget {
+  final ManagedMenuCta menuCta;
+
+  const _MoreMenuCtaBanner({required this.menuCta});
+
+  @override
+  State<_MoreMenuCtaBanner> createState() => _MoreMenuCtaBannerState();
+}
+
+class _MoreMenuCtaBannerState extends State<_MoreMenuCtaBanner> {
+  String? _trackedKey;
+
+  Color? _parseHexColor(String? raw) {
+    final cleaned = (raw ?? '').trim().replaceAll('#', '');
+    if (cleaned.length == 6) {
+      final val = int.tryParse('FF$cleaned', radix: 16);
+      if (val != null) return Color(val);
+    } else if (cleaned.length == 8) {
+      final val = int.tryParse(cleaned, radix: 16);
+      if (val != null) return Color(val);
+    }
+    return null;
+  }
+
+  void _trackImpressionIfNeeded() {
+    final key = '${widget.menuCta.label}_${widget.menuCta.url}';
+    if (_trackedKey == key) return;
+    _trackedKey = key;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppManagerProvider>().trackMenuCta(
+            eventType: 'impression',
+            label: widget.menuCta.label,
+            url: widget.menuCta.url,
+          );
+    });
+  }
+
+  Future<void> _onTap() async {
+    context.read<AppManagerProvider>().trackMenuCta(
+          eventType: 'click',
+          label: widget.menuCta.label,
+          url: widget.menuCta.url,
+        );
+    final uri = Uri.tryParse(widget.menuCta.url.trim());
+    if (uri != null) {
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _trackImpressionIfNeeded();
+
+    final backgroundColor =
+        _parseHexColor(widget.menuCta.backgroundColor) ??
+            const Color(0xFFC1121F);
+    final textColor =
+        _parseHexColor(widget.menuCta.textColor) ?? Colors.white;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: backgroundColor.withValues(alpha: 0.22),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: _onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.open_in_new_rounded,
+                    color: textColor,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    widget.menuCta.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_outward_rounded,
+                  color: textColor,
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

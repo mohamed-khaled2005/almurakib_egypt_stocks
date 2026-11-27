@@ -68,16 +68,45 @@ class AppNotificationItem {
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
-  static final ValueNotifier<int> unreadCountNotifier = ValueNotifier<int>(2);
+  static final ValueNotifier<int> unreadCountNotifier = ValueNotifier<int>(0);
+  static const String storageKey = 'saved_notifications_list_v2';
+  static const String bannerDismissedKey = 'notifications_banner_dismissed_v1';
+  static const String hasSeededKey = 'notifications_has_seeded_v1';
+
+  static Future<void> syncUnreadCountFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeeded = prefs.getBool(hasSeededKey) ?? false;
+      final rawList = prefs.getStringList(storageKey);
+      if (rawList != null) {
+        int count = 0;
+        for (final item in rawList) {
+          try {
+            final decoded = jsonDecode(item);
+            if (decoded is Map<String, dynamic> && decoded['isRead'] != true) {
+              count++;
+            }
+          } catch (_) {}
+        }
+        unreadCountNotifier.value = count;
+      } else if (!hasSeeded) {
+        unreadCountNotifier.value = 2;
+      } else {
+        unreadCountNotifier.value = 0;
+      }
+    } catch (_) {
+      unreadCountNotifier.value = 0;
+    }
+  }
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsBindingObserver {
-  static const String _storageKey = 'saved_notifications_list_v2';
-  static const String _bannerDismissedKey = 'notifications_banner_dismissed_v1';
-  static const String _hasSeededKey = 'notifications_has_seeded_v1';
+  static const String _storageKey = NotificationsScreen.storageKey;
+  static const String _bannerDismissedKey = NotificationsScreen.bannerDismissedKey;
+  static const String _hasSeededKey = NotificationsScreen.hasSeededKey;
 
   List<AppNotificationItem> _notifications = [];
   bool _bannerDismissed = false;

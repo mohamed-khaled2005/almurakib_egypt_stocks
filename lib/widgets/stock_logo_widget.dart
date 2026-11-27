@@ -10,6 +10,7 @@ class StockLogoWidget extends StatelessWidget {
   final String? name;
   final double size;
   final double borderRadius;
+  final bool showBorder;
 
   const StockLogoWidget({
     super.key,
@@ -19,6 +20,7 @@ class StockLogoWidget extends StatelessWidget {
     this.name,
     this.size = 44,
     this.borderRadius = 10,
+    this.showBorder = true,
   });
 
   String get _effectiveSymbol {
@@ -160,6 +162,22 @@ class StockLogoWidget extends StatelessWidget {
       );
     }
 
+    if (stock?.isIndex == true) {
+      return Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF1F2),
+          borderRadius: BorderRadius.circular((borderRadius - 2).clamp(4, 20)),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.show_chart_rounded,
+            size: size * 0.52,
+            color: const Color(0xFFC1121F),
+          ),
+        ),
+      );
+    }
+
     return _buildFallbackInitials();
   }
 
@@ -172,7 +190,7 @@ class StockLogoWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: showBorder ? Border.all(color: const Color(0xFFE5E7EB)) : null,
       ),
       clipBehavior: Clip.antiAlias,
       child: _buildContent(),

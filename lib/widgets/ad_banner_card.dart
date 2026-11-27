@@ -7,8 +7,9 @@ import '../providers/app_manager_provider.dart';
 
 class AdBannerCard extends StatefulWidget {
   final VoidCallback? onClose;
+  final ManualAdModel? ad;
 
-  const AdBannerCard({super.key, this.onClose});
+  const AdBannerCard({super.key, this.onClose, this.ad});
 
   @override
   State<AdBannerCard> createState() => _AdBannerCardState();
@@ -48,9 +49,8 @@ class _AdBannerCardState extends State<AdBannerCard> {
 
   @override
   Widget build(BuildContext context) {
-
     final manager = context.watch<AppManagerProvider>();
-    final activeAd = manager.activeAd;
+    final activeAd = widget.ad ?? manager.activeAd;
 
     // Track impression if active ad is present
     if (activeAd != null) {

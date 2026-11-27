@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/remote_ui_config_model.dart';
@@ -15,7 +16,36 @@ class AppUpdateDialog extends StatelessWidget {
 
   static bool _isShowing = false;
   static bool _dismissedInSession = false;
-  static const String currentAppVersion = '1.0.0';
+  static const String currentAppVersion = '5.0.27';
+  static const String _dismissedUpdateVersionKey = 'app_update_dismissed_version';
+
+  static String _buildDismissSignature(AppUpdateConfig config) {
+    final ver = config.latestVersion?.trim();
+    if (ver != null && ver.isNotEmpty) {
+      return 'v:$ver';
+    }
+    final title = config.title?.trim() ?? '';
+    final message = config.message?.trim() ?? '';
+    final storeUrl = config.storeUrl?.trim() ?? '';
+    return 'manual:${title}_${message}_$storeUrl';
+  }
+
+  static Future<void> markDismissed(AppUpdateConfig config) async {
+    _dismissedInSession = true;
+    final signature = _buildDismissSignature(config);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_dismissedUpdateVersionKey, signature);
+    } catch (_) {}
+  }
+
+  static Future<void> clearDismissed() async {
+    _dismissedInSession = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_dismissedUpdateVersionKey);
+    } catch (_) {}
+  }
 
   static int _compareVersions(String v1, String v2) {
     List<int> parse(String v) {
@@ -57,9 +87,19 @@ class AppUpdateDialog extends StatelessWidget {
       }
     }
 
-    // If it's an optional update and user already dismissed it this session, don't re-open!
-    if (!isForced && _dismissedInSession) {
-      return;
+    // If it's an optional update and user already dismissed it this session or in storage, don't re-open!
+    if (!isForced) {
+      if (_dismissedInSession) {
+        return;
+      }
+      final signature = _buildDismissSignature(config);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final dismissedSignature = prefs.getString(_dismissedUpdateVersionKey);
+        if (dismissedSignature == signature) {
+          return;
+        }
+      } catch (_) {}
     }
 
     final effectiveConfig = isForced && !config.forceUpdate
@@ -68,16 +108,20 @@ class AppUpdateDialog extends StatelessWidget {
 
     _isShowing = true;
     try {
+      if (!context.mounted) return;
       await showDialog<void>(
         context: context,
         barrierDismissible: !effectiveConfig.forceUpdate,
         builder: (ctx) => AppUpdateDialog(
           updateConfig: effectiveConfig,
           onDismiss: () {
-            _dismissedInSession = true;
+            markDismissed(config);
           },
         ),
       );
+      if (!effectiveConfig.forceUpdate) {
+        await markDismissed(config);
+      }
     } catch (_) {
     } finally {
       _isShowing = false;

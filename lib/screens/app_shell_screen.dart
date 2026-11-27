@@ -64,6 +64,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
   String? _trackedMenuCtaImpressionKey;
   bool _hasTriggeredUpdateCheck = false;
   String? _lastCheckedUpdateVersion;
+  bool _didClearUpdateDismissOnUnavailable = false;
 
   int get _homeTabIndex => 0;
   int get _marketTodayTabIndex => 1;
@@ -86,6 +87,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
     _pageCache = List<Widget?>.filled(_pageCount, null, growable: false);
 
     FavoritesService.init();
+    NotificationsScreen.syncUnreadCountFromStorage();
     TranslationService.getTranslations(forceRefresh: true);
     LiveSocketService.instance.init();
     PriceAlertsService.instance.init();
@@ -709,8 +711,10 @@ class _AppShellScreenState extends State<AppShellScreen> {
               compact: compact,
               menuCta: manager.menuCta,
             ),
-            const SizedBox(height: 10),
-            const AdBannerCard(),
+            if (manager.menuAd != null) ...[
+              const SizedBox(height: 10),
+              AdBannerCard(ad: manager.menuAd),
+            ],
             const SizedBox(height: 10),
             _buildManagedSocialMediaSection(
               compact: compact,
@@ -1624,8 +1628,16 @@ class _AppShellScreenState extends State<AppShellScreen> {
     }
 
     final updateVer = manager.appUpdate.latestVersion;
-    if (manager.appUpdate.updateAvailable &&
+    if (manager.hasLoadedRemoteUiConfig && !manager.appUpdate.updateAvailable) {
+      _hasTriggeredUpdateCheck = false;
+      _lastCheckedUpdateVersion = null;
+      if (!_didClearUpdateDismissOnUnavailable) {
+        _didClearUpdateDismissOnUnavailable = true;
+        AppUpdateDialog.clearDismissed();
+      }
+    } else if (manager.appUpdate.updateAvailable &&
         (!_hasTriggeredUpdateCheck || _lastCheckedUpdateVersion != updateVer)) {
+      _didClearUpdateDismissOnUnavailable = false;
       _hasTriggeredUpdateCheck = true;
       _lastCheckedUpdateVersion = updateVer;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1657,11 +1669,12 @@ class _AppShellScreenState extends State<AppShellScreen> {
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  color: const Color(0xFFFEFEFE),
-                  padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
-                  child: const AdBannerCard(),
-                ),
+                if (_index != _moreTabIndex)
+                  Container(
+                    color: const Color(0xFFFEFEFE),
+                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+                    child: const AdBannerCard(),
+                  ),
                 Container(
                   decoration: const BoxDecoration(
                     color: Color(0xFFFEFEFE),
